@@ -198,6 +198,12 @@
     [Parameter]
     public int? Id { get; set; }
 
+    [SupplyParameterFromQuery]
+    public int? ObraId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public int? TareaId { get; set; }
+
     private Solicitud? solicitud;
     private List<Operario>? operarios;
     private List<EstadoSolicitud>? estadosList;
@@ -260,6 +266,24 @@
                     Estado = 1, // Introducido por defecto
                     Prioridad = 2 // Media por defecto
                 };
+
+                if (ObraId.HasValue)
+                {
+                    solicitud.IdCliente = ObraId.Value;
+                    var obra = obras?.FirstOrDefault(o => o.IdObra == ObraId.Value);
+                    if (obra != null)
+                    {
+                        solicitud.NombreCliente = obra.NombreCliente;
+                        solicitud.DireccionCliente = obra.DireccionCliente;
+                        solicitud.PoblacionCliente = obra.PoblacionCliente;
+                        solicitud.TelefonoCliente = obra.TelefonoContactoCliente;
+                    }
+                }
+
+                if (TareaId.HasValue)
+                {
+                    solicitud.IdTipoTarea = TareaId.Value;
+                }
             }
         }
         catch (Exception ex)
