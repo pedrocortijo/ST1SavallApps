@@ -7,12 +7,12 @@
 @inject NavigationManager NavigationManager
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
 
-<PageTitle>Mantenimiento de Obras</PageTitle>
+<PageTitle>Obras</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">Mantenimiento de Obras</h2>
+            <h2 class="fw-bold text-primary mb-1">Obras</h2>
             <p class="text-muted mb-0">Gestión de obras, ubicaciones, licencias y estados de ejecución</p>
         </div>
         <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
@@ -97,10 +97,17 @@
                         <DxGridDataColumn FieldName="Codigo" Caption="Código" Width="80px" />
                         <DxGridDataColumn FieldName="Nombre" Caption="Nombre de la Obra" />
                         <DxGridDataColumn FieldName="Direccion" Caption="Dirección" />
-                        <DxGridDataColumn FieldName="Libre3" Caption="NIMA" Width="120px" />
-                        <DxGridDataColumn FieldName="Cliente" Caption="Cliente" Visible="false" />
+                        <DxGridDataColumn FieldName="Cliente" Caption="Cliente">
+                            <CellDisplayTemplate>
+                                @{
+                                    var obra = (ObraComunSage50)context.DataItem;
+                                    <span>@GetClientName(obra.Cliente)</span>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Encargado" Caption="Encargado"/>
                         <DxGridDataColumn FieldName="Vista" Caption="Visible" Width="100px" Visible="false" />
-                        <DxGridDataColumn FieldName="Terminada" Caption="Finalizada" Width="100px" />
+                        <DxGridDataColumn FieldName="Terminada" Caption="Finalizada" Width="80px" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{
@@ -203,10 +210,10 @@
                              <DxFormLayoutItem Caption="Encargado" ColSpanMd="4" BeginRow="true">
                                  <DxTextBox @bind-Text="@o.Encargado" MaxLength="60" />
                              </DxFormLayoutItem>
-                             <DxFormLayoutItem Caption="Teléfono Obra" ColSpanMd="4">
+                             <DxFormLayoutItem Caption="Teléfono" ColSpanMd="4">
                                  <DxTextBox @bind-Text="@o.Telefono" MaxLength="20" />
                              </DxFormLayoutItem>
-                             <DxFormLayoutItem Caption="Móvil Obra" ColSpanMd="4">
+                             <DxFormLayoutItem Caption="Móvil" ColSpanMd="4">
                                  <DxTextBox @bind-Text="@o.Movil" MaxLength="20" />
                              </DxFormLayoutItem>
 
