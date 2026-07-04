@@ -8,12 +8,12 @@
 @inject NavigationManager NavigationManager
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
 
-<PageTitle>@(IsNew ? "Nueva - Obra" : "Editar - Obra")</PageTitle>
+<PageTitle>@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">@(IsNew ? "Nueva - Obra" : "Editar - Obra")</h2>
+            <h2 class="fw-bold text-primary mb-1">@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</h2>
             <p class="text-muted mb-0">Complete los datos de la obra</p>
         </div>
         <button class="btn btn-outline-secondary btn-sm" @onclick="Volver">
