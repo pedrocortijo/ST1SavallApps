@@ -43,6 +43,7 @@
                         KeyFieldName="IdEstado"
                         EditMode="GridEditMode.PopupEditForm"
                         EditModelSaving="OnEditModelSaving"
+                        DataItemDeleting="OnDataItemDeleting"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormHeaderText="Formulario - Estado de Solicitud"
                         PopupEditFormCssClass="crud-popup"
@@ -53,9 +54,13 @@
                         ShowSearchBox="true"
                         SearchBoxNullText="Buscar estado...">
                     <Columns>
-                        <DxGridCommandColumn Width="85px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
-                                <span>Acciones</span>
+                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
+                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        title="Nuevo Estado">
+                                    <i class="oi oi-plus me-1"></i> Nuevo
+                                </button>
                             </HeaderTemplate>
                             <CellDisplayTemplate>
                                 @{
@@ -179,17 +184,49 @@
         try
         {
             await SetupHeadersAsync();
-            var response = await Http.PutAsJsonAsync($"api/estadosSolicitud/{editModel.IdEstado}", editModel);
-            if (!response.IsSuccessStatusCode)
+            if (e.IsNew)
             {
-                errorMessage = $"Error al guardar estado: {response.ReasonPhrase}";
-                return;
+                var response = await Http.PostAsJsonAsync("api/estadosSolicitud", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al crear estado: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"api/estadosSolicitud/{editModel.IdEstado}", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al actualizar estado: {response.ReasonPhrase}";
+                    return;
+                }
             }
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al guardar estado: {ex.Message}";
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var dataItem = (EstadoSolicitud)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/estadosSolicitud/{dataItem.IdEstado}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar estado: {response.ReasonPhrase}";
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar estado: {ex.Message}";
         }
     }
 }

@@ -48,4 +48,22 @@ public class EstadosSolicitudController : ControllerBase
         }
         return NoContent();
     }
+
+    [HttpPost]
+    public async Task<ActionResult<EstadoSolicitud>> PostEstado(EstadoSolicitud estado)
+    {
+        _context.EstadosSolicitud.Add(estado);
+        await _context.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetEstado), new { id = estado.IdEstado }, estado);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteEstado(int id)
+    {
+        var estado = await _context.EstadosSolicitud.FindAsync(id);
+        if (estado == null) return NotFound();
+        _context.EstadosSolicitud.Remove(estado);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 }
