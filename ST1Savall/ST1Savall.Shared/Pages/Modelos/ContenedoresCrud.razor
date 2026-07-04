@@ -1,0 +1,221 @@
+@page "/modelos/contenedores"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Contenedores</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Contenedores</h2>
+            <p class="text-muted mb-0">Gestión de unidades físicas de contenedores y sus estados actuales</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" @onclick="() => grid?.StartEditNewRowAsync()">
+                <i class="oi oi-plus me-1"></i> Nuevo Contenedor
+            </button>
+            <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
+            </NavLink>
+        </div>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (contenedores == null || tipos == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando contenedores y tipos...</p>
+                </div>
+            }
+            else
+            {
+                <DxGrid @ref="grid"
+                        Data="@contenedores"
+                        KeyFieldName="IdContenedor"
+                        EditMode="GridEditMode.PopupEditForm"
+                        EditModelSaving="OnEditModelSaving"
+                        DataItemDeleting="OnDataItemDeleting"
+                        PopupEditFormHeaderText="Formulario - Contenedor"
+                        PopupEditFormHeaderCssClass="bg-primary text-white"
+                        PopupEditFormCssClass="crud-popup"                        
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true">
+                    <Columns>
+                        <DxGridCommandColumn Width="85px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate>
+                                <span>Acciones</span>
+                            </HeaderTemplate>
+                            <CellDisplayTemplate>
+                                @{
+                                    var cont = (Contenedor)context.DataItem;
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.StartEditDataItemAsync(cont)" 
+                                                @onclick:stopPropagation
+                                                title="Editar">
+                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(cont)" 
+                                                @onclick:stopPropagation
+                                                title="Eliminar">
+                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="IdContenedor" Caption="Código" ReadOnly="true" Width="10%" />
+                        <DxGridDataColumn FieldName="NumSerie" Caption="Número de Serie" Width="15%" />
+                        <DxGridDataColumn FieldName="IdTipo" Caption="Tipo de Contenedor" Width="40%" TextAlignment="GridTextAlignment.Left">
+                            <CellDisplayTemplate>
+                                @{
+                                    var cont = (Contenedor)context.DataItem;
+                                    var t = tipos.FirstOrDefault(x => x.IdTipo == cont.IdTipo);
+                                    @t?.Descripcion
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="EstadoFisico" Caption="Estado" />
+                        <DxGridDataColumn FieldName="UltimaRevision" Caption="Última Revisión" DisplayFormat="dd/MM/yyyy" />
+                    </Columns>
+                    <EditFormTemplate Context="EditFormContext">
+                        @{
+                            var cont = (Contenedor)EditFormContext.EditModel;
+                        }
+                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                            <DxFormLayoutItem Caption="Número de Serie" ColSpanMd="6">
+                                <DxTextBox @bind-Text="@cont.NumSerie" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Tipo de Contenedor" ColSpanMd="6">
+                                <DxComboBox Data="@tipos"
+                                            TextFieldName="Descripcion"
+                                            ValueFieldName="IdTipo"
+                                            @bind-Value="@cont.IdTipo" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Estado" ColSpanMd="6" BeginRow="true">
+                                <DxComboBox Data="@estados"
+                                            @bind-Value="@cont.EstadoFisico" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Última Revisión" ColSpanMd="6">
+                                <DxDateEdit @bind-Date="@cont.UltimaRevision" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12" BeginRow="true">
+                                <DxTextBox @bind-Text="@cont.Observaciones" />
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<Contenedor>? contenedores;
+    private List<ContenedorTipo>? tipos;
+    private string? errorMessage;
+
+    private List<string> estados = new() { "Disponible", "Entregado", "En Reparacion", "Baja" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
+            contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar contenedores: {ex.Message}";
+        }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var editModel = (Contenedor)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            if (e.IsNew)
+            {
+                var response = await Http.PostAsJsonAsync("api/contenedores", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al crear contenedor: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"api/contenedores/{editModel.IdContenedor}", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al actualizar contenedor: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var dataItem = (Contenedor)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/contenedores/{dataItem.IdContenedor}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar contenedor: {response.ReasonPhrase}";
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar: {ex.Message}";
+        }
+    }
+}

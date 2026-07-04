@@ -1,0 +1,431 @@
+@page "/modelos/solicitudes/edit"
+@page "/modelos/solicitudes/edit/{Id:int}"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(Id.HasValue ? "Editar Solicitud" : "Nueva Solicitud")</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">@(Id.HasValue ? "Editar Solicitud" : "Nueva Solicitud")</h2>
+            <p class="text-muted mb-0">Complete los datos de la solicitud de trabajo</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Solicitudes
+        </button>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (loading)
+    {
+        <div class="p-5 text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted mb-0">Cargando datos...</p>
+        </div>
+    }
+    else if (solicitud != null)
+    {
+        <div class="card shadow-sm border-0" style="border-radius: 12px;">
+            <div class="card-body p-4">
+                <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+                    <!-- Grupo: Obra / Cliente -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
+                        Obra / Cliente
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Nº Solicitud" ColSpanMd="2" BeginRow="true" Enabled="false">
+                        <DxSpinEdit @bind-Value="@solicitud.IdSolicitud" ShowSpinButtons="false" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Obra" ColSpanMd="2">
+                        <DxComboBox Data="@obras"
+                                    TextFieldName="Codigo"
+                                    ValueFieldName="IdObra"
+                                    Value="@solicitud.IdCliente"
+                                    ValueChanged="@((int val) => OnObraChanged(val))" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Cliente/Obra" ColSpanMd="5">
+                        <DxTextBox @bind-Text="@solicitud.NombreCliente" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Teléfono" ColSpanMd="3">
+                        <DxTextBox @bind-Text="@solicitud.TelefonoCliente" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Dirección Obra" ColSpanMd="7" BeginRow="true">
+                        <DxTextBox @bind-Text="@solicitud.DireccionCliente" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Población" ColSpanMd="5" >
+                        <DxTextBox @bind-Text="@solicitud.PoblacionCliente" />
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 1: Datos Generales -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Datos Generales
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Solicitud" ColSpanMd="3">
+                        <DxDateEdit @bind-Date="@solicitud.FechaSolicitud" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Tarea" ColSpanMd="3">
+                        <DxDateEdit @bind-Date="@solicitud.FechaTarea" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Estado" ColSpanMd="4">
+                        <DxComboBox Data="@estadosList"
+                                    TextFieldName="Descripcion"
+                                    ValueFieldName="IdEstado"
+                                    @bind-Value="@solicitud.Estado" />
+                    </DxFormLayoutItem>
+
+
+                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="4" BeginRow="true">
+                        <DxComboBox Data="@prioridadesList"
+                                    TextFieldName="Name"
+                                    ValueFieldName="Id"
+                                    @bind-Value="@solicitud.Prioridad" />
+                    </DxFormLayoutItem>
+
+                    
+                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="8">
+                        <DxComboBox Data="@operarios"
+                                    TextFieldName="Nombre"
+                                    ValueFieldName="IdOperario"
+                                    @bind-Value="@solicitud.IdConductor" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="4" BeginRow="true">
+                        <DxComboBox Data="@tareasList"
+                                    TextFieldName="Name"
+                                    ValueFieldName="Id"
+                                    @bind-Value="@solicitud.IdTipoTarea" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Operario Adicional" ColSpanMd="4">
+                        <DxComboBox Data="@operarios"
+                                    TextFieldName="Nombre"
+                                    ValueFieldName="IdOperario"
+                                    @bind-Value="@solicitud.IdOperario" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Observaciones para el conductor" ColSpanMd="12" BeginRow="true">
+                        <DxTextBox @bind-Text="@solicitud.Observaciones" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="12" BeginRow="true">
+                        <DxTextBox @bind-Text="@comentariosOficina" />
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 3: Contenedor -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Contenedor
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Datos entrega" ColSpanMd="6" BeginRow="true">
+                        <DxTextBox @bind-Text="@solicitud.CodigoEntrega" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Datos recogida" ColSpanMd="6">
+                        <DxTextBox @bind-Text="@solicitud.CodigoRecogida" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Coordenadas GPS" ColSpanMd="6" BeginRow="true">
+                        <DxTextBox Text="@solicitud.CoordenadasGPS" TextChanged="OnCoordenadasGPSTextChanged" NullText="ej. 39.4699,-0.3763" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Actu." ColSpanMd="6">
+                        <DxDateEdit @bind-Date="@solicitud.FechaActualizacion" Enabled="false" TimeSectionVisible="true" Mask="dd/MM/yyyy HH:mm:ss" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Latitud" ColSpanMd="3" BeginRow="true">
+                        <DxSpinEdit @bind-Value="@solicitud.Latitud" DecimalPlaces="6" ShowSpinButtons="false" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Longitud" ColSpanMd="3">
+                        <DxSpinEdit @bind-Value="@solicitud.Longitud" DecimalPlaces="6" ShowSpinButtons="false" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-end pb-1">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="ObtenerUbicacionActualAsync" style="height: 38px;">
+                            <i class="oi oi-map-marker me-1"></i> Ubicación Actual
+                        </button>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-end pb-1">
+                        <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="VerCoordenadasEnMapa" style="height: 38px;" title="Ver coordenadas en Google Maps">
+                            <i class="oi oi-eye me-1"></i> Ver en Maps
+                        </button>
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 4: Aplazamiento de tarea -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Aplazamiento de tarea
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Próxima Prevista" ColSpanMd="6" BeginRow="true">
+                        <DxDateEdit @bind-Date="@solicitud.FechaPrevista" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Motivo del aplazamiento" ColSpanMd="6">
+                        <DxSpinEdit @bind-Value="@solicitud.MotivoReprogramacion" ShowSpinButtons="false" />
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 5: Ocupación de Vía Pública (OVP) -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Ocupación de Vía Pública (OVP)
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked="@solicitud.RequiereOVP" LabelPosition="LabelPosition.Right">Requiere Licencia OVP</DxCheckBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Nº Licencia" ColSpanMd="8">
+                        <DxTextBox @bind-Text="@solicitud.NumLicenciaOVP" Enabled="@solicitud.RequiereOVP" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Inicio OVP" ColSpanMd="6" BeginRow="true">
+                        <DxDateEdit @bind-Date="@solicitud.FechaInicioOVP" Enabled="@solicitud.RequiereOVP" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Fin OVP" ColSpanMd="6">
+                        <DxDateEdit @bind-Date="@solicitud.FechaFinOVP" Enabled="@solicitud.RequiereOVP" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <button class="btn btn-outline-secondary btn-sm px-4" @onclick="GoBack">Cancelar</button>
+                        <button class="btn btn-primary btn-sm px-4" @onclick="SaveAsync">Guardar</button>
+                    </DxFormLayoutItem>
+                </DxFormLayout>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private Solicitud? solicitud;
+    private List<Operario>? operarios;
+    private List<EstadoSolicitud>? estadosList;
+    private List<Obra>? obras;
+    private bool loading = true;
+    private string? errorMessage;
+    private string? comentariosOficina;
+
+    private struct KeyName { public int Id; public string Name; }
+
+    private List<KeyName> tareasList = new()
+    {
+        new() { Id = 1, Name = "Entrega" },
+        new() { Id = 2, Name = "Recogida" },
+        new() { Id = 3, Name = "Sustitución" }
+    };
+
+    private List<KeyName> prioridadesList = new()
+    {
+        new() { Id = 1, Name = "Alta" },
+        new() { Id = 2, Name = "Media" },
+        new() { Id = 3, Name = "Baja" }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            loading = true;
+            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+
+            if (Id.HasValue)
+            {
+                solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id.Value}");
+            }
+            else
+            {
+                solicitud = new Solicitud
+                {
+                    FechaInicial = DateTime.Today,
+                    FechaTarea = DateTime.Today,
+                    Estado = 1, // Introducido por defecto
+                    Prioridad = 2 // Media por defecto
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar datos: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OnObraChanged(int val)
+    {
+        if (solicitud == null) return;
+        solicitud.IdCliente = val;
+        var obra = obras?.FirstOrDefault(o => o.IdObra == val);
+        if (obra != null)
+        {
+            solicitud.NombreCliente = obra.NombreCliente;
+            solicitud.DireccionCliente = obra.DireccionCliente;
+            solicitud.PoblacionCliente = obra.PoblacionCliente;
+            solicitud.TelefonoCliente = obra.TelefonoContactoCliente;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (solicitud == null) return;
+        try
+        {
+            SyncCoordinates();
+            solicitud.FechaActualizacion = DateTime.Now;
+            await SetupHeadersAsync();
+            HttpResponseMessage response;
+            if (Id.HasValue)
+            {
+                response = await Http.PutAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}", solicitud);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/solicitudes", solicitud);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                GoBack();
+            }
+            else
+            {
+                errorMessage = $"Error al guardar la solicitud: {response.ReasonPhrase}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/modelos/solicitudes");
+    }
+
+
+
+    private async Task VerCoordenadasEnMapa()
+    {
+        if (solicitud != null && solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
+        {
+            var latStr = solicitud.Latitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+            var lonStr = solicitud.Longitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+            var url = $"https://www.google.com/maps/search/?api=1&query={latStr},{lonStr}";
+            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+        }
+        else if (solicitud != null && !string.IsNullOrWhiteSpace(solicitud.CoordenadasGPS))
+        {
+            var url = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(solicitud.CoordenadasGPS.Replace(" ", ""))}";
+            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+        }
+    }
+
+    private void OnCoordenadasGPSTextChanged(string val)
+    {
+        if (solicitud == null) return;
+        solicitud.CoordenadasGPS = val;
+
+        if (!string.IsNullOrWhiteSpace(val))
+        {
+            var cleanCoords = val.Replace(" ", "").Replace(";", ",");
+            var parts = cleanCoords.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2)
+            {
+                if (decimal.TryParse(parts[0].Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal lat) &&
+                    decimal.TryParse(parts[1].Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal lon))
+                {
+                    solicitud.Latitud = lat;
+                    solicitud.Longitud = lon;
+                }
+            }
+        }
+    }
+
+    private void SyncCoordinates()
+    {
+        if (solicitud == null) return;
+
+        // Prioritize Latitud and Longitud if they have values to keep CoordenadasGPS string updated
+        if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
+        {
+            solicitud.CoordenadasGPS = $"{solicitud.Latitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)},{solicitud.Longitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}";
+        }
+        // If they are null/not set but CoordenadasGPS has a value, parse it to populate Latitud and Longitud
+        else if (!string.IsNullOrWhiteSpace(solicitud.CoordenadasGPS))
+        {
+            var cleanCoords = solicitud.CoordenadasGPS.Replace(" ", "").Replace(";", ",");
+            var parts = cleanCoords.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2)
+            {
+                if (decimal.TryParse(parts[0].Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal lat) &&
+                    decimal.TryParse(parts[1].Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal lon))
+                {
+                    solicitud.Latitud = lat;
+                    solicitud.Longitud = lon;
+                }
+            }
+        }
+    }
+
+    private async Task ObtenerUbicacionActualAsync()
+    {
+        try
+        {
+            var posicion = await JSRuntime.InvokeAsync<GpsPosition>("eval", @"
+                new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject('Geolocalización no soportada');
+                    } else {
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => resolve({ latitud: pos.coords.latitude, longitud: pos.coords.longitude }),
+                            (err) => reject('Error al obtener ubicación: ' + err.message),
+                            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                        );
+                    }
+                })
+            ");
+
+            if (posicion != null && solicitud != null)
+            {
+                solicitud.Latitud = (decimal)posicion.Latitud;
+                solicitud.Longitud = (decimal)posicion.Longitud;
+                SyncCoordinates();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
+        }
+    }
+
+    private class GpsPosition
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("latitud")]
+        public double Latitud { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("longitud")]
+        public double Longitud { get; set; }
+    }
+}

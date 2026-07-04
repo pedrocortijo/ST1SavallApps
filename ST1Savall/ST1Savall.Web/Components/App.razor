@@ -1,0 +1,51 @@
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@inject IFileVersionProvider FileVersionProvider
+
+<!DOCTYPE html>
+<html lang="en" class="theme-@GetThemeName()">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link href=@AppendVersion(GetThemeUrl()) rel="stylesheet" id="theme-link" />
+    @DxResourceManager.RegisterScripts()
+    <link rel="stylesheet" href="_content/ST1Savall.Shared/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="_content/ST1Savall.Shared/app.css" />
+    <link href=@AppendVersion("_content/ST1Savall.Shared/css/site.css") rel="stylesheet" />
+    <link href=@AppendVersion("_content/ST1Savall.Shared/ST1Savall.Shared.styles.css") rel="stylesheet" />
+    <link rel="stylesheet" href="ST1Savall.Web.styles.css" />
+    <link rel="icon" type="image/png" href="_content/ST1Savall.Shared/favicon.png" />
+    <link href=@AppendVersion("_content/DevExpress.Blazor.RichEdit/dx-blazor-richedit.css") rel="stylesheet" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/ST1Savall.Shared/js/theme.js"></script>
+</body>
+
+</html>
+
+@code{
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string AppendVersion(string path) => FileVersionProvider.AddFileVersionToPath("/", path);
+
+    private string GetThemeName()
+    {
+        string themeName = "blazing-berry";
+        if (HttpContext?.Request.Cookies.TryGetValue("theme", out var cookieValue) == true && !string.IsNullOrEmpty(cookieValue))
+        {
+            themeName = cookieValue;
+        }
+        return themeName;
+    }
+
+    private string GetThemeUrl()
+    {
+        return $"_content/DevExpress.Blazor.Themes/{GetThemeName()}.bs5.min.css";
+    }
+}

@@ -1,0 +1,112 @@
+@page "/login"
+@layout Layout.LoginLayout
+@attribute [AllowAnonymous]
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Headers
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Iniciar sesión</PageTitle>
+
+<div class="login-card p-4 p-sm-5 shadow-lg rounded" style="background: rgba(30, 30, 45, 0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); color: #fff;">
+    <div class="text-center mb-4">
+        <div class="brand-logo mb-2" style="font-size: 1.8rem; font-weight: 800; letter-spacing: 2px; color: #bb86fc;">
+            SAVALL<span style="color: #03dac6; font-weight: 400;">APPS</span>
+        </div>
+        <h4 class="fw-bold mb-1">Iniciar Sesión</h4>
+        <p class="text-white-50 small mb-0">Plataforma de gestión de contenedores</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger py-2 px-3 mb-4 small" role="alert" style="background: rgba(220, 53, 69, 0.2); border: 1px solid rgba(220, 53, 69, 0.4); color: #ea868f;">
+            @errorMessage
+        </div>
+    }
+
+    <EditForm Model="@input" OnValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger small mb-3" />
+
+        <div class="mb-3">
+            <label class="form-label text-white-50 small mb-1">Correo electrónico</label>
+            <DxTextBox @bind-Text="@input.Email" NullText="ejemplo@savall.com" CssClass="w-100" />
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label text-white-50 small mb-1">Contraseña</label>
+            <DxTextBox @bind-Text="@input.Password" Password="true" NullText="Contraseña" CssClass="w-100" />
+        </div>
+
+        <div class="d-grid gap-2 pt-1">
+            <DxButton SubmitFormOnClick="true" Text="Entrar" RenderStyle="ButtonRenderStyle.Primary" CssClass="w-100 py-2" />
+        </div>
+    </EditForm>
+</div>
+
+
+@code {
+    private InputModel input = new();
+    private string? errorMessage;
+
+    private async Task HandleLogin()
+    {
+        errorMessage = null;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("login", new
+            {
+                email = input.Email,
+                password = input.Password
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                if (result != null && !string.IsNullOrEmpty(result.AccessToken))
+                {
+                    // Configure HttpClient for future API calls
+                    Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+
+                    // Notify AuthenticationStateProvider via IAuthService
+                    await AuthService.LoginAsync(input.Email, result.AccessToken);
+
+                    // Navigate to home page
+                    NavigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    errorMessage = "Error al procesar la respuesta del servidor.";
+                }
+            }
+            else
+            {
+                errorMessage = "Credenciales incorrectas o usuario no registrado.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error de red: {ex.Message}";
+        }
+    }
+
+    private class InputModel
+    {
+        [Required(ErrorMessage = "El correo es obligatorio.")]
+        [EmailAddress(ErrorMessage = "Formato de correo no válido.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La contraseña es obligatoria.")]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    private class LoginResponse
+    {
+        public string TokenType { get; set; } = string.Empty;
+        public string AccessToken { get; set; } = string.Empty;
+        public int ExpiresIn { get; set; }
+        public string RefreshToken { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,89 @@
+@implements IDisposable
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ST1Savall.Shared.Services.IUserDisplayService UserDisplayService
+@inject ST1Savall.Shared.Services.IFormFactor FormFactor
+@inject ST1Savall.Shared.Services.IAuthService AuthService
+
+<div class="page">
+    <Drawer DrawerHeader="drawerHeader">
+        <DrawerBody>
+            <div class="w-100">
+                <NavMenu></NavMenu>
+            </div>
+        </DrawerBody>
+        <DrawerTarget>
+            <div class="nav-buttons-container align-items-center">
+                <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
+                    <DxButton RenderStyle="@ButtonRenderStyle.Secondary" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button" IconCssClass="oi oi-menu" style="font-size: 1.25rem;"></DxButton>
+                </NavLink>
+                <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" style="font-size: 1.1rem; letter-spacing: 0.5px;">JOSE SAVALL RONDA, S.A.</span>
+                @if (new Uri(NavigationManager.Uri).LocalPath != "/") {
+                    <NavLink href="@UrlGenerator.GetUrl("/", ToggledSidebar)" class="button-link hidden">
+                                <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Volver al inicio" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-arrow-left"></DxButton>
+                    </NavLink>
+                }
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink href="@UrlGenerator.GetUrl(ManageUrl, ToggledSidebar)" class="button-link menubutton-float-end display-desktop">
+                                    <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="@context.User.Identity?.Name" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-person"></DxButton>
+                        </NavLink>
+                        <DxButton RenderStyle="@ButtonRenderStyle.Dark" Click="HandleLogout" Text="Cerrar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav display-desktop" IconCssClass="oi oi-account-logout"></DxButton>
+                    </Authorized>
+                    <NotAuthorized>
+                        <NavLink href="@UrlGenerator.GetUrl(LoginUrl, ToggledSidebar)" class="button-link menubutton-float-end display-desktop">
+                                    <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Iniciar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-account-login"></DxButton>
+                        </NavLink>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+            <div class="px-4 pt-2 pb-4">
+                @Body
+            </div>
+        </DrawerTarget>
+    </Drawer>
+</div>
+
+@code {
+    private string LoginUrl => "login";
+    private string ManageUrl => FormFactor.GetPlatform() == "Web" ? "Account/Manage" : "settings";
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/");
+    }
+    [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
+    public bool ToggledSidebar { get; set; }
+
+    private RenderFragment drawerHeader => @<div class="navigation-drawer-header d-flex align-items-center justify-content-center px-3 py-2 w-100 bg-white" style="border-radius: 8px; border-bottom: 2px solid #fc9e32;">
+        <img class="logo" src="images/logo-savall.jpg" alt="JOSE SAVALL RONDA" style="max-height: 48px; object-fit: contain;" />
+    </div>;
+
+    private string? currentUrl;
+    private string displayName = "José Savall Ronda S.A.";
+
+    protected override async Task OnInitializedAsync() {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        try {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            displayName = await UserDisplayService.GetUserDisplayNameAsync(authState.User);
+        }
+        catch (Exception ex) {
+            Console.WriteLine($"Error loading user display name in layout: {ex.Message}");
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose() {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+ 
+}

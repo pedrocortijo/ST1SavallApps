@@ -1,0 +1,232 @@
+@page "/modelos/operarios"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Operarios</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Operarios</h2>
+            <p class="text-muted mb-0">Gestión de operarios, información de contacto, asignación de cargos y permisos</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" @onclick="() => grid?.StartEditNewRowAsync()">
+                <i class="oi oi-plus me-1"></i> Nuevo Operario
+            </button>
+            <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
+            </NavLink>
+        </div>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (operarios == null || cargos == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando operarios y cargos...</p>
+                </div>
+            }
+            else
+            {
+                <DxGrid @ref="grid"
+                        Data="@operarios"
+                        KeyFieldName="IdOperario"
+                        EditMode="GridEditMode.PopupEditForm"
+                        EditModelSaving="OnEditModelSaving"
+                        DataItemDeleting="OnDataItemDeleting"
+                        PopupEditFormHeaderCssClass="bg-primary text-white"
+                        PopupEditFormHeaderText="Formulario - Operario"
+                        PopupEditFormCssClass="crud-popup"
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true">
+                    <Columns>
+                        <DxGridCommandColumn Width="85px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate>
+                                <span>Acciones</span>
+                            </HeaderTemplate>
+                            <CellDisplayTemplate>
+                                @{
+                                    var oper = (Operario)context.DataItem;
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.StartEditDataItemAsync(oper)" 
+                                                @onclick:stopPropagation
+                                                title="Editar">
+                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(oper)" 
+                                                @onclick:stopPropagation
+                                                title="Eliminar">
+                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="IdOperario" Caption="Código" ReadOnly="true" Width="80px" />
+                        <DxGridDataColumn FieldName="Nombre" Caption="Nombre Completo" />
+                        <DxGridDataColumn FieldName="Telefono" Caption="Teléfono" Width="140px" />
+                        <DxGridDataColumn FieldName="IdCargo" Caption="Cargo Asignado">
+                            <CellDisplayTemplate>
+                                @{
+                                    var oper = (Operario)context.DataItem;
+                                    if (oper.IdCargo.HasValue)
+                                    {
+                                        var c = cargos.FirstOrDefault(x => x.IdCargo == oper.IdCargo.Value);
+                                        @c?.Descripcion
+                                    }
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
+                        <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" />
+                        <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" />
+                    </Columns>
+                    <EditFormTemplate Context="EditFormContext">
+                        @{
+                            var oper = (Operario)EditFormContext.EditModel;
+                        }
+                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                            <DxFormLayoutItem Caption="Nombre Completo" ColSpanMd="6">
+                                <DxTextBox @bind-Text="@oper.Nombre" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Teléfono" ColSpanMd="6">
+                                <DxTextBox @bind-Text="@oper.Telefono" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Cargo Asignado" ColSpanMd="6" BeginRow="true">
+                                <DxComboBox Data="@cargos"
+                                            TextFieldName="Descripcion"
+                                            ValueFieldName="IdCargo"
+                                            @bind-Value="@oper.IdCargo" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="6">
+                                <DxCheckBox @bind-Checked="@oper.Activo" LabelPosition="LabelPosition.Right">Operario Activo</DxCheckBox>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Permisos Especiales" ColSpanMd="12" BeginRow="true" CssClass="border-top pt-2 mt-2 fw-bold text-muted small text-uppercase">
+                                Permisos
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="4" BeginRow="true">
+                                <DxCheckBox @bind-Checked="@oper.Obras" LabelPosition="LabelPosition.Right">Acceso Obras</DxCheckBox>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="4">
+                                <DxCheckBox @bind-Checked="@oper.Mensajes" LabelPosition="LabelPosition.Right">Enviar Mensajes</DxCheckBox>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="4">
+                                <DxCheckBox @bind-Checked="@oper.Tierras" LabelPosition="LabelPosition.Right">Gestión Tierras</DxCheckBox>
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<Operario>? operarios;
+    private List<Cargo>? cargos;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            cargos = await Http.GetFromJsonAsync<List<Cargo>>("api/cargos");
+            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar operarios: {ex.Message}";
+        }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var editModel = (Operario)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            if (e.IsNew)
+            {
+                var response = await Http.PostAsJsonAsync("api/operarios", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al crear operario: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"api/operarios/{editModel.IdOperario}", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al actualizar operario: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var dataItem = (Operario)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/operarios/{dataItem.IdOperario}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar operario: {response.ReasonPhrase}";
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar: {ex.Message}";
+        }
+    }
+}

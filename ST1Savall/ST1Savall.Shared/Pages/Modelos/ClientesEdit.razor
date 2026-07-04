@@ -1,0 +1,1079 @@
+@page "/modelos/clientes/edit"
+@page "/modelos/clientes/edit/{Codigo}"
+@page "/modelos/clientes/edit/{Codigo}/{Clienteerp}"
+@using ST1Savall.Shared.Data
+@implements IDisposable
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ST1Savall.Shared.Services.IFormFactor FormFactor
+
+<PageTitle>@(HasKeyParams ? "Editar Cliente" : "Nuevo Cliente")</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">@(HasKeyParams ? "Editar Cliente" : "Nuevo Cliente")</h2>
+            <p class="text-muted mb-0">Complete los datos de la ficha de cliente</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Clientes
+        </button>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (loading)
+    {
+        <div class="p-5 text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted mb-0">Cargando datos...</p>
+        </div>
+    }
+    else if (cliente != null)
+    {
+        <div class="card shadow-sm border-0" style="border-radius: 12px;">
+            <div class="card-body p-4">
+                <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+                    <!-- Grupo 1: Datos Identificativos -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
+                        Datos Identificativos
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Código de Cliente" ColSpanMd="3" BeginRow="true" Enabled="@(!HasKeyParams)">
+                        <DxTextBox @bind-Text="@cliente.Codigo" MaxLength="8" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="CIF / NIF" ColSpanMd="3">
+                        <DxTextBox @bind-Text="@cliente.Cif" MaxLength="16" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Nombre Fiscal" ColSpanMd="6" BeginRow="true">
+                        <DxTextBox @bind-Text="@cliente.Nombre" MaxLength="120" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Nombre Comercial" ColSpanMd="6">
+                        <DxTextBox @bind-Text="@cliente.Nombre2" MaxLength="120" />
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 2: Domicilio -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Domicilio
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
+                        <DxTextBox @bind-Text="@cliente.Direccion" MaxLength="80" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Población" ColSpanMd="4">
+                        <div class="d-flex align-items-center gap-1 w-100">
+                            <div class="flex-grow-1">
+                                <DxComboBox Data="@poblaciones"
+                                            TextFieldName="Poblacion"
+                                            ValueFieldName="Poblacion"
+                                            Value="@cliente.Poblacion"
+                                            AllowCustomValue="true"
+                                            NullText="Seleccione o escriba..."
+                                            ListRenderMode="ListRenderMode.Virtual"
+                                            SearchMode="ListSearchMode.AutoSearch"
+                                            SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                            ValueChanged="@((string val) => OnPoblacionChanged(val))">
+                                    <ItemTemplate Context="pob">
+                                        <span style="font-size: 0.9rem;"><strong>@pob.Poblacion</strong> - @pob.Codigo</span>
+                                    </ItemTemplate>
+                                </DxComboBox>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm px-1" title="Editar Población" @onclick="(() => OpenPoblacionPopup(false))" @onclick:stopPropagation>
+                                <i class="oi oi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm px-1" title="Nueva Población" @onclick="(() => OpenPoblacionPopup(true))" @onclick:stopPropagation>
+                                <i class="oi oi-plus"></i>
+                            </button>
+                        </div>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Código Postal" ColSpanMd="3">
+                        <div class="d-flex align-items-center gap-1 w-100">
+                            <div class="flex-grow-1">
+                                <DxComboBox Data="@codigosPostales"
+                                            TextFieldName="Codigo"
+                                            ValueFieldName="Codigo"
+                                            Value="@cliente.Codpost"
+                                            AllowCustomValue="true"
+                                            NullText="Seleccione o escriba..."
+                                            ListRenderMode="ListRenderMode.Virtual"
+                                            SearchMode="ListSearchMode.AutoSearch"
+                                            SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                            ValueChanged="@((string val) => OnCodpostChanged(val))">
+                                    <ItemTemplate Context="pob">
+                                        <span style="font-size: 0.9rem;"><strong>@pob.Codigo</strong> - @pob.Poblacion</span>
+                                    </ItemTemplate>
+                                </DxComboBox>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm px-1" title="Editar Población" @onclick="(() => OpenPoblacionPopup(false))" @onclick:stopPropagation>
+                                <i class="oi oi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm px-1" title="Nueva Población" @onclick="(() => OpenPoblacionPopup(true))" @onclick:stopPropagation>
+                                <i class="oi oi-plus"></i>
+                            </button>
+                        </div>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Provincia" ColSpanMd="4" BeginRow="true">
+                        <DxTextBox @bind-Text="@cliente.Provincia" ReadOnly="true" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Email de Contacto" ColSpanMd="4">
+                        <DxTextBox @bind-Text="@cliente.Email" MaxLength="150" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Email de Facturación" ColSpanMd="4">
+                        <DxTextBox @bind-Text="@cliente.EmailF" MaxLength="150" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="mt-3">
+                        <div class="d-flex justify-content-center w-100">
+                            <button type="button" class="btn btn-outline-success d-flex align-items-center justify-content-center gap-2 px-5" style="height: 38px; min-width: 250px;" @onclick="VerEnMapaAsync">
+                                <i class="oi oi-eye"></i> Ver en Maps
+                            </button>
+                        </div>
+                    </DxFormLayoutItem>
+
+                    @*
+                    <!-- Grupo 3: Configuración Sage50 -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Configuración Comercial
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Forma de Pago" ColSpanMd="3" BeginRow="true">
+                        <DxComboBox Data="@formasPago"
+                                    TextFieldName="Nombre"
+                                    ValueFieldName="Codigo"
+                                    Value="@cliente.Fpag"
+                                    AllowCustomValue="true"
+                                    NullText="Seleccione..."
+                                    SearchMode="ListSearchMode.AutoSearch"
+                                    SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                    ValueChanged="@((string val) => OnFpagChanged(val))">
+                            <ItemTemplate Context="f">
+                                <span style="font-size: 0.9rem;"><strong>@f.Codigo</strong> - @f.Nombre</span>
+                            </ItemTemplate>
+                        </DxComboBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Tarifa de Venta" ColSpanMd="3">
+                        <DxTextBox @bind-Text="@cliente.Tarifa" MaxLength="2" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Vendedor" ColSpanMd="3">
+                        <DxTextBox @bind-Text="@cliente.Vendedor" MaxLength="5" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Límite de Crédito" ColSpanMd="3">
+                        <DxSpinEdit @bind-Value="@cliente.Credito" ShowSpinButtons="false" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Ruta de Reparto" ColSpanMd="3" BeginRow="true">
+                        <DxTextBox @bind-Text="@cliente.Ruta" MaxLength="2" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Zona" ColSpanMd="3">
+                        <DxTextBox @bind-Text="@cliente.Zona" MaxLength="4" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Alta" ColSpanMd="3">
+                        <DxDateEdit @bind-Date="@cliente.FAlta" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Baja" ColSpanMd="3">
+                        <DxDateEdit @bind-Date="@cliente.FechaBaj" />
+                    </DxFormLayoutItem>
+                    *@
+
+                    <!-- Grupo Contactos -->
+                    @if (HasKeyParams)
+                    {
+                        <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                            Contactos
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem ColSpanMd="12" BeginRow="true" Context="contactsLayoutContext">
+                            <div class="card shadow-sm border">
+                                <div class="card-body p-0">
+                                    <DxGrid @ref="contactsGrid"
+                                            Data="@contactos"
+                                            KeyFieldName="Key"
+                                            EditMode="GridEditMode.PopupEditForm"
+                                            EditModelSaving="OnContactSaving"
+                                            DataItemDeleting="OnContactDeleting"
+                                            CustomizeEditModel="OnContactCustomizeEditModel"
+                                            PopupEditFormHeaderCssClass="bg-primary text-white"
+                                            PopupEditFormHeaderText="Formulario - Contacto"
+                                            PopupEditFormCssClass="crud-popup"
+                                            PagerPosition="GridPagerPosition.Bottom"
+                                            PageSize="10"
+                                            AllowSort="true"
+                                            ShowFilterRow="true"
+                                            ShowSearchBox="true"
+                                            SearchBoxNullText="Buscar contacto...">
+                                        <Columns>
+                                            <DxGridCommandColumn Width="110px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                                <HeaderTemplate Context="headerContext">
+                                                    <button type="button" class="btn btn-primary btn-sm w-100" @onclick="() => { contactsGrid?.StartEditNewRowAsync(); }">
+                                                        <i class="oi oi-plus"></i> Nuevo
+                                                    </button>
+                                                </HeaderTemplate>
+                                                <CellDisplayTemplate Context="commandContext">
+                                                    @{
+                                                        var contact = (ContlfCliSage50)commandContext.DataItem;
+                                                        <div class="d-flex gap-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                                    style="width: 32px; height: 32px;"
+                                                                    @onclick="() => { contactsGrid?.StartEditDataItemAsync(contact); }" 
+                                                                    @onclick:stopPropagation
+                                                                    title="Editar">
+                                                                <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
+                                                                    style="width: 32px; height: 32px;"
+                                                                    @onclick="() => { contactsGrid?.ShowDataItemDeleteConfirmation(contact); }" 
+                                                                    @onclick:stopPropagation
+                                                                    title="Eliminar">
+                                                                <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                </CellDisplayTemplate>
+                                            </DxGridCommandColumn>
+                                            <DxGridDataColumn FieldName="Tipo" Caption="Tipo" Width="120px" TextAlignment="GridTextAlignment.Left">
+                                                <CellDisplayTemplate Context="tipoContext">
+                                                    @{
+                                                        var contact = (ContlfCliSage50)tipoContext.DataItem;
+                                                        <span>@(contact.Tipo == 1 ? "Contacto" : contact.Tipo == 2 ? "General" : "Contacto")</span>
+                                                    }
+                                                </CellDisplayTemplate>
+                                            </DxGridDataColumn>
+                                            <DxGridDataColumn FieldName="Predet" Caption="Predet." Width="80px">
+                                                <CellDisplayTemplate Context="predetContext">
+                                                    @{
+                                                        var contact = (ContlfCliSage50)predetContext.DataItem;
+                                                        <div class="text-center">
+                                                            <input type="checkbox" checked="@contact.Predet" disabled />
+                                                        </div>
+                                                    }
+                                                </CellDisplayTemplate>
+                                            </DxGridDataColumn>
+                                            <DxGridDataColumn FieldName="Persona" Caption="Persona" />
+                                            <DxGridDataColumn FieldName="Cargo" Caption="Cargo" />
+                                            <DxGridDataColumn FieldName="Telefono" Caption="Teléfono" Width="120px" />
+                                            <DxGridDataColumn FieldName="Observa" Caption="Observ." />
+                                            <DxGridDataColumn FieldName="Email" Caption="Email" />
+                                        </Columns>
+                                        <EditFormTemplate Context="EditFormContext">
+                                            @{
+                                                var contact = (ContlfCliSage50)EditFormContext.EditModel;
+                                            }
+                                            <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                                                <DxFormLayoutItem Caption="Tipo" ColSpanMd="6">
+                                                    <DxComboBox Data="@tipoOptions"
+                                                                TextFieldName="Text"
+                                                                ValueFieldName="Value"
+                                                                @bind-Value="@contact.Tipo" />
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Predeterminado" ColSpanMd="6" CssClass="d-flex align-items-center mt-4">
+                                                    <DxCheckBox @bind-Checked="@contact.Predet">Predeterminado</DxCheckBox>
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Persona" ColSpanMd="6" BeginRow="true">
+                                                    <DxTextBox @bind-Text="@contact.Persona" MaxLength="30" />
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Cargo" ColSpanMd="6">
+                                                    <DxComboBox Data="@cargosList"
+                                                                @bind-Value="@contact.Cargo"
+                                                                AllowCustomValue="true"
+                                                                NullText="Seleccione o escriba..." />
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Teléfono" ColSpanMd="4" BeginRow="true">
+                                                    <DxTextBox @bind-Text="@contact.Telefono" MaxLength="15" />
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Email" ColSpanMd="8">
+                                                    <DxTextBox @bind-Text="@contact.Email" MaxLength="150" />
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12" BeginRow="true">
+                                                    <DxTextBox @bind-Text="@contact.Observa" MaxLength="150" />
+                                                </DxFormLayoutItem>
+                                            </DxFormLayout>
+                                        </EditFormTemplate>
+                                    </DxGrid>
+                                </div>
+                            </div>
+                        </DxFormLayoutItem>
+                    }
+
+                    <!-- Grupo Observaciones -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Observaciones
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                        <DxMemo @bind-Text="@cliente.Observacio" Rows="4" />
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 4: Opciones Adicionales -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        IVA / Opciones Especiales
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Tipo de IVA" ColSpanMd="6" BeginRow="true">
+                        <DxComboBox Data="@tiposIvaList"
+                                    TextFieldName="DisplayLabel"
+                                    ValueFieldName="Codigo"
+                                    @bind-Value="@cliente.TipoIva"
+                                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                    NullText="Seleccione tipo de IVA..." />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked="@cliente.BloqCli" LabelPosition="LabelPosition.Right">Cliente Bloqueado</DxCheckBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked="@cliente.Recargo" LabelPosition="LabelPosition.Right">Recargo de Equivalencia</DxCheckBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked="@cliente.Retencion" LabelPosition="LabelPosition.Right">Retención de IRPF</DxCheckBox>
+                    </DxFormLayoutItem>
+
+                    <!-- Acciones del Formulario -->
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <button class="btn btn-outline-secondary btn-sm px-4" @onclick="GoBack">Cancelar</button>
+                        <button class="btn btn-primary btn-sm px-4" @onclick="SaveAsync">Guardar</button>
+                    </DxFormLayoutItem>
+                </DxFormLayout>
+            </div>
+        </div>
+    }
+    
+    <DxMessageBox @bind-Visible="showConflictPopup" Text="@conflictMessage" Title="Incidencia" Type="MessageBoxType.Alert" RenderStyle="MessageBoxRenderStyle.Warning" Closed="OnConflictClosed" />
+
+    <DxPopup @bind-Visible="@poblacionPopupVisible"
+             HeaderText="Gestión de Población"
+             HeaderCssClass="bg-primary text-white"
+             Width="500px"
+             CloseOnEscape="true"
+             CloseOnOutsideClick="false"
+             ShowCloseButton="true">
+        <BodyTemplate Context="popupContext">
+            @if (popupErrorMessage != null)
+            {
+                <div class="alert alert-danger py-2 mb-2" role="alert">@popupErrorMessage</div>
+            }
+            <DxFormLayout CaptionPosition="CaptionPosition.Vertical">
+                <DxFormLayoutItem Caption="Código Postal" ColSpanMd="6" Enabled="@isNewPoblacion">
+                    <DxTextBox @bind-Text="@newPoblacion.Codigo" MaxLength="10" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Población" ColSpanMd="12">
+                    <DxTextBox @bind-Text="@newPoblacion.Poblacion" MaxLength="30" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Provincia" ColSpanMd="12">
+                    <DxTextBox @bind-Text="@newPoblacion.Provincia" MaxLength="30" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem Caption="Visible" ColSpanMd="6">
+                    <DxCheckBox @bind-Checked="@newPoblacionVisible" />
+                </DxFormLayoutItem>
+                <DxFormLayoutItem ColSpanMd="12" CssClass="d-flex justify-content-end gap-2 pt-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ClosePoblacionPopup">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="SavePoblacionAsync">Guardar</button>
+                </DxFormLayoutItem>
+            </DxFormLayout>
+        </BodyTemplate>
+    </DxPopup>
+</div>
+
+@code {
+    [Parameter]
+    public string? Codigo { get; set; }
+
+    [Parameter]
+    public string? Clienteerp { get; set; }
+
+    private ClienteSage50? cliente;
+    private List<CodPosSage50>? poblaciones;
+    private List<CodPosSage50>? codigosPostales;
+    private List<FpagSage50>? formasPago;
+    private List<TipoIvaSage50>? tiposIvaList;
+    private bool showConflictPopup = false;
+    private string? conflictMessage;
+    private bool loading = true;
+    private string? errorMessage;
+    private bool poblacionPopupVisible = false;
+    private bool isNewPoblacion = true;
+    private CodPosSage50 newPoblacion = new();
+    private bool newPoblacionVisible = true;
+    private string? popupErrorMessage;
+    private DotNetObjectReference<ClientesEdit>? selfRef;
+    private List<ContlfCliSage50>? contactos;
+    private IGrid? contactsGrid;
+    private List<string> cargosList = new()
+    {
+        "DIRECTOR",
+        "GERENTE",
+        "COMERCIAL",
+        "SECRETARIA",
+        "COMUNICADO"
+    };
+
+    private class TipoOption
+    {
+        public int Value { get; set; }
+        public string Text { get; set; } = string.Empty;
+    }
+
+    private List<TipoOption> tipoOptions = new()
+    {
+        new TipoOption { Value = 1, Text = "Contacto" },
+        new TipoOption { Value = 2, Text = "General" }
+    };
+
+    private bool HasKeyParams => !string.IsNullOrEmpty(Codigo);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            selfRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.registerFocusListener = function (dotNetHelper) {
+                    window.addEventListener('focus', function () {
+                        dotNetHelper.invokeMethodAsync('OnWindowFocus');
+                    });
+                };
+            ");
+            await JSRuntime.InvokeVoidAsync("registerFocusListener", selfRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnWindowFocus()
+    {
+        await RefreshPoblacionesAsync();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        selfRef?.Dispose();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            if (HasKeyParams)
+            {
+                var escCodigo = Uri.EscapeDataString(Codigo!.Trim());
+                var escClienteerp = Uri.EscapeDataString((Clienteerp ?? "").Trim());
+                cliente = await Http.GetFromJsonAsync<ClienteSage50>($"api/clientessage50/{escCodigo}/{escClienteerp}");
+                if (cliente != null)
+                {
+                    TrimClientFields(cliente);
+                }
+            }
+            else
+            {
+                string nextCodigo = "43000001";
+                try
+                {
+                    var response = await Http.GetAsync("api/clientessage50/siguiente-codigo");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        nextCodigo = await response.Content.ReadAsStringAsync();
+                    }
+                }
+                catch { }
+
+                cliente = new ClienteSage50
+                {
+                    Codigo = nextCodigo,
+                    Clienteerp = "",
+                    FAlta = DateTime.Today,
+                    BloqCli = false,
+                    Recargo = false,
+                    Retencion = false,
+                    Agencia = "",
+                    BancoPrev = "",
+                    CEnt = "",
+                    Canal = "",
+                    CiaCred = "",
+                    Clifinal = "",
+                    Contrapar = "",
+                    Ctaerp = "",
+                    Delegerp = "",
+                    EfCuebanc = "",
+                    EfTexmail = "",
+                    Eticomu = "",
+                    Facebook = "",
+                    Fpag = "",
+                    Guid = "",
+                    GuidExp = "",
+                    GuidId = "",
+                    Http = "",
+                    Idioma = "",
+                    IdiomaImp = "",
+                    Letdefrect = "",
+                    Letdefven = "",
+                    Libre1 = "",
+                    LinDes = "",
+                    Mensaje = "",
+                    Nocomuobs = "",
+                    Nombre = "",
+                    Nombre2 = "",
+                    Nombre3erp = "",
+                    Operacio = "",
+                    Pais = "",
+                    Plefact = "",
+                    Poblacerp = "",
+                    Poblacion = "",
+                    Portes = "",
+                    Provincia = "",
+                    Provinerp = "",
+                    ReferCat = "",
+                    Ruta = "",
+                    Skype = "",
+                    Tarifa = "",
+                    Tipcredit = "",
+                    TipoIva = "",
+                    TipoRet = "",
+                    Tipofac = "",
+                    Twitter = "",
+                    Validcheck = "",
+                    Vendedor = "",
+                    Zona = "",
+                    Observacio = ""
+                };
+            }
+            poblaciones = await Http.GetFromJsonAsync<List<CodPosSage50>>("api/codpossage50");
+            if (poblaciones != null)
+            {
+                foreach (var p in poblaciones)
+                {
+                    p.Codigo = p.Codigo?.Trim() ?? "";
+                    p.Poblacion = p.Poblacion?.Trim() ?? "";
+                    p.Provincia = p.Provincia?.Trim() ?? "";
+                }
+
+                poblaciones = poblaciones
+                    .OrderBy(p => p.Poblacion)
+                    .ToList();
+
+                codigosPostales = poblaciones
+                    .GroupBy(p => p.Codigo)
+                    .Select(g => g.First())
+                    .OrderBy(p => p.Codigo)
+                    .ToList();
+
+                // Provincia is read-only text box, no distinct query needed.
+            }
+            formasPago = await Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50");
+            if (formasPago != null)
+            {
+                foreach (var f in formasPago)
+                {
+                    f.Codigo = f.Codigo?.Trim() ?? "";
+                    f.Nombre = f.Nombre?.Trim() ?? "";
+                }
+                formasPago = formasPago.OrderBy(f => f.Codigo).ToList();
+            }
+            tiposIvaList = await Http.GetFromJsonAsync<List<TipoIvaSage50>>("api/tipoivasage50");
+            if (tiposIvaList != null)
+            {
+                foreach (var t in tiposIvaList)
+                {
+                    t.Codigo = t.Codigo?.Trim() ?? "";
+                    t.Nombre = t.Nombre?.Trim() ?? "";
+                }
+                tiposIvaList = tiposIvaList.OrderBy(t => t.Codigo).ToList();
+            }
+            await LoadContactsAsync();
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar cliente, códigos postales o formas de pago: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadContactsAsync()
+    {
+        try
+        {
+            if (HasKeyParams)
+            {
+                var escCodigo = Uri.EscapeDataString(Codigo!.Trim());
+                contactos = await Http.GetFromJsonAsync<List<ContlfCliSage50>>($"api/contlfclisage50/por-cliente/{escCodigo}");
+                if (contactos != null)
+                {
+                    foreach (var c in contactos)
+                    {
+                        c.Cliente = (c.Cliente ?? "").Trim();
+                        c.Persona = (c.Persona ?? "").Trim();
+                        c.Cargo = (c.Cargo ?? "").Trim();
+                        c.Telefono = (c.Telefono ?? "").Trim();
+                        c.Observa = (c.Observa ?? "").Trim();
+                        c.Email = (c.Email ?? "").Trim();
+                    }
+                }
+            }
+            else
+            {
+                contactos = new List<ContlfCliSage50>();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar contactos: {ex.Message}";
+        }
+    }
+
+    private void OnContactCustomizeEditModel(GridCustomizeEditModelEventArgs e)
+    {
+        if (e.IsNew)
+        {
+            var newContact = (ContlfCliSage50)e.EditModel;
+            newContact.Cliente = cliente?.Codigo ?? "";
+            newContact.Linea = 0;
+            newContact.Tipo = 1;
+            newContact.Predet = false;
+            newContact.Persona = "";
+            newContact.Cargo = "";
+            newContact.Telefono = "";
+            newContact.Observa = "";
+            newContact.Email = "";
+            newContact.GuidId = Guid.NewGuid().ToString();
+            newContact.Guid = Guid.NewGuid().ToString();
+        }
+    }
+
+    private async Task OnContactSaving(GridEditModelSavingEventArgs e)
+    {
+        var editModel = (ContlfCliSage50)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            
+            editModel.Cliente = (editModel.Cliente ?? "").Trim();
+            editModel.Persona = (editModel.Persona ?? "").Trim();
+            editModel.Cargo = (editModel.Cargo ?? "").Trim();
+            editModel.Telefono = (editModel.Telefono ?? "").Trim();
+            editModel.Observa = (editModel.Observa ?? "").Trim();
+            editModel.Email = (editModel.Email ?? "").Trim();
+
+            if (e.IsNew)
+            {
+                // Dynamic Linea calculation
+                var nextLinea = (contactos != null && contactos.Any()) ? contactos.Max(c => c.Linea) + 1 : 1;
+                editModel.Linea = nextLinea;
+                editModel.Cliente = cliente?.Codigo ?? "";
+                
+                // Add to database
+                var response = await Http.PostAsJsonAsync("api/contlfclisage50", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al crear contacto: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            else
+            {
+                // Update in database
+                var escCliente = Uri.EscapeDataString(editModel.Cliente.Trim());
+                var response = await Http.PutAsJsonAsync($"api/contlfclisage50/{escCliente}/{editModel.Linea}", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al actualizar contacto: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+
+            // If this contact was marked as predeterminado, uncheck others for this client
+            if (editModel.Predet && contactos != null)
+            {
+                foreach (var existing in contactos)
+                {
+                    if (existing.Linea != editModel.Linea && existing.Predet)
+                    {
+                        existing.Predet = false;
+                        var escCliente = Uri.EscapeDataString(existing.Cliente.Trim());
+                        await Http.PutAsJsonAsync($"api/contlfclisage50/{escCliente}/{existing.Linea}", existing);
+                    }
+                }
+            }
+
+            await LoadContactsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar contacto: {ex.Message}";
+        }
+    }
+
+    private async Task OnContactDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var dataItem = (ContlfCliSage50)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var escCliente = Uri.EscapeDataString(dataItem.Cliente.Trim());
+            var response = await Http.DeleteAsync($"api/contlfclisage50/{escCliente}/{dataItem.Linea}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar contacto: {response.ReasonPhrase}";
+                return;
+            }
+            await LoadContactsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar contacto: {ex.Message}";
+        }
+    }
+
+    private void TrimClientFields(ClienteSage50 c)
+    {
+        c.Codigo = c.Codigo?.Trim() ?? "";
+        c.Clienteerp = c.Clienteerp?.Trim() ?? "";
+        c.Nombre = c.Nombre?.Trim() ?? "";
+        c.Nombre2 = c.Nombre2?.Trim() ?? "";
+        c.Direccion = c.Direccion?.Trim() ?? "";
+        c.Poblacion = c.Poblacion?.Trim() ?? "";
+        c.Codpost = c.Codpost?.Trim() ?? "";
+        c.Provincia = c.Provincia?.Trim() ?? "";
+        c.Email = c.Email?.Trim() ?? "";
+        c.EmailF = c.EmailF?.Trim() ?? "";
+        c.Cif = c.Cif?.Trim() ?? "";
+        c.Provinerp = c.Provinerp?.Trim() ?? "";
+        c.Fpag = c.Fpag?.Trim() ?? "";
+        c.Tarifa = c.Tarifa?.Trim() ?? "";
+        c.Vendedor = c.Vendedor?.Trim() ?? "";
+        c.Ruta = c.Ruta?.Trim() ?? "";
+        c.Zona = c.Zona?.Trim() ?? "";
+        c.Observacio = c.Observacio?.Trim() ?? "";
+        c.TipoIva = c.TipoIva?.Trim() ?? "";
+    }
+
+    private void OpenPoblacionPopup(bool isNew)
+    {
+        if (cliente == null) return;
+        isNewPoblacion = isNew;
+        popupErrorMessage = null;
+        newPoblacionVisible = true;
+
+        if (isNew)
+        {
+            newPoblacion = new CodPosSage50 { Vista = true };
+        }
+        else
+        {
+            var existing = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == cliente.Codpost?.Trim() && x.Poblacion?.Trim().ToLower() == cliente.Poblacion?.Trim().ToLower());
+            if (existing != null)
+            {
+                newPoblacion = new CodPosSage50
+                {
+                    Codigo = existing.Codigo,
+                    Linea = existing.Linea,
+                    Poblacion = existing.Poblacion,
+                    Provincia = existing.Provincia,
+                    Cpostalm = existing.Cpostalm,
+                    Lati = existing.Lati,
+                    Longi = existing.Longi,
+                    Vista = existing.Vista ?? true
+                };
+                newPoblacionVisible = existing.Vista ?? true;
+            }
+            else
+            {
+                newPoblacion = new CodPosSage50
+                {
+                    Codigo = cliente.Codpost ?? "",
+                    Poblacion = cliente.Poblacion ?? "",
+                    Provincia = cliente.Provincia ?? "",
+                    Vista = true
+                };
+            }
+        }
+        poblacionPopupVisible = true;
+    }
+
+    private void ClosePoblacionPopup()
+    {
+        poblacionPopupVisible = false;
+    }
+
+    private async Task SavePoblacionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newPoblacion.Codigo) || string.IsNullOrWhiteSpace(newPoblacion.Poblacion))
+        {
+            popupErrorMessage = "Código Postal y Población son obligatorios.";
+            return;
+        }
+
+        try
+        {
+            await SetupHeadersAsync();
+            if (isNewPoblacion)
+            {
+                var existingList = await Http.GetFromJsonAsync<List<CodPosSage50>>($"api/codpossage50/por-codigo/{Uri.EscapeDataString(newPoblacion.Codigo.Trim())}");
+                int maxLine = 0;
+                if (existingList != null && existingList.Any())
+                {
+                    foreach (var item in existingList)
+                    {
+                        if (int.TryParse(item.Linea, out int l))
+                        {
+                            if (l > maxLine) maxLine = l;
+                        }
+                    }
+                }
+                newPoblacion.Linea = (maxLine + 1).ToString();
+                newPoblacion.Vista = newPoblacionVisible;
+
+                var response = await Http.PostAsJsonAsync("api/codpossage50", newPoblacion);
+                if (!response.IsSuccessStatusCode)
+                {
+                    popupErrorMessage = $"Error al crear población: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            else
+            {
+                newPoblacion.Vista = newPoblacionVisible;
+                var response = await Http.PutAsJsonAsync($"api/codpossage50/{newPoblacion.Codigo}/{newPoblacion.Linea}", newPoblacion);
+                if (!response.IsSuccessStatusCode)
+                {
+                    popupErrorMessage = $"Error al actualizar población: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+
+            await RefreshPoblacionesAsync();
+
+            if (cliente != null)
+            {
+                cliente.Codpost = newPoblacion.Codigo;
+                cliente.Poblacion = newPoblacion.Poblacion;
+                cliente.Provincia = newPoblacion.Provincia;
+            }
+
+            poblacionPopupVisible = false;
+        }
+        catch (Exception ex)
+        {
+            popupErrorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task RefreshPoblacionesAsync()
+    {
+        try
+        {
+            var freshList = await Http.GetFromJsonAsync<List<CodPosSage50>>("api/codpossage50");
+            if (freshList != null)
+            {
+                foreach (var p in freshList)
+                {
+                    p.Codigo = p.Codigo?.Trim() ?? "";
+                    p.Poblacion = p.Poblacion?.Trim() ?? "";
+                    p.Provincia = p.Provincia?.Trim() ?? "";
+                }
+
+                poblaciones = freshList
+                    .OrderBy(p => p.Poblacion)
+                    .ToList();
+
+                codigosPostales = poblaciones
+                    .GroupBy(p => p.Codigo)
+                    .Select(g => g.First())
+                    .OrderBy(p => p.Codigo)
+                    .ToList();
+
+                // Provincia is read-only text box, no distinct query needed.
+            }
+            var freshFpag = await Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50");
+            if (freshFpag != null)
+            {
+                foreach (var f in freshFpag)
+                {
+                    f.Codigo = f.Codigo?.Trim() ?? "";
+                    f.Nombre = f.Nombre?.Trim() ?? "";
+                }
+                formasPago = freshFpag.OrderBy(f => f.Codigo).ToList();
+            }
+            var freshTipoIva = await Http.GetFromJsonAsync<List<TipoIvaSage50>>("api/tipoivasage50");
+            if (freshTipoIva != null)
+            {
+                foreach (var t in freshTipoIva)
+                {
+                    t.Codigo = t.Codigo?.Trim() ?? "";
+                    t.Nombre = t.Nombre?.Trim() ?? "";
+                }
+                tiposIvaList = freshTipoIva.OrderBy(t => t.Codigo).ToList();
+            }
+            await LoadContactsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al refrescar códigos postales o formas de pago: {ex.Message}";
+        }
+    }
+
+    private void OnCodpostChanged(string val)
+    {
+        if (cliente == null) return;
+        cliente.Codpost = val?.Trim();
+        var p = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == val?.Trim());
+        if (p != null)
+        {
+            cliente.Poblacion = p.Poblacion?.Trim();
+            cliente.Provincia = p.Provincia?.Trim();
+        }
+    }
+
+    private void OnPoblacionChanged(string val)
+    {
+        if (cliente == null) return;
+        cliente.Poblacion = val?.Trim();
+        var p = poblaciones?.FirstOrDefault(x => x.Poblacion?.Trim().ToLower() == val?.Trim().ToLower());
+        if (p != null)
+        {
+            cliente.Codpost = p.Codigo?.Trim();
+            cliente.Provincia = p.Provincia?.Trim();
+        }
+    }
+
+    private void OnFpagChanged(string val)
+    {
+        if (cliente == null) return;
+        cliente.Fpag = val?.Trim();
+    }
+
+    private void OnConflictClosed(bool ok)
+    {
+        showConflictPopup = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (cliente == null) return;
+        TrimClientFields(cliente);
+        
+        // Basic validation
+        if (string.IsNullOrWhiteSpace(cliente.Codigo))
+        {
+            errorMessage = "El código de cliente es obligatorio.";
+            return;
+        }
+
+        if (!HasKeyParams)
+        {
+            try
+            {
+                var escCodigo = Uri.EscapeDataString(cliente.Codigo.Trim());
+                var checkResponse = await Http.GetAsync($"api/clientessage50/{escCodigo}/");
+                if (checkResponse.IsSuccessStatusCode)
+                {
+                    conflictMessage = $"El código de cliente '{cliente.Codigo}' ya ha sido registrado por otro usuario en este momento. Por favor, asigne otro código o intente de nuevo.";
+                    showConflictPopup = true;
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error al verificar duplicados: {ex.Message}";
+                return;
+            }
+        }
+
+        try
+        {
+            await SetupHeadersAsync();
+            HttpResponseMessage response;
+            if (HasKeyParams)
+            {
+                var escCodigo = Uri.EscapeDataString(Codigo!.Trim());
+                var escClienteerp = Uri.EscapeDataString((Clienteerp ?? "").Trim());
+                response = await Http.PutAsJsonAsync($"api/clientessage50/{escCodigo}/{escClienteerp}", cliente);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/clientessage50", cliente);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                GoBack();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                conflictMessage = $"El código de cliente '{cliente.Codigo}' ya ha sido registrado por otro usuario en este momento. Por favor, asigne otro código o intente de nuevo.";
+                showConflictPopup = true;
+            }
+            else
+            {
+                errorMessage = $"Error al guardar el cliente: {response.ReasonPhrase}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/modelos/clientes");
+    }
+
+    private async Task VerEnMapaAsync()
+    {
+        if (cliente == null) return;
+        var query = "";
+        if (!string.IsNullOrWhiteSpace(cliente.Direccion))
+        {
+            query += cliente.Direccion;
+        }
+        if (!string.IsNullOrWhiteSpace(cliente.Poblacion))
+        {
+            if (query.Length > 0) query += ", ";
+            query += cliente.Poblacion;
+        }
+        if (!string.IsNullOrWhiteSpace(cliente.Codpost))
+        {
+            if (query.Length > 0) query += ", ";
+            query += cliente.Codpost;
+        }
+        if (!string.IsNullOrWhiteSpace(cliente.Provincia))
+        {
+            if (query.Length > 0) query += ", ";
+            query += cliente.Provincia;
+        }
+
+        if (query.Length > 0)
+        {
+            // Append Spain to restrict the search context and guarantee accuracy
+            query += ", España";
+            
+            // The ?q= parameter format in the classic Google Maps URL drops a red pin marker directly on the resolved address
+            var url = $"https://www.google.com/maps?q={Uri.EscapeDataString(query)}";
+            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+        }
+        else
+        {
+            errorMessage = "Introduzca una dirección, población o código postal primero para verla en el mapa.";
+        }
+    }
+}

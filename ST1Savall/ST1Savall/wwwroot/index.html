@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>ST1Savall</title>
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            if (msg && msg.indexOf("ResizeObserver") !== -1) return false;
+            var errDiv = document.createElement('div');
+            errDiv.style = "position:absolute; top:0; left:0; right:0; background:red; color:white; z-index:99999; padding:10px; font-family:monospace;";
+            errDiv.innerText = "JS Error: " + msg + " at " + url + ":" + line + (col ? ":" + col : "");
+            document.body.appendChild(errDiv);
+            return false;
+        };
+    </script>
+    <base href="/" />
+    <link href="_content/DevExpress.Blazor.Themes/blazing-berry.bs5.min.css" rel="stylesheet" id="theme-link" />
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem("theme");
+                if (theme) {
+                    document.getElementById("theme-link").href = "_content/DevExpress.Blazor.Themes/" + theme + ".bs5.min.css";
+                    document.documentElement.className = "theme-" + theme;
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="_content/ST1Savall.Shared/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="_content/ST1Savall.Shared/app.css" />
+    <link href="_content/ST1Savall.Shared/css/site.css" rel="stylesheet" />
+    <link rel="stylesheet" href="_content/ST1Savall.Shared/ST1Savall.Shared.styles.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="ST1Savall.styles.css" />
+    <link href="_content/DevExpress.Blazor.RichEdit/dx-blazor-richedit.css" rel="stylesheet" />
+    <link rel="icon" href="data:,">
+</head>
+
+<body>
+
+    <div class="status-bar-safe-area"></div>
+
+    <div id="app">Loading...</div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="_content/DevExpress.Blazor/dx-blazor.js"></script>
+    <script src="_content/ST1Savall.Shared/js/theme.js"></script>
+</body>
+
+</html>

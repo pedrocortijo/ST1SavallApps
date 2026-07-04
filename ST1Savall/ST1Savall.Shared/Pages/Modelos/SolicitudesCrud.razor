@@ -1,0 +1,362 @@
+@page "/modelos/solicitudes"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Solicitudes de Trabajo</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Solicitudes</h2>
+            <p class="text-muted mb-0">Gestión de tareas.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" @onclick="NavigateToCreate">
+                <i class="oi oi-plus me-1"></i> Nueva Solicitud
+            </button>
+            <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
+            </NavLink>
+        </div>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (solicitudes == null || operarios == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando solicitudes y operarios...</p>
+                </div>
+            }
+            else
+            {
+                <!-- Cuadro de Mando de 7 Estados (Todos los Servicios) -->
+                <div class="p-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">Estado de Solicitudes</h5>
+                        @if (selectedEstadoFilter.HasValue)
+                        {
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => selectedEstadoFilter = null">
+                                <i class="oi oi-x me-1"></i> Quitar filtro
+                            </button>
+                        }
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; width: 100%;">
+                        @for (int i = 1; i <= 7; i++)
+                        {
+                            int estadoId = i;
+                            <div class="card text-center" @onclick="() => ToggleEstadoFilter(estadoId)" style="@GetCardStyle(estadoId)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+                                <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(estadoId)) !important; line-height: 1.1; margin-bottom: 4px;">
+                                    @(estadoId == 1 ? "1. Introducido" : 
+                                      estadoId == 2 ? "2. Whatsapp" : 
+                                      estadoId == 3 ? "3. Observaciones" : 
+                                      estadoId == 4 ? "4. No seguimiento" : 
+                                      estadoId == 5 ? "5. Finalizado" : 
+                                      estadoId == 6 ? "6. Anulado" : 
+                                      "7. Falta disponib.")
+                                </span>
+                                <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(estadoId)) !important;">@GetStateCount(estadoId)</h3>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <DxGrid Data="@GetFilteredSolicitudes()"
+                        KeyFieldName="IdSolicitud"
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true"
+                        ColumnResizeMode="GridColumnResizeMode.ColumnsContainer"
+                        CustomizeElement="@OnCustomizeElement">
+                    <Columns>
+                        <DxGridCommandColumn Width="95px" Caption="Acciones" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px; @GetEditButtonStyle(sol)"
+                                                @onclick="() => NavigateToEdit(sol.IdSolicitud)" 
+                                                @onclick:stopPropagation
+                                                title="Editar">
+                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px; @GetDeleteButtonStyle(sol)"
+                                                @onclick="() => ConfirmDelete(sol)" 
+                                                @onclick:stopPropagation
+                                                title="Eliminar">
+                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    var cond = operarios.FirstOrDefault(x => x.IdOperario == sol.IdConductor);
+                                    @cond?.Nombre
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="250px">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    <div>
+                                        <strong>@sol.NombreCliente</strong><br />
+                                        <span style="font-size: 0.8rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
+                                        <span class="text-muted" style="font-size: 0.75rem;"><i class="oi oi-phone" style="font-size: 0.7rem;"></i> @sol.TelefonoCliente</span>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tipo Tarea">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    @(sol.IdTipoTarea == 1 ? "Entrega" : sol.IdTipoTarea == 2 ? "Recogida" : "Sustitución")
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" />
+                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Tarea" DisplayFormat="dd/MM/yyyy" />
+                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="180px">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    var est = estadosList?.FirstOrDefault(x => x.IdEstado == sol.Estado);
+                                    @est?.Descripcion
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="PrioridadDescripcion" Caption="Prioridad">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    @(sol.Prioridad == 1 ? "Alta" : sol.Prioridad == 2 ? "Media" : "Baja")
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="CodigoEntrega" Caption="Cód. Entrega" />
+                        <DxGridDataColumn FieldName="CodigoRecogida" Caption="Cód. Recogida" />
+                    </Columns>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Solicitud>? solicitudes;
+    private List<Operario>? operarios;
+    private string? errorMessage;
+    private int? selectedEstadoFilter;
+
+    private List<EstadoSolicitud>? estadosList;
+
+    private void ToggleEstadoFilter(int estado)
+    {
+        if (selectedEstadoFilter == estado)
+        {
+            selectedEstadoFilter = null;
+        }
+        else
+        {
+            selectedEstadoFilter = estado;
+        }
+    }
+
+    private IEnumerable<Solicitud> GetFilteredSolicitudes()
+    {
+        if (solicitudes == null) return Array.Empty<Solicitud>();
+        if (selectedEstadoFilter.HasValue)
+        {
+            return solicitudes.Where(s => s.Estado == selectedEstadoFilter.Value);
+        }
+        return solicitudes;
+    }
+
+    private int GetStateCount(int estado)
+    {
+        return solicitudes?.Count(s => s.Estado == estado) ?? 0;
+    }
+
+    private string GetCardStyle(int estado)
+    {
+        var est = estadosList?.FirstOrDefault(x => x.IdEstado == estado);
+        string bg = est?.BgColor ?? "#ffffff";
+        string text = est?.TextColor ?? "#000000";
+        bool isSelected = selectedEstadoFilter == estado;
+        string border = isSelected ? $"4px solid {text}" : "1px solid rgba(0,0,0,0.1)";
+        
+        return $"background-color: {bg} !important; border: {border} !important; border-radius: 8px; min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;";
+    }
+    
+    private string GetCardTextStyle(int estado)
+    {
+        var est = estadosList?.FirstOrDefault(x => x.IdEstado == estado);
+        return est?.TextColor ?? "#000000";
+    }
+
+    private void NavigateToCreate()
+    {
+        NavigationManager.NavigateTo("/modelos/solicitudes/edit");
+    }
+
+    private string GetEditButtonStyle(Solicitud sol)
+    {
+        var (bgColor, textColor) = GetEstadoStyle(sol.Estado);
+        if (!string.IsNullOrEmpty(bgColor))
+        {
+            if (textColor.ToLower() == "#ffffff" || textColor.ToLower() == "white")
+            {
+                return "background-color: rgba(255,255,255,0.15) !important; border: 1px solid rgba(255,255,255,0.6) !important; color: #ffffff !important;";
+            }
+            else
+            {
+                return "background-color: rgba(0,0,0,0.06) !important; border: 1px solid rgba(0,0,0,0.4) !important; color: #333333 !important;";
+            }
+        }
+        return "background-color: transparent !important; border: 1px solid #6c757d !important; color: #6c757d !important;";
+    }
+
+    private string GetDeleteButtonStyle(Solicitud sol)
+    {
+        var (bgColor, textColor) = GetEstadoStyle(sol.Estado);
+        if (!string.IsNullOrEmpty(bgColor))
+        {
+            if (textColor.ToLower() == "#ffffff" || textColor.ToLower() == "white")
+            {
+                return "background-color: rgba(255,255,255,0.15) !important; border: 1px solid #ff6b6b !important; color: #ff6b6b !important;";
+            }
+            else
+            {
+                return "background-color: rgba(220,53,69,0.08) !important; border: 1px solid #dc3545 !important; color: #dc3545 !important;";
+            }
+        }
+        return "background-color: transparent !important; border: 1px solid #dc3545 !important; color: #dc3545 !important;";
+    }
+
+    private void NavigateToEdit(int id)
+    {
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}");
+    }
+
+    private async Task ConfirmDelete(Solicitud sol)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de que desea eliminar la solicitud de {sol.NombreCliente}?");
+        if (confirmed)
+        {
+            try
+            {
+                await SetupHeadersAsync();
+                var response = await Http.DeleteAsync($"api/solicitudes/{sol.IdSolicitud}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al borrar solicitud: {response.ReasonPhrase}";
+                    return;
+                }
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error al borrar: {ex.Message}";
+            }
+        }
+    }
+
+    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
+    {
+        if (e.ElementType == GridElementType.DataRow || e.ElementType == GridElementType.DataCell)
+        {
+            var dataItem = e.Grid.GetDataItem(e.VisibleIndex);
+            if (dataItem is Solicitud solicitud)
+            {
+                var (bgColor, textColor) = GetEstadoStyle(solicitud.Estado);
+                string style = "";
+                if (!string.IsNullOrEmpty(bgColor))
+                {
+                    style += $"background-color: {bgColor} !important; color: {textColor} !important; ";
+                }
+                if (e.ElementType == GridElementType.DataCell)
+                {
+                    style += "text-align: left !important; ";
+                }
+                if (!string.IsNullOrEmpty(style))
+                {
+                    e.Style = style.Trim();
+                }
+            }
+        }
+    }
+
+    private (string bgColor, string textColor) GetEstadoStyle(int estado)
+    {
+        var est = estadosList?.FirstOrDefault(x => x.IdEstado == estado);
+        if (est != null && !string.IsNullOrEmpty(est.BgColor) && !string.IsNullOrEmpty(est.TextColor))
+        {
+            return (est.BgColor, est.TextColor);
+        }
+        return ("", "");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+            estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            if (solicitudes != null)
+            {
+                foreach (var sol in solicitudes)
+                {
+                    sol.ConductorNombre = operarios?.FirstOrDefault(x => x.IdOperario == sol.IdConductor)?.Nombre;
+                    sol.EstadoDescripcion = estadosList?.FirstOrDefault(x => x.IdEstado == sol.Estado)?.Descripcion;
+                    sol.TipoTareaDescripcion = sol.IdTipoTarea == 1 ? "Entrega" : sol.IdTipoTarea == 2 ? "Recogida" : "Sustitución";
+                    sol.PrioridadDescripcion = sol.Prioridad == 1 ? "Alta" : sol.Prioridad == 2 ? "Media" : "Baja";
+                }
+            }
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar solicitudes: {ex.Message}";
+        }
+    }
+}

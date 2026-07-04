@@ -1,0 +1,322 @@
+@import url('open.iconic/font/css/open-iconic-bootstrap.min.css');
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
+}
+
+.button-link {
+    text-decoration: unset;
+}
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+.title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-bottom: 0.625rem;
+}
+
+    .title.title-secondary {
+        padding-top: 0.313rem;
+        padding-bottom: 0;
+        color: var(--bs-secondary-color);
+    }
+
+.title-header-text {
+    font-size: 2.5rem;
+    line-height: 3rem;
+    font-weight: 600;
+    letter-spacing: 0rem;
+    padding: 0.3125rem 0;
+}
+
+.title-content-text {
+    font-size: 1.75rem;
+    font-weight: 400;
+    line-height: 2.5rem;
+    letter-spacing: 0rem;
+}
+
+.main-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+}
+
+.block-content {
+    width: 31.25rem;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    max-width: 100%;
+}
+
+
+.or {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+    .or .or-line {
+        border-bottom: 1px solid var(--bs-body-color);
+        width: 100%;
+        opacity: 0.2;
+    }
+
+    .or .or-text {
+        padding: 0 0.625rem 0px 0.625rem;
+        font-size: 0.75rem;
+        line-height: 1.125rem;
+        color: var(--bs-body-color);
+        opacity: 0.7;
+    }
+
+.links-area {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding-top: 0.625rem;
+}
+
+.links-container {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+    align-items: center;
+}
+
+    .links-container .dot {
+        height: 0.3125rem;
+        width: 0.3125rem;
+        margin: 0 0.1875rem;
+        border-radius: 50%;
+        background-color: var(--bs-body-color);
+        opacity: 0.7;
+    }
+
+.manage-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.info-message::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0.15;
+    background: var(--bs-primary);
+    z-index: -1;
+}
+
+.info-message {
+    padding: 0.625rem 1rem 0.625rem 1rem;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+    .info-message.info-panel {
+        margin-bottom: 0.625rem;
+    }
+
+.manage-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.large-input {
+    height: 4.3125rem;
+    font-size: 1.875rem;
+}
+
+.title-content-text-secondary {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+}
+
+.button-group {
+    display: flex;
+    flex-direction: row;
+    gap: 0.625rem;
+}
+
+.confirm-button {
+    margin-top: 0.3125rem;
+}
+
+.display-desktop {
+    display: block;
+}
+
+.display-mobile {
+    display: none;
+}
+
+.icon-external-provider {
+    width: 1rem;
+    height: 1rem;
+}
+
+.icon-google {
+    background-image: url("/images/account/providers/google-logo.svg")
+}
+
+.icon-facebook {
+    background-image: url("/images/account/providers/facebook-logo.svg")
+}
+
+.icon-microsoft {
+    background-image: url("/images/account/providers/microsoft-logo.svg")
+}
+
+.icon-twitter {
+    background-image: url("/images/account/providers/x-logo.svg")
+}
+
+@media (max-width: 768px) {
+    .display-desktop {
+        display: none;
+    }
+
+    .display-mobile {
+        display: block;
+    }
+}
+
+/* Status Badges with explicit high-contrast colors for all themes */
+.badge-status-pending {
+    background-color: #f59e0b !important;
+    color: #1f2937 !important;
+}
+
+.badge-status-progress {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+}
+
+.badge-status-completed {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+}
+
+.badge-status-closed {
+    background-color: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+.badge-status-paused {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+}
+
+/* Dark Theme Premium Overrides (blazing-dark and fluent-dark) */
+html.theme-blazing-dark,
+html.theme-fluent-dark,
+html.theme-blazing-dark body,
+html.theme-fluent-dark body {
+    background: radial-gradient(circle at top right, #1f1b3a 0%, #0d0c15 100%) !important;
+    color: #f1f3f5 !important;
+}
+
+html.theme-blazing-dark .dxbl-drawer .dxbl-drawer-content,
+html.theme-fluent-dark .dxbl-drawer .dxbl-drawer-content {
+    background: transparent !important;
+}
+
+html.theme-blazing-dark .navigation-drawer > .dxbl-drawer-panel,
+html.theme-fluent-dark .navigation-drawer > .dxbl-drawer-panel {
+    background-image: none !important;
+    background-color: rgba(13, 12, 21, 0.65) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html.theme-blazing-dark .card,
+html.theme-fluent-dark .card {
+    background-color: rgba(30, 30, 45, 0.45) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+}
+
+html.theme-blazing-dark .text-muted,
+html.theme-fluent-dark .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Company Name and Menu Button adaptivity to light/dark themes */
+.company-name-label {
+    color: #333333 !important; /* Default black for light themes */
+    transition: color 0.2s ease;
+}
+::deep .menu-button,
+.menu-button {
+    color: #333333 !important; /* Default black for light themes */
+}
+
+html.theme-blazing-dark .company-name-label,
+html.theme-fluent-dark .company-name-label {
+    color: #ffffff !important; /* White for dark themes */
+}
+html.theme-blazing-dark .menu-button,
+html.theme-fluent-dark .menu-button,
+html.theme-blazing-dark ::deep .menu-button,
+html.theme-fluent-dark ::deep .menu-button {
+    color: #ffffff !important; /* White for dark themes */
+}
+
+/* Custom CRUD Popup styling */
+.crud-popup {
+    min-width: 500px !important;
+    width: 600px !important;
+    max-width: 90vw !important;
+}

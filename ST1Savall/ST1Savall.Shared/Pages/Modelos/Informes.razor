@@ -1,0 +1,169 @@
+@page "/servicios/informes"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Informes de Servicios</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Informes de Servicios</h2>
+            <p class="text-muted mb-0">Resumen analítico y estadísticas de los servicios registrados</p>
+        </div>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    @if (loading)
+    {
+        <div class="p-5 text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted mb-0">Generando informe analítico...</p>
+        </div>
+    }
+    else if (solicitudes != null && estadosList != null)
+    {
+        <div class="row g-4 mb-4">
+            <!-- Tarjeta Total -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-primary text-white" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-white-50 small text-uppercase fw-bold mb-1">Total Servicios</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count</h2>
+                </div>
+            </div>
+            <!-- Tarjeta Hoy -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-info text-white" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-white-50 small text-uppercase fw-bold mb-1">Servicios de Hoy</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count(s => s.FechaTarea?.Date == DateTime.Today)</h2>
+                </div>
+            </div>
+            <!-- Tarjeta Pendientes -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-warning text-dark" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-dark-50 small text-uppercase fw-bold mb-1">Pendientes de Envío</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count(s => s.Estado == 1)</h2>
+                </div>
+            </div>
+            <!-- Tarjeta Finalizados -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-success text-white" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-white-50 small text-uppercase fw-bold mb-1">Finalizados (Total)</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count(s => s.Estado == 5)</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Distribución por Estado -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold mb-0 text-dark">Distribución por Estado (Total histórico)</h5>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-2">
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var est in estadosList)
+                            {
+                                var count = solicitudes.Count(s => s.Estado == est.IdEstado);
+                                var percentage = solicitudes.Count > 0 ? (double)count / solicitudes.Count * 100 : 0;
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold small">@est.Descripcion</span>
+                                        <span class="badge text-white" style="background-color: @(est.BgColor ?? "#6c757d"); color: @(est.TextColor ?? "#ffffff") !important;">@count (@percentage.ToString("0.0")%)</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px; border-radius: 5px;">
+                                        <div class="progress-bar" role="progressbar" style="width: @(percentage)%; background-color: @(est.BgColor ?? "#6c757d"); border-radius: 5px;" aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribución por Conductor -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold mb-0 text-dark">Servicios por Conductor (Top Activos)</h5>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-2">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Conductor</th>
+                                        <th class="text-center">Total Servicios</th>
+                                        <th class="text-center">De Hoy</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var group in solicitudes.GroupBy(s => s.IdConductor))
+                                    {
+                                        var conductorName = group.FirstOrDefault()?.Operario?.Nombre ?? $"Operario #{group.Key}";
+                                        <tr>
+                                            <td class="fw-bold">@conductorName</td>
+                                            <td class="text-center">@group.Count()</td>
+                                            <td class="text-center text-primary fw-bold">@group.Count(s => s.FechaTarea?.Date == DateTime.Today)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Solicitud>? solicitudes;
+    private List<EstadoSolicitud>? estadosList;
+    private bool loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            loading = true;
+            solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+            estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al generar informes: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}
