@@ -8,13 +8,13 @@
 @inject NavigationManager NavigationManager
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
 
-<PageTitle>@(IsNew ? "Nueva Obra" : "Editar Obra")</PageTitle>
+<PageTitle>@(IsNew ? "Nueva - Obra" : "Editar - Obra")</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">@(IsNew ? "Nueva Obra" : "Editar Obra")</h2>
-            <p class="text-muted mb-0">Complete los datos de la obra y asocie un cliente de Sage 50</p>
+            <h2 class="fw-bold text-primary mb-1">@(IsNew ? "Nueva - Obra" : "Editar - Obra")</h2>
+            <p class="text-muted mb-0">Complete los datos de la obra</p>
         </div>
         <button class="btn btn-outline-secondary btn-sm" @onclick="Volver">
             <i class="oi oi-arrow-left me-1"></i> Volver a Obras
@@ -54,39 +54,10 @@
                         <DxFormLayoutItem Caption="Nombre" ColSpanMd="9">
                             <DxTextBox @bind-Text="@obra.Nombre" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="8" BeginRow="true">
+                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
                             <DxTextBox @bind-Text="@obra.Direccion" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Código Postal (Obra)" ColSpanMd="4">
-                            <div class="d-flex align-items-center gap-1 w-100">
-                                <div class="flex-grow-1">
-                                    <DxComboBox Data="@codigosPostales"
-                                                TData="CodPosSage50"
-                                                TValue="string"
-                                                TextFieldName="Codigo"
-                                                ValueFieldName="Codigo"
-                                                Value="@obra.Codpost"
-                                                AllowCustomValue="true"
-                                                NullText="Seleccione o escriba..."
-                                                ListRenderMode="ListRenderMode.Virtual"
-                                                SearchMode="ListSearchMode.AutoSearch"
-                                                SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                                ValueChanged="@((string val) => OnCodpostChanged(val))"
-                                                ValueExpression="@(() => obra.Codpost)">
-                                        <ItemTemplate Context="pob">
-                                            <span style="font-size: 0.9rem;"><strong>@pob.Codigo</strong> - @pob.Poblacion</span>
-                                        </ItemTemplate>
-                                    </DxComboBox>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm px-1" title="Editar Población" @onclick="(() => OpenPoblacionPopup(false))" @onclick:stopPropagation>
-                                    <i class="oi oi-pencil"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-success btn-sm px-1" title="Nueva Población" @onclick="(() => OpenPoblacionPopup(true))" @onclick:stopPropagation>
-                                    <i class="oi oi-plus"></i>
-                                </button>
-                            </div>
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Población" ColSpanMd="7" BeginRow="true">
+                        <DxFormLayoutItem Caption="Población" ColSpanMd="4">
                             <div class="d-flex align-items-center gap-1 w-100">
                                 <div class="flex-grow-1">
                                     <DxComboBox Data="@poblaciones"
@@ -115,11 +86,49 @@
                                 </button>
                             </div>
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Provincia" ColSpanMd="5">
+                        <DxFormLayoutItem Caption="Cód. Postal" ColSpanMd="3">
+                            <div class="d-flex align-items-center gap-1 w-100">
+                                <div class="flex-grow-1">
+                                    <DxComboBox Data="@codigosPostales"
+                                                TData="CodPosSage50"
+                                                TValue="string"
+                                                TextFieldName="Codigo"
+                                                ValueFieldName="Codigo"
+                                                Value="@obra.Codpost"
+                                                AllowCustomValue="true"
+                                                NullText="Seleccione o escriba..."
+                                                ListRenderMode="ListRenderMode.Virtual"
+                                                SearchMode="ListSearchMode.AutoSearch"
+                                                SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                                ValueChanged="@((string val) => OnCodpostChanged(val))"
+                                                ValueExpression="@(() => obra.Codpost)">
+                                        <ItemTemplate Context="pob">
+                                            <span style="font-size: 0.9rem;"><strong>@pob.Codigo</strong> - @pob.Poblacion</span>
+                                        </ItemTemplate>
+                                    </DxComboBox>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm px-1" title="Editar Población" @onclick="(() => OpenPoblacionPopup(false))" @onclick:stopPropagation>
+                                    <i class="oi oi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm px-1" title="Nueva Población" @onclick="(() => OpenPoblacionPopup(true))" @onclick:stopPropagation>
+                                    <i class="oi oi-plus"></i>
+                                </button>
+                            </div>
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Provincia" ColSpanMd="5" BeginRow="true">
                             <DxTextBox @bind-Text="@obra.Provincia" ReadOnly="true" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="5">
                             <DxTextBox @bind-Text="@obra.Libre3" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Encargado" ColSpanMd="4" BeginRow="true">
+                            <DxTextBox @bind-Text="@obra.Encargado" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Teléfono" ColSpanMd="4">
+                            <DxTextBox @bind-Text="@obra.Telefono" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Móvil" ColSpanMd="4">
+                            <DxTextBox @bind-Text="@obra.Movil" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-center">
                             <DxCheckBox @bind-Checked="@obra.Vista" LabelPosition="LabelPosition.Right">Visible</DxCheckBox>
@@ -161,23 +170,14 @@
                                 </ItemTemplate>
                             </DxComboBox>
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="8" BeginRow="true">
+                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
                             <DxTextBox Text="@GetClientDireccion(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="C.P. Cliente" ColSpanMd="4">
-                            <DxTextBox Text="@GetClientCodpost(obra.Cliente)" MaxLength="5" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Población" ColSpanMd="6" BeginRow="true">
+                        <DxFormLayoutItem Caption="Población" ColSpanMd="4">
                             <DxTextBox Text="@GetClientPoblacion(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Teléfono Obra" ColSpanMd="4">
-                            <DxTextBox @bind-Text="@obra.Telefono" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Móvil" ColSpanMd="4">
-                            <DxTextBox @bind-Text="@obra.Movil" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Encargado" ColSpanMd="4">
-                            <DxTextBox @bind-Text="@obra.Encargado" />
+                        <DxFormLayoutItem Caption="Cód. Postal" ColSpanMd="3">
+                            <DxTextBox Text="@GetClientCodpost(obra.Cliente)" MaxLength="5" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Teléfono Cliente" ColSpanMd="12">
                             <DxTextBox Text="@GetClientTelefono(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
@@ -635,16 +635,18 @@
         var query = "";
         if (!string.IsNullOrWhiteSpace(obra.Direccion)) query += obra.Direccion;
         if (!string.IsNullOrWhiteSpace(obra.Poblacion)) query += (query.Length > 0 ? ", " : "") + obra.Poblacion;
-        if (!string.IsNullOrWhiteSpace(obra.Codpost)) query += (query.Length > 0 ? " " : "") + obra.Codpost;
+        if (!string.IsNullOrWhiteSpace(obra.Provincia)) query += (query.Length > 0 ? ", " : "") + obra.Provincia;
+        if (!string.IsNullOrWhiteSpace(obra.Codpost)) query += (query.Length > 0 ? ", " : "") + obra.Codpost;
 
         if (query.Length > 0)
         {
-            var url = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(query)}";
+            query += ", España";
+            var url = $"https://www.google.com/maps?q={Uri.EscapeDataString(query)}";
             await JSRuntime.InvokeVoidAsync("open", url, "_blank");
         }
         else
         {
-            errorMessage = "Introduzca una dirección, población o código postal primero para verla en el mapa.";
+            errorMessage = "Introduzca una dirección, población, provincia o código postal primero para verla en el mapa.";
         }
     }
 

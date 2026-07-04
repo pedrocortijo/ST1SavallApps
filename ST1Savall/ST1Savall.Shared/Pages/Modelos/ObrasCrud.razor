@@ -725,6 +725,11 @@
             if (query.Length > 0) query += ", ";
             query += o.Poblacion;
         }
+        if (!string.IsNullOrWhiteSpace(o.Provincia))
+        {
+            if (query.Length > 0) query += ", ";
+            query += o.Provincia;
+        }
         if (!string.IsNullOrWhiteSpace(o.CodigoPostal))
         {
             if (query.Length > 0) query += ", ";
@@ -733,12 +738,13 @@
 
         if (query.Length > 0)
         {
-            var url = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(query)}";
+            query += ", España";
+            var url = $"https://www.google.com/maps?q={Uri.EscapeDataString(query)}";
             await JSRuntime.InvokeVoidAsync("open", url, "_blank");
         }
         else
         {
-            errorMessage = "Introduzca una dirección, población o código postal primero para verla en el mapa.";
+            errorMessage = "Introduzca una dirección, población, provincia o código postal primero para verla en el mapa.";
         }
     }
 
