@@ -16,6 +16,20 @@ public static class DbInitializer
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
 
+        // Create TareasRelaciones table if it does not exist (in case DB already existed)
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='TareasRelaciones' and xtype='U')
+            BEGIN
+                CREATE TABLE TareasRelaciones (
+                    IdTareaOrigen INT NOT NULL,
+                    IdTareaDestino INT NOT NULL,
+                    CONSTRAINT PK_TareasRelaciones PRIMARY KEY (IdTareaOrigen, IdTareaDestino),
+                    CONSTRAINT FK_TareasRelaciones_Tareas_Origen FOREIGN KEY (IdTareaOrigen) REFERENCES Tareas (IdTarea) ON DELETE NO ACTION,
+                    CONSTRAINT FK_TareasRelaciones_Tareas_Destino FOREIGN KEY (IdTareaDestino) REFERENCES Tareas (IdTarea) ON DELETE NO ACTION
+                );
+            END
+        ");
+
         // Renumber ContenedoresTipos starting from 1
         await context.Database.ExecuteSqlRawAsync(@"
             IF EXISTS (SELECT * FROM sysobjects WHERE name='ContenedoresTipos' and xtype='U')
@@ -187,6 +201,18 @@ public static class DbInitializer
                 BEGIN
                     ALTER TABLE Solicitudes ADD FechaInicial DATETIME2 NULL;
                 END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'Encargado')
+                BEGIN
+                    ALTER TABLE Solicitudes ADD Encargado NVARCHAR(100) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'Movil')
+                BEGIN
+                    ALTER TABLE Solicitudes ADD Movil NVARCHAR(20) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'NombreObra')
+                BEGIN
+                    ALTER TABLE Solicitudes ADD NombreObra NVARCHAR(200) NULL;
+                END
             ");
 
             // Add client fields to Obras table if they don't exist
@@ -218,6 +244,10 @@ public static class DbInitializer
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'Telefono')
                 BEGIN
                     ALTER TABLE Obras ADD Telefono NVARCHAR(20) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'Encargado')
+                BEGIN
+                    ALTER TABLE Obras ADD Encargado NVARCHAR(100) NULL;
                 END
             ");
 
@@ -259,6 +289,13 @@ public static class DbInitializer
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'Ubicacion')
                 BEGIN
                     ALTER TABLE Solicitudes ADD Ubicacion AS CASE WHEN Latitud IS NOT NULL AND Longitud IS NOT NULL THEN geography::Point(CAST(Latitud AS float), CAST(Longitud AS float), 4326) ELSE NULL END PERSISTED;
+                END
+            ");
+
+            await context.Database.ExecuteSqlRawAsync(@"
+                IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'IdConductor' AND is_nullable = 0)
+                BEGIN
+                    ALTER TABLE Solicitudes ALTER COLUMN IdConductor INT NULL;
                 END
             ");
         }
@@ -355,7 +392,62 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
             }
         }
         await context.SaveChangesAsync();
-await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas OFF;");
+        await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas OFF;");
+
+        // Seed TareasRelaciones
+        if (!context.TareasRelaciones.Any())
+        {
+            var dbTareas = await context.Tareas.ToListAsync();
+            var relaciones = new List<TareaRelacion>();
+
+            foreach (var origen in dbTareas)
+            {
+                var nombreOrigen = origen.NombreTarea.ToUpper();
+                
+                foreach (var destino in dbTareas)
+                {
+                    var nombreDestino = destino.NombreTarea.ToUpper();
+
+                    // Regla 1: Si la última fue ENTREGA o CAMBIO, se permite RETIRADA, CAMBIO, MOVIMIENTO, PORTE
+                    if (nombreOrigen.Contains("ENTREGA") || nombreOrigen.Contains("CAMBIO"))
+                    {
+                        if (nombreDestino.Contains("RETIRADA") || 
+                            nombreDestino.Contains("CAMBIO") || 
+                            nombreDestino.Contains("MOVIMIENTO") || 
+                            nombreDestino.Contains("PORTE"))
+                        {
+                            relaciones.Add(new TareaRelacion { IdTareaOrigen = origen.IdTarea, IdTareaDestino = destino.IdTarea });
+                        }
+                    }
+                    // Regla 2: Si la última fue RETIRADA, se permite ENTREGA, PORTE
+                    else if (nombreOrigen.Contains("RETIRADA"))
+                    {
+                        if (nombreDestino.Contains("ENTREGA") || nombreDestino.Contains("PORTE"))
+                        {
+                            relaciones.Add(new TareaRelacion { IdTareaOrigen = origen.IdTarea, IdTareaDestino = destino.IdTarea });
+                        }
+                    }
+                    // Regla 3: Si la última fue MOVIMIENTO o PORTE, se permite cualquiera de los flujos operativos estándar
+                    else if (nombreOrigen.Contains("MOVIMIENTO") || nombreOrigen.Contains("PORTE"))
+                    {
+                        if (nombreDestino.Contains("ENTREGA") || 
+                            nombreDestino.Contains("RETIRADA") || 
+                            nombreDestino.Contains("CAMBIO") || 
+                            nombreDestino.Contains("MOVIMIENTO") || 
+                            nombreDestino.Contains("PORTE"))
+                        {
+                            relaciones.Add(new TareaRelacion { IdTareaOrigen = origen.IdTarea, IdTareaDestino = destino.IdTarea });
+                        }
+                    }
+                }
+            }
+
+            if (relaciones.Any())
+            {
+                context.TareasRelaciones.AddRange(relaciones);
+                await context.SaveChangesAsync();
+            }
+        }
 
         // Seed or update EstadosSolicitud
         var estados = new List<EstadoSolicitud>

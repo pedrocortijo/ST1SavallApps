@@ -109,7 +109,7 @@
                                 <tbody>
                                     @foreach (var group in solicitudes.GroupBy(s => s.IdConductor))
                                     {
-                                        var conductorName = group.FirstOrDefault()?.Operario?.Nombre ?? $"Operario #{group.Key}";
+                                        var conductorName = operarios?.FirstOrDefault(x => x.IdOperario == group.Key)?.Nombre ?? $"Operario #{group.Key}";
                                         <tr>
                                             <td class="fw-bold">@conductorName</td>
                                             <td class="text-center">@group.Count()</td>
@@ -129,6 +129,7 @@
 @code {
     private List<Solicitud>? solicitudes;
     private List<EstadoSolicitud>? estadosList;
+    private List<Operario>? operarios;
     private bool loading = true;
     private string? errorMessage;
 
@@ -155,6 +156,7 @@
             loading = true;
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             errorMessage = null;
         }
         catch (Exception ex)

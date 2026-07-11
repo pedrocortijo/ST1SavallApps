@@ -1,0 +1,394 @@
+@page "/modelos/plantas"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<PageTitle>Gestión de Plantas</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Plantas</h2>
+            <p class="text-muted mb-0">Administración de plantas</p>
+        </div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
+        </NavLink>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (plantas == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando plantas...</p>
+                </div>
+            }
+            else
+            {
+                <DxGrid @ref="grid"
+                        Data="@plantas"
+                        KeyFieldName="IdPlanta"
+                        EditMode="GridEditMode.PopupEditForm"
+                        EditModelSaving="OnEditModelSaving"
+                        DataItemDeleting="OnDataItemDeleting"
+                        PopupEditFormHeaderCssClass="bg-primary text-white"
+                        PopupEditFormHeaderText="Formulario - Planta"
+                        PopupEditFormCssClass="crud-popup"
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true"
+                        SearchBoxNullText="Buscar planta...">
+                    <Columns>
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate>
+                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
+                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        title="Nueva Planta">
+                                    <i class="oi oi-plus me-1"></i> Nuevo
+                                </button>
+                            </HeaderTemplate>
+                            <CellDisplayTemplate>
+                                @{
+                                    var planta = (Planta)context.DataItem;
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.StartEditDataItemAsync(planta)" 
+                                                @onclick:stopPropagation
+                                                title="Editar">
+                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(planta)" 
+                                                @onclick:stopPropagation
+                                                title="Eliminar">
+                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="IdPlanta" Caption="Código" ReadOnly="true" Width="80px" Visible="false"/>
+                        <DxGridDataColumn FieldName="Nombre" Caption="Nombre" Width="25%" />
+                        <DxGridDataColumn FieldName="Direccion" Caption="Dirección" Width="30%" />
+                        <DxGridDataColumn FieldName="Poblacion" Caption="Población" Width="20%" />
+                        <DxGridDataColumn FieldName="CodigoPostal" Caption="C.P." Width="80px" />
+                        <DxGridDataColumn FieldName="Nima" Caption="NIMA" Width="150px" />
+                        <DxGridDataColumn FieldName="Autorizacion" Caption="Autorización" Width="150px" />
+                    </Columns>
+                    <EditFormTemplate Context="EditFormContext">
+                        @{
+                            var planta = (Planta)EditFormContext.EditModel;
+                        }
+                        <DxFormLayout CssClass="w-100 p-3">
+                            <DxFormLayoutItem Caption="Nombre" ColSpanMd="12">
+                                <DxTextBox @bind-Text="@planta.Nombre" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Dirección" ColSpanMd="12">
+                                <DxTextBox @bind-Text="@planta.Direccion" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Población" ColSpanMd="7">
+                                <DxTextBox @bind-Text="@planta.Poblacion" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Código Postal" ColSpanMd="5">
+                                <DxTextBox @bind-Text="@planta.CodigoPostal" MaxLength="5" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="NIMA" ColSpanMd="6">
+                                <DxTextBox @bind-Text="@planta.Nima" MaxLength="15" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Autorización" ColSpanMd="6">
+                                <DxTextBox @bind-Text="@planta.Autorizacion" MaxLength="30" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Latitud" ColSpanMd="6">
+                                <DxSpinEdit @bind-Value="@planta.Latitud" MinValue="-90m" MaxValue="90m" Increment="0.000001m" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Longitud" ColSpanMd="6">
+                                <DxSpinEdit @bind-Value="@planta.Longitud" MinValue="-180m" MaxValue="180m" Increment="0.000001m" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="7" BeginRow="true" CssClass="d-flex align-items-end pb-1">
+                                <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="async () => await ObtenerUbicacionActualAsync(planta)" style="height: 38px;">
+                                    <i class="oi oi-map-marker me-1"></i>Obtener coordenadas del dispositivo
+                                </button>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="5" CssClass="d-flex align-items-end pb-1">
+                                <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="async () => await VerEnMapaAsync(planta)" style="height: 38px;" title="Ver en Google Maps">
+                                    <i class="oi oi-eye me-1"></i> Ver en Maps
+                                </button>
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid>
+                <DxMessageBox @bind-Visible="showConfirmPopup" Text="¿Confirma actualizar la dirección, población y código postal con la ubicación actual?" Title="Confirmación" Type="MessageBoxType.Confirmation" Closed="OnConfirmClosed" />
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<Planta>? plantas;
+    private string? errorMessage;
+
+    // State for location update confirmation
+    private bool showConfirmPopup = false;
+    private GeocodeResult? pendingLocationUpdate;
+    private Planta? plantaToUpdate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar plantas: {ex.Message}";
+        }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var editModel = (Planta)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            if (e.IsNew)
+            {
+                var response = await Http.PostAsJsonAsync("api/plantas", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al crear planta: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"api/plantas/{editModel.IdPlanta}", editModel);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = $"Error al actualizar planta: {response.ReasonPhrase}";
+                    return;
+                }
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var dataItem = (Planta)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/plantas/{dataItem.IdPlanta}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar planta: {response.ReasonPhrase}";
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar: {ex.Message}";
+        }
+    }
+
+    private async Task ObtenerUbicacionActualAsync(Planta planta)
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<GeocodeResult>("eval", @"
+                new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject('Geolocalización no soportada');
+                    } else {
+                        navigator.geolocation.getCurrentPosition(
+                            async (pos) => {
+                                try {
+                                    const lat = pos.coords.latitude;
+                                    const lon = pos.coords.longitude;
+                                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
+                                    if (!res.ok) {
+                                        resolve({ latitud: lat, longitud: lon });
+                                        return;
+                                    }
+                                    const data = await res.json();
+                                    const addr = data.address || {};
+                                    const road = addr.road || addr.pedestrian || addr.path || '';
+                                    const num = addr.house_number || '';
+                                    const city = addr.city || addr.town || addr.village || addr.suburb || addr.county || '';
+                                    const postCode = addr.postcode || '';
+                                    resolve({
+                                        latitud: lat,
+                                        longitud: lon,
+                                        road: road,
+                                        houseNumber: num,
+                                        city: city,
+                                        postcode: postCode
+                                    });
+                                } catch (e) {
+                                    resolve({ latitud: lat, longitud: lon });
+                                }
+                            },
+                            (err) => reject('Error al obtener ubicación: ' + err.message),
+                            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                        );
+                    }
+                })
+            ");
+
+            if (result != null)
+            {
+                pendingLocationUpdate = result;
+                plantaToUpdate = planta;
+                showConfirmPopup = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
+        }
+    }
+
+    private void ConfirmarActualizacionUbicacion()
+    {
+        if (plantaToUpdate != null && pendingLocationUpdate != null)
+        {
+            if (!string.IsNullOrWhiteSpace(pendingLocationUpdate.Road))
+            {
+                plantaToUpdate.Direccion = string.IsNullOrWhiteSpace(pendingLocationUpdate.HouseNumber)
+                    ? pendingLocationUpdate.Road
+                    : $"{pendingLocationUpdate.Road}, {pendingLocationUpdate.HouseNumber}";
+            }
+            if (!string.IsNullOrWhiteSpace(pendingLocationUpdate.City))
+            {
+                plantaToUpdate.Poblacion = pendingLocationUpdate.City;
+            }
+            if (!string.IsNullOrWhiteSpace(pendingLocationUpdate.Postcode))
+            {
+                plantaToUpdate.CodigoPostal = pendingLocationUpdate.Postcode;
+            }
+            plantaToUpdate.Latitud = (decimal)pendingLocationUpdate.Latitud;
+            plantaToUpdate.Longitud = (decimal)pendingLocationUpdate.Longitud;
+        }
+        showConfirmPopup = false;
+        StateHasChanged();
+    }
+
+    private void OnConfirmClosed(bool ok)
+    {
+        if (ok)
+        {
+            ConfirmarActualizacionUbicacion();
+        }
+        else
+        {
+            showConfirmPopup = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task VerEnMapaAsync(Planta planta)
+    {
+        var query = ST1Savall.MapHelper.BuildNormalizedQuery(planta.Direccion, planta.Poblacion, null, planta.CodigoPostal);
+
+        if (string.IsNullOrEmpty(query))
+        {
+            errorMessage = "Introduzca una dirección, población o código postal primero para verla en el mapa.";
+            return;
+        }
+
+        // Si no hay coordenadas, geocodificar para rellenar Latitud/Longitud
+        if (!planta.Latitud.HasValue || !planta.Longitud.HasValue)
+        {
+            try
+            {
+                var searchQuery = (query + ", España").Replace("'", "\\'");
+                var jsScript = @"
+                    (async () => {
+                        const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent('" + searchQuery + @"') + '&limit=1');
+                        if (!res.ok) return null;
+                        const data = await res.json();
+                        if (data && data.length > 0) {
+                            return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                        }
+                        return null;
+                    })()
+                ";
+                var geocodeResult = await JSRuntime.InvokeAsync<GeocodeResult>("eval", jsScript);
+
+                if (geocodeResult != null)
+                {
+                    planta.Latitud = (decimal)geocodeResult.Latitud;
+                    planta.Longitud = (decimal)geocodeResult.Longitud;
+                    StateHasChanged();
+                }
+            }
+            catch
+            {
+                // Si falla la geocodificación, no hacer nada — el mapa ya se abrió
+            }
+        }
+
+        var latParam = planta.Latitud.HasValue ? $"&lat={planta.Latitud.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
+        var lonParam = planta.Longitud.HasValue ? $"&lon={planta.Longitud.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(planta.Nombre ?? "Planta")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString("/modelos/plantas")}";
+        NavigationManager.NavigateTo(mapsUrl);
+    }
+
+    private class GeocodeResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("latitud")]
+        public double Latitud { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("longitud")]
+        public double Longitud { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("road")]
+        public string? Road { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("houseNumber")]
+        public string? HouseNumber { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("city")]
+        public string? City { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("postcode")]
+        public string? Postcode { get; set; }
+    }
+}

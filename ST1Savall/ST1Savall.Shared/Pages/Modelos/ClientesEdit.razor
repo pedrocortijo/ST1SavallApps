@@ -206,7 +206,7 @@
                                             ShowSearchBox="true"
                                             SearchBoxNullText="Buscar contacto...">
                                         <Columns>
-                                            <DxGridCommandColumn Width="110px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                            <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                                                 <HeaderTemplate Context="headerContext">
                                                     <button type="button" class="btn btn-primary btn-sm w-100" @onclick="() => { contactsGrid?.StartEditNewRowAsync(); }">
                                                         <i class="oi oi-plus"></i> Nuevo
@@ -215,7 +215,7 @@
                                                 <CellDisplayTemplate Context="commandContext">
                                                     @{
                                                         var contact = (ContlfCliSage50)commandContext.DataItem;
-                                                        <div class="d-flex gap-2">
+                                                        <div class="d-flex gap-1">
                                                             <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
                                                                     style="width: 32px; height: 32px;"
                                                                     @onclick="() => { contactsGrid?.StartEditDataItemAsync(contact); }" 
@@ -1038,42 +1038,29 @@
         NavigationManager.NavigateTo("/modelos/clientes");
     }
 
-    private async Task VerEnMapaAsync()
+    private Task VerEnMapaAsync()
     {
-        if (cliente == null) return;
-        var query = "";
-        if (!string.IsNullOrWhiteSpace(cliente.Direccion))
-        {
-            query += cliente.Direccion;
-        }
-        if (!string.IsNullOrWhiteSpace(cliente.Poblacion))
-        {
-            if (query.Length > 0) query += ", ";
-            query += cliente.Poblacion;
-        }
-        if (!string.IsNullOrWhiteSpace(cliente.Codpost))
-        {
-            if (query.Length > 0) query += ", ";
-            query += cliente.Codpost;
-        }
-        if (!string.IsNullOrWhiteSpace(cliente.Provincia))
-        {
-            if (query.Length > 0) query += ", ";
-            query += cliente.Provincia;
-        }
+        if (cliente == null) return Task.CompletedTask;
+        var query = ST1Savall.MapHelper.BuildNormalizedQuery(cliente.Direccion, cliente.Poblacion, cliente.Provincia, cliente.Codpost);
 
-        if (query.Length > 0)
+        if (!string.IsNullOrEmpty(query))
         {
-            // Append Spain to restrict the search context and guarantee accuracy
-            query += ", España";
-            
-            // The ?q= parameter format in the classic Google Maps URL drops a red pin marker directly on the resolved address
-            var url = $"https://www.google.com/maps?q={Uri.EscapeDataString(query)}";
-            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            var backUrl = "/modelos/clientes";
+            if (!string.IsNullOrEmpty(Codigo))
+            {
+                backUrl = $"/modelos/clientes/edit/{Codigo}";
+                if (!string.IsNullOrEmpty(Clienteerp))
+                {
+                    backUrl += $"/{Clienteerp}";
+                }
+            }
+            var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(cliente.Nombre ?? "Cliente")}&backUrl={Uri.EscapeDataString(backUrl)}";
+            NavigationManager.NavigateTo(mapsUrl);
         }
         else
         {
             errorMessage = "Introduzca una dirección, población o código postal primero para verla en el mapa.";
         }
+        return Task.CompletedTask;
     }
 }

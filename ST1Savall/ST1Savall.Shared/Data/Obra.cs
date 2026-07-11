@@ -69,4 +69,7 @@ public class Obra
 
     [MaxLength(200)]
     public string? ResponsableCliente { get; set; }
+
+    [MaxLength(100)]
+    public string? Encargado { get; set; }
 }

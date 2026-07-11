@@ -54,7 +54,7 @@
                         ShowSearchBox="true"
                         SearchBoxNullText="Buscar estado...">
                     <Columns>
-                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="() => grid?.StartEditNewRowAsync()"
@@ -65,7 +65,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var cargo = (EstadoSolicitud)context.DataItem;
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex gap-1">
                                         <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
                                                 style="width: 32px; height: 32px;"
                                                 @onclick="() => grid?.StartEditDataItemAsync(cargo)"

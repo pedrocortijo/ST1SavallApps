@@ -629,25 +629,26 @@
         StateHasChanged();
     }
 
-    private async Task AbrirMapaAsync()
+    private Task AbrirMapaAsync()
     {
-        if (obra == null) return;
-        var query = "";
-        if (!string.IsNullOrWhiteSpace(obra.Direccion)) query += obra.Direccion;
-        if (!string.IsNullOrWhiteSpace(obra.Poblacion)) query += (query.Length > 0 ? ", " : "") + obra.Poblacion;
-        if (!string.IsNullOrWhiteSpace(obra.Provincia)) query += (query.Length > 0 ? ", " : "") + obra.Provincia;
-        if (!string.IsNullOrWhiteSpace(obra.Codpost)) query += (query.Length > 0 ? ", " : "") + obra.Codpost;
+        if (obra == null) return Task.CompletedTask;
+        var query = ST1Savall.MapHelper.BuildNormalizedQuery(obra.Direccion, obra.Poblacion, obra.Provincia, obra.Codpost);
 
-        if (query.Length > 0)
+        if (!string.IsNullOrEmpty(query))
         {
-            query += ", España";
-            var url = $"https://www.google.com/maps?q={Uri.EscapeDataString(query)}";
-            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            var backUrl = "/modelos/obrasmnto";
+            if (!string.IsNullOrEmpty(Codigo))
+            {
+                backUrl = $"/modelos/obrasmnto/edit/{Codigo}";
+            }
+            var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(obra.Nombre ?? "Obra")}&backUrl={Uri.EscapeDataString(backUrl)}";
+            NavigationManager.NavigateTo(mapsUrl);
         }
         else
         {
             errorMessage = "Introduzca una dirección, población, provincia o código postal primero para verla en el mapa.";
         }
+        return Task.CompletedTask;
     }
 
     // Poblaciones Popup

@@ -1,5 +1,6 @@
 @page "/servicios/asignacion-tareas"
 @using ST1Savall.Shared.Data
+@using ST1Savall.Shared.Pages.Modelos.Components
 @using DevExpress.Blazor
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
@@ -39,45 +40,29 @@
     {
         <div class="row">
             <!-- Grid de Obras Activas (Izquierda) -->
-            <div class="col-lg-8 mb-4">
+            <div class="col-lg-9 mb-4">
                 <div class="card shadow-sm h-100 border-0" style="border-radius: 12px; overflow: hidden;">
                     <div class="card-header bg-primary text-white py-3">
-                        <h5 class="fw-bold mb-0">1. Seleccionar Obra Activa</h5>
+                        <h5 class="fw-bold mb-0">1. Seleccionar Contenedor en Obra</h5>
                     </div>
                     <div class="card-body p-0">
-                        <DxGrid Data="@activeObras"
-                                KeyFieldName="IdObra"
+                        <DxGrid Data="@solicitudes"
+                                KeyFieldName="IdSolicitud"
                                 PagerPosition="GridPagerPosition.Bottom"
                                 PageSize="15"
                                 AllowSort="true"
                                 ShowFilterRow="true"
                                 ShowSearchBox="true"
-                                SearchBoxNullText="Buscar obra..."
+                                SearchBoxNullText="Buscar obra o contenedor..."
                                 SelectionMode="GridSelectionMode.Single"
                                 AllowSelectRowByClick="true"
-                                SelectedDataItemChanged="@((object val) => selectedObra = (Obra)val)">
+                                SelectedDataItem="@selectedSolicitud"
+                                SelectedDataItemChanged="OnSelectedSolicitudChanged">
                             <Columns>
-                                <DxGridDataColumn FieldName="Codigo" Caption="Código" Width="95px" />
-                                <DxGridDataColumn FieldName="Descripcion" Caption="Nombre de la Obra" />
-                                <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" />
-                                <DxGridDataColumn FieldName="Ubicacion" Caption="Dirección" />
-                                <DxGridDataColumn FieldName="Poblacion" Caption="Población" />
-                                <DxGridDataColumn Caption="Última Tarea" Width="130px">
-                                    <CellDisplayTemplate>
-                                        @{
-                                            var obra = (Obra)context.DataItem;
-                                            <span>@GetLatestTareaText(obra.IdObra)</span>
-                                        }
-                                    </CellDisplayTemplate>
-                                </DxGridDataColumn>
-                                <DxGridDataColumn Caption="Contenedor" Width="160px">
-                                    <CellDisplayTemplate>
-                                        @{
-                                            var obra = (Obra)context.DataItem;
-                                            <span>@GetLatestContenedorText(obra.IdObra)</span>
-                                        }
-                                    </CellDisplayTemplate>
-                                </DxGridDataColumn>
+                                <DxGridDataColumn FieldName="ObraDescripcion" Caption="Obra / Proyecto" GroupIndex="0" />
+                                <DxGridDataColumn FieldName="CodigoEntrega" Caption="Nº Serie Contenedor" Width="180px" />
+                                <DxGridDataColumn FieldName="FechaTarea" Caption="Fecha Entrega" DisplayFormat="dd/MM/yyyy" Width="130px" />
+                                <DxGridDataColumn FieldName="Observaciones" Caption="Observaciones de la entrega" />
                             </Columns>
                         </DxGrid>
                     </div>
@@ -85,26 +70,20 @@
             </div>
 
             <!-- Listado de Tareas y Acción (Derecha) -->
-            <div class="col-lg-4 mb-4">
+            <div class="col-lg-3 mb-4">
                 <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
                     <div class="card-header bg-primary text-white py-3">
-                        <h5 class="fw-bold mb-0">2. Seleccionar Tipo de Tarea</h5>
+                        <h5 class="fw-bold mb-0">2. Tipo de Tarea</h5>
                     </div>
                     <div class="card-body">
-                        <div class="list-group">
-                            @foreach (var tarea in tareasList)
-                            {
-                                <button type="button" 
-                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3 @(selectedTarea?.Id == tarea.Id ? "active" : "")"
-                                        @onclick="() => selectedTarea = tarea">
-                                    <span class="fw-semibold">@tarea.Name</span>
-                                    @if (selectedTarea?.Id == tarea.Id)
-                                    {
-                                        <i class="oi oi-check text-white"></i>
-                                    }
-                                </button>
-                            }
-                        </div>
+                        <FilterRadioListPickerItem TItem="Tarea"
+                                                   Data="@filteredTareasList"
+                                                   SelectedValue="@selectedTarea"
+                                                   SelectedValueChanged="@((Tarea? val) => selectedTarea = val)"
+                                                   TextField="@(t => t.NombreTarea)"
+                                                   KeyField="@(t => t.IdTarea)"
+                                                   SearchPlaceholder="Buscar tarea..."
+                                                   MaxHeight="350px" />
                     </div>
                 </div>
                 
@@ -113,24 +92,25 @@
                         <h5 class="fw-bold mb-0">3. Crear Solicitud</h5>
                     </div>
                     <div class="card-body text-center py-4">
-                        @if (selectedObra != null && selectedTarea != null)
+                        @if (selectedSolicitud != null && selectedTarea != null)
                         {
                             <div class="alert alert-success text-start small mb-3">
-                                <strong>Resumen de Asignación:</strong>
+                                <strong>Resumen:</strong>
                                 <ul class="mb-0 mt-1 pl-3">
-                                    <li><strong>Obra:</strong> @selectedObra.Descripcion (@selectedObra.Codigo)</li>
-                                    <li><strong>Cliente:</strong> @selectedObra.NombreCliente</li>
-                                    <li><strong>Tarea:</strong> @selectedTarea.Value.Name</li>
+                                    <li><strong>Obra:</strong> @GetObraDescripcion(selectedSolicitud.IdCliente)</li>
+                                    <li><strong>Cliente:</strong> @selectedSolicitud.NombreCliente</li>
+                                    <li><strong>Contenedor:</strong> @selectedSolicitud.CodigoEntrega</li>
+                                    <li><strong>Tarea Siguiente:</strong> @selectedTarea.NombreTarea</li>
                                 </ul>
                             </div>
                             <button class="btn btn-success btn-lg w-100 shadow d-flex align-items-center justify-content-center gap-2" @onclick="CrearSolicitud">
-                                <i class="oi oi-plus"></i> Crear y Abrir Solicitud
+                                <i class="oi oi-plus"></i> Crear Solicitud
                             </button>
                         }
                         else
                         {
                             <div class="text-muted small py-2">
-                                <p class="mb-0">Debe seleccionar una obra de la grilla de la izquierda y un tipo de tarea arriba para habilitar la creación de la solicitud.</p>
+                                <p class="mb-0">Debe seleccionar un contenedor en la grilla de la izquierda y un tipo de tarea arriba para habilitar la creación de la solicitud.</p>
                             </div>
                             <button class="btn btn-secondary btn-lg w-100 mt-3" disabled>
                                 Crear Solicitud
@@ -144,22 +124,16 @@
 </div>
 
 @code {
-    private List<Obra>? activeObras;
+    private List<Obra>? allObras;
     private List<Solicitud>? solicitudes;
-    private Obra? selectedObra;
+    private Solicitud? selectedSolicitud;
     private string? errorMessage;
     private bool isLoading = true;
 
-    private struct KeyName { public int Id; public string Name; }
+    private List<Tarea>? allTareasList;
+    private List<Tarea>? filteredTareasList;
 
-    private List<KeyName> tareasList = new()
-    {
-        new() { Id = 1, Name = "Entrega" },
-        new() { Id = 2, Name = "Recogida" },
-        new() { Id = 3, Name = "Sustitución" }
-    };
-
-    private KeyName? selectedTarea;
+    private Tarea? selectedTarea;
 
     protected override async Task OnInitializedAsync()
     {
@@ -183,13 +157,19 @@
             isLoading = true;
             await SetupHeadersAsync();
             
-            // Load all solicitudes to calculate last tasks and containers
-            solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+            // Load solicitudes with active containers
+            solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes/con-contenedores");
+            allTareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+            filteredTareasList = allTareasList;
             
-            var allObras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
-            if (allObras != null)
+            allObras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            if (solicitudes != null && allObras != null)
             {
-                activeObras = allObras.Where(o => o.Finalizada != true).ToList();
+                foreach (var sol in solicitudes)
+                {
+                    var obra = allObras.FirstOrDefault(o => o.IdObra == sol.IdCliente);
+                    sol.ObraDescripcion = obra != null ? $"{obra.Codigo} - {obra.Descripcion}" : $"Obra ID: {sol.IdCliente}";
+                }
             }
             errorMessage = null;
         }
@@ -203,40 +183,40 @@
         }
     }
 
-    private Solicitud? GetLatestSolicitud(int idObra)
+    private string GetObraDescripcion(int idCliente)
     {
-        if (solicitudes == null) return null;
-        return solicitudes
-            .Where(s => s.IdCliente == idObra)
-            .OrderByDescending(s => s.FechaSolicitud ?? DateTime.MinValue)
-            .ThenByDescending(s => s.IdSolicitud)
-            .FirstOrDefault();
+        var obra = allObras?.FirstOrDefault(o => o.IdObra == idCliente);
+        return obra != null ? $"{obra.Codigo} - {obra.Descripcion}" : $"Obra ID: {idCliente}";
     }
 
-    private string GetLatestTareaText(int idObra)
+    private async Task OnSelectedSolicitudChanged(object? val)
     {
-        var latest = GetLatestSolicitud(idObra);
-        if (latest == null) return "-";
-        return latest.IdTipoTarea == 1 ? "Entrega" : latest.IdTipoTarea == 2 ? "Recogida" : "Sustitución";
-    }
-
-    private string GetLatestContenedorText(int idObra)
-    {
-        var latest = GetLatestSolicitud(idObra);
-        if (latest == null) return "-";
+        var sol = val as Solicitud;
+        selectedSolicitud = sol;
+        selectedTarea = null; // Reset selection
         
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(latest.CodigoEntrega))
-            parts.Add(latest.CodigoEntrega);
-        if (!string.IsNullOrWhiteSpace(latest.CodigoRecogida))
-            parts.Add(latest.CodigoRecogida);
-            
-        return parts.Count > 0 ? string.Join(" / ", parts) : "-";
+        if (sol == null)
+        {
+            filteredTareasList = allTareasList;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            filteredTareasList = await Http.GetFromJsonAsync<List<Tarea>>($"api/tareas/{sol.IdTipoTarea}/siguientes");
+        }
+        catch (Exception ex)
+        {
+            filteredTareasList = allTareasList;
+            Console.WriteLine($"Error al obtener tareas siguientes: {ex.Message}");
+        }
+        StateHasChanged();
     }
 
     private void CrearSolicitud()
     {
-        if (selectedObra == null || selectedTarea == null) return;
-        NavigationManager.NavigateTo($"/modelos/solicitudes/edit?ObraId={selectedObra.IdObra}&TareaId={selectedTarea.Value.Id}");
+        if (selectedSolicitud == null || selectedTarea == null) return;
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit?ObraId={selectedSolicitud.IdCliente}&TareaId={selectedTarea.IdTarea}&ContenedorCodigo={selectedSolicitud.CodigoEntrega}");
     }
 }

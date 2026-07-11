@@ -11,6 +11,7 @@ public class SageComunDbContext : DbContext
     }
 
     public DbSet<ObraComunSage50> Obras { get; set; } = null!;
+    public DbSet<UsuarioComunSage50> Usuarios { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +57,15 @@ public class SageComunDbContext : DbContext
             entity.Property(o => o.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(5).IsFixedLength();
             entity.Property(o => o.Vista).HasColumnName("VISTA");
             entity.Property(o => o.Zona).HasColumnName("ZONA").HasMaxLength(4).IsFixedLength();
+        });
+
+        modelBuilder.Entity<UsuarioComunSage50>(entity =>
+        {
+            entity.ToTable("usuarios");
+            entity.HasKey(u => u.Codigo);
+
+            entity.Property(u => u.Codigo).HasColumnName("CODIGO").HasMaxLength(15).IsFixedLength();
+            entity.Property(u => u.Nombre).HasColumnName("NOMBRE").HasMaxLength(100).IsFixedLength();
         });
     }
 }

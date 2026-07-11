@@ -149,7 +149,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
-                                    @(sol.IdTipoTarea == 1 ? "Entrega" : sol.IdTipoTarea == 2 ? "Recogida" : "Sustitución")
+                                    @sol.TipoTareaDescripcion
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
@@ -213,14 +213,13 @@
         return todaySols;
     }
 
-    private struct KeyName { public int Id; public string Name; }
-
-    private List<KeyName> tareasList = new()
+    private class KeyName
     {
-        new() { Id = 1, Name = "Entrega" },
-        new() { Id = 2, Name = "Recogida" },
-        new() { Id = 3, Name = "Sustitución" }
-    };
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private List<Tarea>? tareasList;
 
     private List<KeyName> prioridadesList = new()
     {
@@ -255,13 +254,14 @@
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
             if (solicitudes != null)
             {
                 foreach (var sol in solicitudes)
                 {
                     sol.ConductorNombre = operarios?.FirstOrDefault(x => x.IdOperario == sol.IdConductor)?.Nombre;
                     sol.EstadoDescripcion = estadosList?.FirstOrDefault(x => x.IdEstado == sol.Estado)?.Descripcion;
-                    sol.TipoTareaDescripcion = sol.IdTipoTarea == 1 ? "Entrega" : sol.IdTipoTarea == 2 ? "Recogida" : "Sustitución";
+                    sol.TipoTareaDescripcion = tareasList?.FirstOrDefault(x => x.IdTarea == sol.IdTipoTarea)?.NombreTarea ?? $"- (ID: {sol.IdTipoTarea})";
                     sol.PrioridadDescripcion = sol.Prioridad == 1 ? "Alta" : sol.Prioridad == 2 ? "Media" : "Baja";
                 }
             }

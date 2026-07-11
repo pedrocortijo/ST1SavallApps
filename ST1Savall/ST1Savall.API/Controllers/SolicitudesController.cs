@@ -21,15 +21,31 @@ public class SolicitudesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Solicitud>>> GetSolicitudes()
     {
-        return await _context.Solicitudes.Include(s => s.Operario).ThenInclude(o => o!.Cargo).ToListAsync();
+        return await _context.Solicitudes.ToListAsync();
+    }
+
+    [HttpGet("con-contenedores")]
+    public async Task<ActionResult<IEnumerable<Solicitud>>> GetSolicitudesConContenedores()
+    {
+        var solicitudes = await _context.Solicitudes
+            .Where(s1 => s1.CodigoEntrega != null && s1.CodigoEntrega != "" && s1.Estado != 6)
+            .Where(s1 => !_context.Solicitudes.Any(s2 => 
+                s2.CodigoRecogida == s1.CodigoEntrega && 
+                s2.Estado != 6 && 
+                (
+                    (s2.FechaTarea ?? s2.FechaSolicitud ?? DateTime.MinValue) > (s1.FechaTarea ?? s1.FechaSolicitud ?? DateTime.MinValue) ||
+                    ((s2.FechaTarea ?? s2.FechaSolicitud ?? DateTime.MinValue) == (s1.FechaTarea ?? s1.FechaSolicitud ?? DateTime.MinValue) && s2.IdSolicitud > s1.IdSolicitud)
+                )
+            ))
+            .ToListAsync();
+
+        return Ok(solicitudes);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Solicitud>> GetSolicitud(int id)
     {
         var solicitud = await _context.Solicitudes
-            .Include(s => s.Operario)
-            .ThenInclude(o => o!.Cargo)
             .FirstOrDefaultAsync(s => s.IdSolicitud == id);
             
         if (solicitud == null) return NotFound();
@@ -40,6 +56,7 @@ public class SolicitudesController : ControllerBase
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
         _context.Solicitudes.Add(solicitud);
+        await ActualizarEstadosContenedores(solicitud);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetSolicitud), new { id = solicitud.IdSolicitud }, solicitud);
     }
@@ -49,6 +66,7 @@ public class SolicitudesController : ControllerBase
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
         _context.Entry(solicitud).State = EntityState.Modified;
+        await ActualizarEstadosContenedores(solicitud);
         try
         {
             await _context.SaveChangesAsync();
@@ -69,6 +87,31 @@ public class SolicitudesController : ControllerBase
         _context.Solicitudes.Remove(solicitud);
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task ActualizarEstadosContenedores(Solicitud solicitud)
+    {
+        if (!string.IsNullOrEmpty(solicitud.CodigoEntrega))
+        {
+            var contenedorEntrega = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitud.CodigoEntrega);
+            if (contenedorEntrega != null)
+            {
+                contenedorEntrega.EstadoFisico = "Entregado";
+                _context.Entry(contenedorEntrega).State = EntityState.Modified;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(solicitud.CodigoRecogida))
+        {
+            var contenedorRecogida = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitud.CodigoRecogida);
+            if (contenedorRecogida != null)
+            {
+                contenedorRecogida.EstadoFisico = "Disponible";
+                _context.Entry(contenedorRecogida).State = EntityState.Modified;
+            }
+        }
     }
 
     private bool SolicitudExists(int id)

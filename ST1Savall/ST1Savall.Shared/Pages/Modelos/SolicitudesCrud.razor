@@ -13,8 +13,8 @@
             <h2 class="fw-bold text-primary mb-1">Solicitudes</h2>
             <p class="text-muted mb-0">Gestión de tareas.</p>
         </div>
-        <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
         </NavLink>
     </div>
 
@@ -80,7 +80,7 @@
                         ColumnResizeMode="GridColumnResizeMode.ColumnsContainer"
                         CustomizeElement="@OnCustomizeElement">
                     <Columns>
-                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="NavigateToCreate"
@@ -91,7 +91,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex gap-1">
                                         <button class="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px; @GetEditButtonStyle(sol)"
                                                 @onclick="() => NavigateToEdit(sol.IdSolicitud)" 
@@ -135,7 +135,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
-                                    @(sol.IdTipoTarea == 1 ? "Entrega" : sol.IdTipoTarea == 2 ? "Recogida" : "Sustitución")
+                                    @sol.TipoTareaDescripcion
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
@@ -174,6 +174,7 @@
     private int? selectedEstadoFilter;
 
     private List<EstadoSolicitud>? estadosList;
+    private List<Tarea>? tareasList;
 
     private void ToggleEstadoFilter(int estado)
     {
@@ -344,13 +345,14 @@
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
             if (solicitudes != null)
             {
                 foreach (var sol in solicitudes)
                 {
                     sol.ConductorNombre = operarios?.FirstOrDefault(x => x.IdOperario == sol.IdConductor)?.Nombre;
                     sol.EstadoDescripcion = estadosList?.FirstOrDefault(x => x.IdEstado == sol.Estado)?.Descripcion;
-                    sol.TipoTareaDescripcion = sol.IdTipoTarea == 1 ? "Entrega" : sol.IdTipoTarea == 2 ? "Recogida" : "Sustitución";
+                    sol.TipoTareaDescripcion = tareasList?.FirstOrDefault(x => x.IdTarea == sol.IdTipoTarea)?.NombreTarea ?? $"- (ID: {sol.IdTipoTarea})";
                     sol.PrioridadDescripcion = sol.Prioridad == 1 ? "Alta" : sol.Prioridad == 2 ? "Media" : "Baja";
                 }
             }

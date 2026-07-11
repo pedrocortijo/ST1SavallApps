@@ -1,7 +1,9 @@
 @page "/modelos/contenedores"
 @using ST1Savall.Shared.Data
+@using System.Globalization
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>Contenedores</PageTitle>
 
@@ -11,9 +13,14 @@
             <h2 class="fw-bold text-primary mb-1">Contenedores</h2>
             <p class="text-muted mb-0">Gestión de unidades físicas de contenedores y sus estados actuales</p>
         </div>
-        <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
-        </NavLink>
+        <div class="d-flex gap-2">
+            <NavLink href="/modelos/contenedores/mapa" class="btn btn-outline-primary btn-sm">
+                <i class="oi oi-map-marker me-1"></i> Ubicaciones Contenedores
+            </NavLink>
+            <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
+            </NavLink>
+        </div>
     </div>
 
     @if (errorMessage != null)
@@ -50,9 +57,11 @@
                         PageSize="20"
                         AllowSort="true"
                         ShowFilterRow="true"
-                        ShowSearchBox="true">
+                        ShowSearchBox="true"
+                        AutoExpandAllGroupRows="true"
+                        CustomizeElement="OnCustomizeElement">
                     <Columns>
-                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="() => grid?.StartEditNewRowAsync()"
@@ -63,7 +72,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var cont = (Contenedor)context.DataItem;
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex gap-1">
                                         <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
                                                 @onclick="() => grid?.StartEditDataItemAsync(cont)" 
@@ -82,14 +91,35 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridCommandColumn>
-                        <DxGridDataColumn FieldName="IdContenedor" Caption="Código" ReadOnly="true" Width="10%" />
                         <DxGridDataColumn FieldName="NumSerie" Caption="Número de Serie" Width="15%" />
-                        <DxGridDataColumn FieldName="IdTipo" Caption="Tipo de Contenedor" Width="40%" TextAlignment="GridTextAlignment.Left">
+                        <DxGridDataColumn FieldName="Tipo.Descripcion" Caption="Tipo de Contenedor" Width="35%" TextAlignment="GridTextAlignment.Left" GroupIndex="0">
                             <CellDisplayTemplate>
                                 @{
                                     var cont = (Contenedor)context.DataItem;
                                     var t = tipos.FirstOrDefault(x => x.IdTipo == cont.IdTipo);
                                     @t?.Descripcion
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="ObraActual" Caption="Ubicación / Obra" Width="30%">
+                            <CellDisplayTemplate>
+                                @{
+                                    var cont = (Contenedor)context.DataItem;
+                                    var sol = solicitudesConContenedores?.FirstOrDefault(s => s.CodigoEntrega == cont.NumSerie);
+                                    <div class="d-flex align-items-center justify-content-between gap-2">
+                                        <span>@cont.ObraActual</span>
+                                        @if (sol != null)
+                                        {
+                                            var mapsUrl = GetMapsUrl(sol);
+                                            @if (!string.IsNullOrEmpty(mapsUrl))
+                                            {
+                                                <a href="@mapsUrl" class="btn btn-sm btn-outline-success p-1 d-inline-flex align-items-center justify-content-center shadow-sm" 
+                                                   style="width: 28px; height: 28px;" title="Ver en Mapa" @onclick:stopPropagation>
+                                                    <i class="oi oi-map-marker" style="font-size: 0.85rem;"></i>
+                                                </a>
+                                            }
+                                        }
+                                    </div>
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
@@ -132,6 +162,8 @@
     private IGrid? grid;
     private List<Contenedor>? contenedores;
     private List<ContenedorTipo>? tipos;
+    private List<Obra>? obras;
+    private List<Solicitud>? solicitudesConContenedores;
     private string? errorMessage;
 
     private List<string> estados = new() { "Disponible", "Entregado", "En Reparacion", "Baja" };
@@ -158,6 +190,33 @@
         {
             tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
             contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores");
+            obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            
+            try
+            {
+                solicitudesConContenedores = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes/con-contenedores");
+            }
+            catch
+            {
+                solicitudesConContenedores = new List<Solicitud>();
+            }
+
+            if (contenedores != null)
+            {
+                foreach (var cont in contenedores)
+                {
+                    var sol = solicitudesConContenedores?.FirstOrDefault(s => s.CodigoEntrega == cont.NumSerie);
+                    if (sol != null)
+                    {
+                        cont.ObraActual = sol.NombreObra ?? "Obra sin nombre";
+                    }
+                    else
+                    {
+                        cont.ObraActual = cont.EstadoFisico == "Disponible" ? "En Almacén" : "-";
+                    }
+                }
+            }
+
             errorMessage = null;
         }
         catch (Exception ex)
@@ -216,5 +275,65 @@
         {
             errorMessage = $"Error al borrar: {ex.Message}";
         }
+    }
+
+    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
+    {
+        if (e.ElementType == GridElementType.DataRow)
+        {
+            var estado = e.Grid.GetRowValue(e.VisibleIndex, "EstadoFisico") as string;
+            if (estado == "Disponible")
+            {
+                e.CssClass = "row-disponible";
+            }
+        }
+    }
+
+    private string GetMapsUrl(Solicitud sol)
+    {
+        double? lat = null;
+        double? lon = null;
+        string? query = null;
+
+        // 1. Prioritize coordinates
+        if (sol.Latitud.HasValue && sol.Longitud.HasValue)
+        {
+            lat = (double)sol.Latitud.Value;
+            lon = (double)sol.Longitud.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(sol.CoordenadasGPS))
+        {
+            var parts = sol.CoordenadasGPS.Split(',');
+            if (parts.Length == 2 && 
+                double.TryParse(parts[0].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedLat) && 
+                double.TryParse(parts[1].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedLon))
+            {
+                lat = parsedLat;
+                lon = parsedLon;
+            }
+        }
+
+        // 2. Fallback to Obra location details
+        var obra = obras?.FirstOrDefault(o => o.IdObra == sol.IdCliente);
+        if (obra != null)
+        {
+            query = ST1Savall.MapHelper.BuildNormalizedQuery(obra.Ubicacion, obra.Poblacion, null, obra.CodigoPostal);
+        }
+
+        // 3. Last fallback: Solicitud's own address details
+        if (string.IsNullOrEmpty(query))
+        {
+            query = ST1Savall.MapHelper.BuildNormalizedQuery(sol.DireccionCliente, sol.PoblacionCliente, null, null);
+        }
+
+        if (string.IsNullOrEmpty(query))
+        {
+            query = "Dirección no especificada";
+        }
+
+        var latParam = lat.HasValue ? $"&lat={lat.Value.ToString(CultureInfo.InvariantCulture)}" : "";
+        var lonParam = lon.HasValue ? $"&lon={lon.Value.ToString(CultureInfo.InvariantCulture)}" : "";
+        
+        return $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(sol.NombreObra ?? "Ubicación de Contenedor")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString("/modelos/contenedores")}";
     }
 }

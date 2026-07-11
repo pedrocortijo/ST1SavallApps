@@ -32,6 +32,22 @@ public class TareasController : ControllerBase
         return tarea;
     }
 
+    [HttpGet("{id}/siguientes")]
+    public async Task<ActionResult<IEnumerable<Tarea>>> GetTareasSiguientes(int id)
+    {
+        var siguientes = await _context.TareasRelaciones
+            .Where(tr => tr.IdTareaOrigen == id)
+            .Select(tr => tr.TareaDestino)
+            .ToListAsync();
+
+        if (!siguientes.Any())
+        {
+            return await _context.Tareas.ToListAsync();
+        }
+
+        return siguientes!;
+    }
+
     [HttpPost]
     public async Task<ActionResult<Tarea>> PostTarea(Tarea tarea)
     {

@@ -320,3 +320,9 @@ html.theme-fluent-dark ::deep .menu-button {
     width: 600px !important;
     max-width: 90vw !important;
 }
+
+/* Fila de contenedor disponible */
+.row-disponible td {
+    background-color: #198754 !important;
+    color: #ffffff !important;
+}

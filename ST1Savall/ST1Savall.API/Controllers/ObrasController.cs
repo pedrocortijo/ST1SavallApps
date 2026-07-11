@@ -59,7 +59,8 @@ public class ObrasController : ControllerBase
                 Nima = so.Libre3.Trim(),
                 Telefono = so.Telefono.Trim(),
                 Movil = so.Movil.Trim(),
-                Cliente = so.Cliente.Trim()
+                Cliente = so.Cliente.Trim(),
+                Encargado = so.Encargado.Trim()
             };
 
             var clientCode = (so.Cliente ?? "").Trim();
@@ -106,7 +107,8 @@ public class ObrasController : ControllerBase
             Nima = so.Libre3.Trim(),
             Telefono = so.Telefono.Trim(),
             Movil = so.Movil.Trim(),
-            Cliente = so.Cliente.Trim()
+            Cliente = so.Cliente.Trim(),
+            Encargado = so.Encargado.Trim()
         };
 
         var clientCode = (so.Cliente ?? "").Trim();
@@ -168,6 +170,7 @@ public class ObrasController : ControllerBase
             Provincia = obra.Provincia ?? "",
             Telefono = obra.Telefono ?? "",
             Movil = obra.Movil ?? "",
+            Encargado = obra.Encargado ?? "",
             Terminada = obra.Finalizada ?? false,
             Vista = obra.Visible ?? true,
             Libre3 = obra.Nima ?? "",
@@ -242,6 +245,7 @@ public class ObrasController : ControllerBase
         so.Provincia = obra.Provincia ?? "";
         so.Telefono = obra.Telefono ?? "";
         so.Movil = obra.Movil ?? "";
+        so.Encargado = obra.Encargado ?? "";
         so.Terminada = obra.Finalizada ?? false;
         so.Vista = obra.Visible ?? true;
         so.Libre3 = obra.Nima ?? "";
@@ -320,7 +324,18 @@ public class ObrasController : ControllerBase
         {
             return val;
         }
-        return Math.Abs(cleaned.GetHashCode());
+        
+        // Stable FNV-1a hash to ensure consistent IDs across process restarts
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (char c in cleaned)
+            {
+                hash ^= c;
+                hash *= 16777619;
+            }
+            return Math.Abs((int)hash);
+        }
     }
 
     private string FormatIntToCodigo(int idObra)

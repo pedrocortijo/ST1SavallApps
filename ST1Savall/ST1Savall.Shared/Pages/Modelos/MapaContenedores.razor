@@ -1,0 +1,277 @@
+@page "/modelos/contenedores/mapa"
+@using ST1Savall.Shared.Data
+@using System.Globalization
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Ubicaciones de Contenedores</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">@PageHeaderTitle</h2>
+            <p class="text-muted mb-0">@PageHeaderSubtitle</p>
+        </div>
+        <NavLink href="@BackUrl" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> @BackText
+        </NavLink>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0 position-relative">
+            @if (isLoading)
+            {
+                <div class="p-5 text-center" style="min-height: 500px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Cargando ubicaciones...</span>
+                    </div>
+                    <p class="mt-3 text-muted mb-0">Cargando mapa e información geográfica de contenedores...</p>
+                </div>
+            }
+            else if (locations == null || locations.Count == 0)
+            {
+                <div class="p-5 text-center border rounded" style="min-height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f9fa;">
+                    <i class="oi oi-info text-secondary mb-3" style="font-size: 2.5rem; opacity: 0.5;"></i>
+                    <h5 class="fw-bold text-secondary">No hay ubicaciones para mostrar</h5>
+                    <p class="text-muted mb-0 max-width-md">No se encontraron contenedores en estado 'Entregado' o sus obras asociadas no disponen de direcciones o coordenadas válidas.</p>
+                    
+                    <div class="p-3 bg-light border rounded mt-4 text-start" style="font-size: 0.85rem; max-width: 400px; width: 100%;">
+                        <h6 class="fw-bold text-secondary mb-2">Diagnóstico de datos:</h6>
+                        <div class="mb-1">Contenedores en el sistema: <strong>@debugTotalContenedores</strong></div>
+                        <div class="mb-1">Filtrados como "Entregado": <strong>@debugEntregados</strong></div>
+                        <div>Ubicaciones cargadas para geocodificar: <strong>@locations.Count</strong></div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div id="map-container" style="height: 650px; width: 100%; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "lat")]
+    public double? QueryLat { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "lon")]
+    public double? QueryLon { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "address")]
+    public string? QueryAddress { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "title")]
+    public string? QueryTitle { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "backUrl")]
+    public string? QueryBackUrl { get; set; }
+
+    private string PageHeaderTitle => !string.IsNullOrEmpty(QueryAddress) || (QueryLat.HasValue && QueryLon.HasValue)
+        ? $"Localización de {QueryTitle ?? "Ubicación"}"
+        : "Mapa de Contenedores";
+
+    private string PageHeaderSubtitle => !string.IsNullOrEmpty(QueryAddress) || (QueryLat.HasValue && QueryLon.HasValue)
+        ? "Visualización geográfica del punto seleccionado"
+        : "Ubicación en tiempo real de los contenedores entregados en obras";
+
+    private string BackUrl => !string.IsNullOrEmpty(QueryBackUrl) ? QueryBackUrl : "/modelos/contenedores";
+    private string BackText => !string.IsNullOrEmpty(QueryBackUrl) ? "Volver" : "Volver a Contenedores";
+
+    private List<Contenedor>? contenedores;
+    private List<ContenedorTipo>? tipos;
+    private List<Obra>? obras;
+    private List<Solicitud>? solicitudesConContenedores;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private List<MapLocation> locations = new();
+
+    private int debugTotalContenedores = 0;
+    private int debugEntregados = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!isLoading && locations.Count > 0)
+        {
+            try
+            {
+                // Espera breve para asegurar que el DOM del contenedor de mapa se ha renderizado completamente en el cliente
+                await Task.Delay(100);
+                await JSRuntime.InvokeVoidAsync(
+                    "initializeLeafletMap", 
+                    "map-container", 
+                    locations, 
+                    "_content/ST1Savall.Shared/images/marker-sabospa.svg"
+                );
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error al inicializar el mapa: {ex.Message}";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        try
+        {
+            // Si nos han pasado una dirección o coordenadas específicas por query parameter, mostramos solo esa ubicación
+            if (!string.IsNullOrEmpty(QueryAddress) || (QueryLat.HasValue && QueryLon.HasValue))
+            {
+                locations.Clear();
+                var infoText = $"<div style='font-family: inherit; font-size: 0.9rem; line-height: 1.4;'><h6 style='margin: 0 0 5px 0; color: #0e7a52; font-weight: bold;'>{QueryTitle ?? "Ubicación"}</h6><strong>Dirección:</strong> {QueryAddress ?? "Coordenadas directas"}</div>";
+                locations.Add(new MapLocation
+                {
+                    Lat = QueryLat ?? 0,
+                    Lon = QueryLon ?? 0,
+                    Address = QueryAddress,
+                    Info = infoText
+                });
+                errorMessage = null;
+                return;
+            }
+
+            tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
+            contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores");
+            obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            
+            try
+            {
+                solicitudesConContenedores = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes/con-contenedores");
+            }
+            catch
+            {
+                solicitudesConContenedores = new List<Solicitud>();
+            }
+
+            if (contenedores != null)
+            {
+                debugTotalContenedores = contenedores.Count;
+                var entregados = contenedores.Where(c => c.EstadoFisico != null && c.EstadoFisico.Equals("Entregado", StringComparison.OrdinalIgnoreCase)).ToList();
+                debugEntregados = entregados.Count;
+                locations.Clear();
+
+                foreach (var cont in entregados)
+                {
+                    var sol = solicitudesConContenedores?.FirstOrDefault(s => s.CodigoEntrega == cont.NumSerie);
+                    if (sol != null)
+                    {
+                        var (lat, lon, address) = GetCoordinatesAndAddress(sol);
+                        if ((lat.HasValue && lon.HasValue) || !string.IsNullOrWhiteSpace(address))
+                        {
+                            var tipoDesc = tipos?.FirstOrDefault(t => t.IdTipo == cont.IdTipo)?.Descripcion ?? "Contenedor";
+                            var nombreObra = sol.NombreObra ?? "Sin nombre";
+                            var infoText = $"<div style='font-family: inherit; font-size: 0.9rem; line-height: 1.4;'><h6 style='margin: 0 0 5px 0; color: #0e7a52; font-weight: bold;'>{tipoDesc}</h6><strong>Nº Serie:</strong> {cont.NumSerie}<br/><strong>Obra:</strong> {nombreObra}<br/><strong>Dirección:</strong> {address}</div>";
+
+                            locations.Add(new MapLocation 
+                            { 
+                                Lat = lat ?? 0, 
+                                Lon = lon ?? 0, 
+                                Address = address,
+                                Info = infoText 
+                            });
+                        }
+                    }
+                }
+            }
+
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar datos del mapa: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private (double? Lat, double? Lon, string Address) GetCoordinatesAndAddress(Solicitud sol)
+    {
+        // 1. Coordenadas directas
+        if (sol.Latitud.HasValue && sol.Longitud.HasValue)
+        {
+            return ((double)sol.Latitud.Value, (double)sol.Longitud.Value, GetCleanAddressText(sol));
+        }
+
+        // 2. Parsear CoordenadasGPS
+        if (!string.IsNullOrWhiteSpace(sol.CoordenadasGPS))
+        {
+            var parts = sol.CoordenadasGPS.Split(',');
+            if (parts.Length == 2 && 
+                double.TryParse(parts[0].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var lat) && 
+                double.TryParse(parts[1].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var lon))
+            {
+                return (lat, lon, GetCleanAddressText(sol));
+            }
+        }
+
+        // 3. Fallback a Obra
+        return (null, null, GetCleanAddressText(sol));
+    }
+
+    private string GetCleanAddressText(Solicitud sol)
+    {
+        // Buscamos la obra asociada
+        var obra = obras?.FirstOrDefault(o => o.IdObra == sol.IdCliente);
+        if (obra != null)
+        {
+            var query = ST1Savall.MapHelper.BuildNormalizedQuery(obra.Ubicacion, obra.Poblacion, null, obra.CodigoPostal);
+            if (!string.IsNullOrEmpty(query)) return query;
+        }
+
+        // Fallback a dirección del cliente de la solicitud
+        var fallbackQuery = ST1Savall.MapHelper.BuildNormalizedQuery(sol.DireccionCliente, sol.PoblacionCliente, null, null);
+        if (!string.IsNullOrEmpty(fallbackQuery)) return fallbackQuery;
+
+        return "Dirección no especificada";
+    }
+
+    public class MapLocation
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public double Lat { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public double Lon { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("address")]
+        public string? Address { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("info")]
+        public string? Info { get; set; }
+    }
+}

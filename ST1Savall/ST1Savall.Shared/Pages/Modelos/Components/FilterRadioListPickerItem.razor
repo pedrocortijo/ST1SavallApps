@@ -1,0 +1,117 @@
+@typeparam TItem
+
+<div class="filter-radio-list-picker d-flex flex-column h-100">
+    <!-- Buscador -->
+    <div class="mb-3 position-relative">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0">
+                <i class="oi oi-magnifying-glass text-muted"></i>
+            </span>
+            <input type="text" 
+                   class="form-control border-start-0" 
+                   placeholder="@SearchPlaceholder" 
+                   value="@SearchText" 
+                   @oninput="OnSearchInput" />
+            @if (!string.IsNullOrEmpty(SearchText))
+            {
+                <button class="btn btn-outline-secondary border-start-0" 
+                        @onclick="ClearSearch" 
+                        type="button"
+                        style="z-index: 5;">
+                    <i class="oi oi-x"></i>
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- Contenedor scrollable de la lista -->
+    <div class="list-group flex-grow-1 overflow-auto border rounded" style="max-height: @MaxHeight; background-color: var(--bs-body-bg, #fff);">
+        @if (Data == null)
+        {
+            <div class="p-4 text-center">
+                <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                <span class="ms-2 text-muted">Cargando...</span>
+            </div>
+        }
+        else
+        {
+            var filtered = GetFilteredData();
+            if (!filtered.Any())
+            {
+                <div class="p-4 text-center text-muted small">
+                    <i class="oi oi-warning me-1"></i> No se encontraron resultados
+                </div>
+            }
+            else
+            {
+                @foreach (var item in filtered)
+                {
+                    var isSelected = SelectedValue != null && KeyField(item).Equals(KeyField(SelectedValue));
+                    <button type="button" 
+                            class="list-group-item list-group-item-action d-flex align-items-center py-2 @(isSelected ? "active" : "")"
+                            @onclick="() => OnItemClick(item)">
+                        <div class="form-check mb-0 me-2 d-flex align-items-center">
+                            <input class="form-check-input" 
+                                   type="radio" 
+                                   checked="@isSelected" 
+                                   name="FilterRadioListGroup"
+                                   style="pointer-events: none;" />
+                        </div>
+                        <span class="fw-semibold text-truncate" title="@TextField(item)">@TextField(item)</span>
+                    </button>
+                }
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public IEnumerable<TItem>? Data { get; set; }
+
+    [Parameter]
+    public TItem? SelectedValue { get; set; }
+
+    [Parameter]
+    public EventCallback<TItem?> SelectedValueChanged { get; set; }
+
+    [Parameter]
+    public Func<TItem, string> TextField { get; set; } = null!;
+
+    [Parameter]
+    public Func<TItem, object> KeyField { get; set; } = null!;
+
+    [Parameter]
+    public string SearchPlaceholder { get; set; } = "Buscar...";
+
+    [Parameter]
+    public string MaxHeight { get; set; } = "350px";
+
+    private string SearchText { get; set; } = string.Empty;
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void ClearSearch()
+    {
+        SearchText = string.Empty;
+    }
+
+    private IEnumerable<TItem> GetFilteredData()
+    {
+        if (Data == null) return Array.Empty<TItem>();
+        if (string.IsNullOrWhiteSpace(SearchText)) return Data;
+
+        return Data.Where(item => 
+            TextField(item).Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    private async Task OnItemClick(TItem item)
+    {
+        SelectedValue = item;
+        await SelectedValueChanged.InvokeAsync(item);
+    }
+}

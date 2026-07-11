@@ -20,10 +20,28 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<EstadoSolicitud> EstadosSolicitud { get; set; } = null!;
     public DbSet<Prioridad> Prioridades { get; set; } = null!;
     public DbSet<Tarea> Tareas { get; set; } = null!;
+    public DbSet<TareaRelacion> TareasRelaciones { get; set; } = null!;
+    public DbSet<Planta> Plantas { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // Configure TareaRelacion composite key and relationships
+        builder.Entity<TareaRelacion>()
+            .HasKey(tr => new { tr.IdTareaOrigen, tr.IdTareaDestino });
+
+        builder.Entity<TareaRelacion>()
+            .HasOne(tr => tr.TareaOrigen)
+            .WithMany()
+            .HasForeignKey(tr => tr.IdTareaOrigen)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<TareaRelacion>()
+            .HasOne(tr => tr.TareaDestino)
+            .WithMany()
+            .HasForeignKey(tr => tr.IdTareaDestino)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Configure Operario ID to seed from 0
         builder.Entity<Operario>()
@@ -46,6 +64,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<Solicitud>()
             .Property(s => s.Longitud)
+            .HasPrecision(9, 6);
+
+        builder.Entity<Planta>()
+            .Property(p => p.Latitud)
+            .HasPrecision(9, 6);
+
+        builder.Entity<Planta>()
+            .Property(p => p.Longitud)
             .HasPrecision(9, 6);
     }
 }

@@ -29,4 +29,9 @@ public class Contenedor
 
     [MaxLength(500)]
     public string? Observaciones { get; set; }
+
+    [NotMapped]
+    public string? ObraActual { get; set; }
 }
+
+

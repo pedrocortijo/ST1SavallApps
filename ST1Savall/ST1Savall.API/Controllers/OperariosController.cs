@@ -21,13 +21,13 @@ public class OperariosController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Operario>>> GetOperarios()
     {
-        return await _context.Operarios.Include(o => o.Cargo).ToListAsync();
+        return await _context.Operarios.Include(o => o.Cargo).Include(o => o.Planta).ToListAsync();
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Operario>> GetOperario(int id)
     {
-        var operario = await _context.Operarios.Include(o => o.Cargo).FirstOrDefaultAsync(o => o.IdOperario == id);
+        var operario = await _context.Operarios.Include(o => o.Cargo).Include(o => o.Planta).FirstOrDefaultAsync(o => o.IdOperario == id);
         if (operario == null) return NotFound();
         return operario;
     }

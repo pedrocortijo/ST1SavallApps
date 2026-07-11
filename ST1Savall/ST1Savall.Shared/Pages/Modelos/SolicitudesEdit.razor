@@ -48,6 +48,9 @@
                     <DxFormLayoutItem Caption="Nº Solicitud" ColSpanMd="2" BeginRow="true" Enabled="false">
                         <DxSpinEdit @bind-Value="@solicitud.IdSolicitud" ShowSpinButtons="false" />
                     </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fecha Solicitud" ColSpanMd="2">
+                        <DxDateEdit @bind-Date="@solicitud.FechaSolicitud" />
+                    </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Obra" ColSpanMd="2">
                         <DxComboBox Data="@obras"
                                     TextFieldName="Codigo"
@@ -55,115 +58,189 @@
                                     Value="@solicitud.IdCliente"
                                     ValueChanged="@((int val) => OnObraChanged(val))" />
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Cliente/Obra" ColSpanMd="5">
-                        <DxTextBox @bind-Text="@solicitud.NombreCliente" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Teléfono" ColSpanMd="3">
-                        <DxTextBox @bind-Text="@solicitud.TelefonoCliente" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Dirección Obra" ColSpanMd="7" BeginRow="true">
-                        <DxTextBox @bind-Text="@solicitud.DireccionCliente" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Población" ColSpanMd="5" >
-                        <DxTextBox @bind-Text="@solicitud.PoblacionCliente" />
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                        <Template>
+                            <div class="p-3 rounded border mb-2" style="background-color: rgba(128, 128, 128, 0.05);">
+                                <div class="row g-3">
+                                    <div class="col-md-6 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Nombre Obra:</span>
+                                        <span>@(solicitud.NombreObra ?? "-")</span>
+                                    </div>
+                                    <div class="col-md-6 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Cliente:</span>
+                                        <span>@(solicitud.NombreCliente ?? "-")</span>
+                                    </div>
+                                    <div class="col-md-8 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Dirección Obra:</span>
+                                        <span>@(solicitud.DireccionCliente ?? "-")</span>
+                                    </div>
+                                    <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Población:</span>
+                                        <span>@(solicitud.PoblacionCliente ?? "-")</span>
+                                    </div>
+                                    <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Encargado:</span>
+                                        <span>@(solicitud.Encargado ?? "-")</span>
+                                    </div>
+                                    <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Teléfono:</span>
+                                        <span>@(solicitud.TelefonoCliente ?? "-")</span>
+                                    </div>
+                                    <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Móvil:</span>
+                                        <span>@(solicitud.Movil ?? "-")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </Template>
                     </DxFormLayoutItem>
 
                     <!-- Grupo 1: Datos Generales -->
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        Datos Generales
+                        Datos de la Tarea
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Solicitud" ColSpanMd="3">
-                        <DxDateEdit @bind-Date="@solicitud.FechaSolicitud" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Tarea" ColSpanMd="3">
+                    <DxFormLayoutItem Caption="Fecha Tarea" ColSpanMd="2">
                         <DxDateEdit @bind-Date="@solicitud.FechaTarea" />
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Estado" ColSpanMd="4">
+
+                    <DxFormLayoutItem Caption="Usuario" ColSpanMd="4">
+                        <DxComboBox Data="@usuariosSage"
+                                    TextFieldName="Nombre"
+                                    ValueFieldName="Codigo"
+                                    @bind-Value="@solicitud.IdOperario"
+                                    ClearButtonVisible="true" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Estado" ColSpanMd="6">
                         <DxComboBox Data="@estadosList"
                                     TextFieldName="Descripcion"
                                     ValueFieldName="IdEstado"
                                     @bind-Value="@solicitud.Estado" />
                     </DxFormLayoutItem>
 
+                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="3" BeginRow="true">
+                        <DxComboBox Data="@operarios"
+                                    TextFieldName="Nombre"
+                                    ValueFieldName="IdOperario"
+                                    @bind-Value="@solicitud.IdConductor"
+                                    ClearButtonVisible="true" />
+                    </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="4" BeginRow="true">
+                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="3" >
+                        <DxComboBox Data="@tareasList"
+                                    TextFieldName="NombreTarea"
+                                    ValueFieldName="IdTarea"
+                                    Value="@solicitud.IdTipoTarea"
+                                    ValueChanged="@((int val) => OnTareaChanged(val))" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Hora" ColSpanMd="3">
+                        <DxTextBox @bind-Value="@solicitud.HoraLlegada" />
+                    </DxFormLayoutItem>
+
+
+                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="3">
                         <DxComboBox Data="@prioridadesList"
                                     TextFieldName="Name"
                                     ValueFieldName="Id"
                                     @bind-Value="@solicitud.Prioridad" />
                     </DxFormLayoutItem>
 
-                    
-                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="8">
-                        <DxComboBox Data="@operarios"
-                                    TextFieldName="Nombre"
-                                    ValueFieldName="IdOperario"
-                                    @bind-Value="@solicitud.IdConductor" />
-                    </DxFormLayoutItem>
-
-                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="4" BeginRow="true">
-                        <DxComboBox Data="@tareasList"
-                                    TextFieldName="Name"
-                                    ValueFieldName="Id"
-                                    @bind-Value="@solicitud.IdTipoTarea" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Operario Adicional" ColSpanMd="4">
-                        <DxComboBox Data="@operarios"
-                                    TextFieldName="Nombre"
-                                    ValueFieldName="IdOperario"
-                                    @bind-Value="@solicitud.IdOperario" />
-                    </DxFormLayoutItem>
-
                     <DxFormLayoutItem Caption="Observaciones para el conductor" ColSpanMd="12" BeginRow="true">
                         <DxTextBox @bind-Text="@solicitud.Observaciones" />
                     </DxFormLayoutItem>
+
                     <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="12" BeginRow="true">
                         <DxTextBox @bind-Text="@comentariosOficina" />
                     </DxFormLayoutItem>
 
-                    <!-- Grupo 3: Contenedor -->
-                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        Contenedor
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Datos entrega" ColSpanMd="6" BeginRow="true">
-                        <DxTextBox @bind-Text="@solicitud.CodigoEntrega" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Datos recogida" ColSpanMd="6">
-                        <DxTextBox @bind-Text="@solicitud.CodigoRecogida" />
-                    </DxFormLayoutItem>
+                    <!-- Grupo 3: Contenedor y Ubicación -->
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                        <Template>
+                            <div class="row g-4">
+                                <!-- Columna Izquierda: Contenedor -->
+                                <div class="col-md-6 border-end pe-md-4">
+                                    <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Contenedores</h6>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold text-muted small mb-1">Datos entrega</label>
+                                        <DxComboBox Data="@contenedoresEntrega"
+                                                    Enabled="@IsEntregaEnabled"
+                                                    TData="Contenedor"
+                                                    TValue="string"
+                                                    TextFieldName="NumSerie"
+                                                    ValueFieldName="NumSerie"
+                                                    @bind-Value="@solicitud.CodigoEntrega"
+                                                    ClearButtonVisible="true"
+                                                    SearchMode="ListSearchMode.AutoSearch"
+                                                    SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                                    AllowUserInput="false">
+                                            <Columns>
+                                                <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
+                                                <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
+                                                <DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" />
+                                            </Columns>
+                                        </DxComboBox>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold text-muted small mb-1">Datos recogida</label>
+                                        <DxComboBox Data="@contenedoresRecogida"
+                                                    Enabled="@IsRecogidaEnabled"
+                                                    TData="Contenedor"
+                                                    TValue="string"
+                                                    TextFieldName="NumSerie"
+                                                    ValueFieldName="NumSerie"
+                                                    @bind-Value="@solicitud.CodigoRecogida"
+                                                    ClearButtonVisible="true"
+                                                    SearchMode="ListSearchMode.AutoSearch"
+                                                    SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                                    AllowUserInput="false">
+                                            <Columns>
+                                                <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
+                                                <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
+                                                <DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" />
+                                            </Columns>
+                                        </DxComboBox>
+                                    </div>
+                                </div>
 
-                    <DxFormLayoutItem Caption="Coordenadas GPS" ColSpanMd="6" BeginRow="true">
-                        <DxTextBox Text="@solicitud.CoordenadasGPS" TextChanged="OnCoordenadasGPSTextChanged" NullText="ej. 39.4699,-0.3763" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Actu." ColSpanMd="6">
-                        <DxDateEdit @bind-Date="@solicitud.FechaActualizacion" Enabled="false" TimeSectionVisible="true" Mask="dd/MM/yyyy HH:mm:ss" />
-                    </DxFormLayoutItem>
-
-                    <DxFormLayoutItem Caption="Latitud" ColSpanMd="3" BeginRow="true">
-                        <DxSpinEdit @bind-Value="@solicitud.Latitud" DecimalPlaces="6" ShowSpinButtons="false" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Longitud" ColSpanMd="3">
-                        <DxSpinEdit @bind-Value="@solicitud.Longitud" DecimalPlaces="6" ShowSpinButtons="false" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-end pb-1">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="ObtenerUbicacionActualAsync" style="height: 38px;">
-                            <i class="oi oi-map-marker me-1"></i> Ubicación Actual
-                        </button>
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-end pb-1">
-                        <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="VerCoordenadasEnMapa" style="height: 38px;" title="Ver coordenadas en Google Maps">
-                            <i class="oi oi-eye me-1"></i> Ver en Maps
-                        </button>
+                                <!-- Columna Derecha: Localización GPS -->
+                                <div class="col-md-6 ps-md-4">
+                                    <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Localización GPS</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold text-muted small mb-1">Latitud</label>
+                                            <DxSpinEdit @bind-Value="@solicitud.Latitud" DecimalPlaces="6" ShowSpinButtons="false" />
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label fw-bold text-muted small mb-1">Longitud</label>
+                                            <DxSpinEdit @bind-Value="@solicitud.Longitud" DecimalPlaces="6" ShowSpinButtons="false" />
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="ObtenerUbicacionActualAsync" style="height: 38px;">
+                                                <i class="oi oi-map-marker me-1"></i> Ubicación Actual
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="VerCoordenadasEnMapa" style="height: 38px;" title="Ver coordenadas en Google Maps">
+                                                <i class="oi oi-eye me-1"></i> Ver en Maps
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Template>
                     </DxFormLayoutItem>
 
                     <!-- Grupo 4: Aplazamiento de tarea -->
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
                         Aplazamiento de tarea
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Próxima Prevista" ColSpanMd="6" BeginRow="true">
+                    <DxFormLayoutItem Caption="Fecha Próxima Prevista" ColSpanMd="2" BeginRow="true">
                         <DxDateEdit @bind-Date="@solicitud.FechaPrevista" />
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Motivo del aplazamiento" ColSpanMd="6">
+                    <DxFormLayoutItem Caption="Motivo del aplazamiento" ColSpanMd="10">
                         <DxSpinEdit @bind-Value="@solicitud.MotivoReprogramacion" ShowSpinButtons="false" />
                     </DxFormLayoutItem>
 
@@ -204,22 +281,26 @@
     [SupplyParameterFromQuery]
     public int? TareaId { get; set; }
 
+    [SupplyParameterFromQuery]
+    public string? ContenedorCodigo { get; set; }
+
     private Solicitud? solicitud;
     private List<Operario>? operarios;
+    private List<UsuarioComunSage50>? usuariosSage;
     private List<EstadoSolicitud>? estadosList;
     private List<Obra>? obras;
+    private List<Contenedor>? contenedoresList;
     private bool loading = true;
     private string? errorMessage;
     private string? comentariosOficina;
 
-    private struct KeyName { public int Id; public string Name; }
-
-    private List<KeyName> tareasList = new()
+    private class KeyName
     {
-        new() { Id = 1, Name = "Entrega" },
-        new() { Id = 2, Name = "Recogida" },
-        new() { Id = 3, Name = "Sustitución" }
-    };
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private List<Tarea>? tareasList;
 
     private List<KeyName> prioridadesList = new()
     {
@@ -250,8 +331,10 @@
         {
             loading = true;
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            usuariosSage = await Http.GetFromJsonAsync<List<UsuarioComunSage50>>("api/UsuariosComunSage50");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
 
             if (Id.HasValue)
             {
@@ -261,10 +344,11 @@
             {
                 solicitud = new Solicitud
                 {
-                    FechaInicial = DateTime.Today,
-                    FechaTarea = DateTime.Today,
+                    FechaSolicitud = DateTime.Today,
+                    //FechaInicial = DateTime.Today,
+                    //FechaTarea = DateTime.Today,
                     Estado = 1, // Introducido por defecto
-                    Prioridad = 2 // Media por defecto
+                    IdConductor = null // Sin asignar por defecto
                 };
 
                 if (ObraId.HasValue)
@@ -273,10 +357,13 @@
                     var obra = obras?.FirstOrDefault(o => o.IdObra == ObraId.Value);
                     if (obra != null)
                     {
+                        solicitud.NombreObra = obra.Descripcion;
                         solicitud.NombreCliente = obra.NombreCliente;
-                        solicitud.DireccionCliente = obra.DireccionCliente;
-                        solicitud.PoblacionCliente = obra.PoblacionCliente;
-                        solicitud.TelefonoCliente = obra.TelefonoContactoCliente;
+                        solicitud.DireccionCliente = obra.Ubicacion;
+                        solicitud.PoblacionCliente = obra.Poblacion;
+                        solicitud.TelefonoCliente = obra.Telefono;
+                        solicitud.Encargado = obra.Encargado;
+                        solicitud.Movil = obra.Movil;
                     }
                 }
 
@@ -284,6 +371,17 @@
                 {
                     solicitud.IdTipoTarea = TareaId.Value;
                 }
+
+                if (!string.IsNullOrEmpty(ContenedorCodigo))
+                {
+                    solicitud.CodigoRecogida = ContenedorCodigo;
+                }
+            }
+
+            var allContenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores");
+            if (allContenedores != null)
+            {
+                contenedoresList = allContenedores;
             }
         }
         catch (Exception ex)
@@ -303,10 +401,13 @@
         var obra = obras?.FirstOrDefault(o => o.IdObra == val);
         if (obra != null)
         {
+            solicitud.NombreObra = obra.Descripcion;
             solicitud.NombreCliente = obra.NombreCliente;
-            solicitud.DireccionCliente = obra.DireccionCliente;
-            solicitud.PoblacionCliente = obra.PoblacionCliente;
-            solicitud.TelefonoCliente = obra.TelefonoContactoCliente;
+            solicitud.DireccionCliente = obra.Ubicacion;
+            solicitud.PoblacionCliente = obra.Poblacion;
+            solicitud.TelefonoCliente = obra.Telefono;
+            solicitud.Encargado = obra.Encargado;
+            solicitud.Movil = obra.Movil;
         }
     }
 
@@ -350,20 +451,47 @@
 
 
 
-    private async Task VerCoordenadasEnMapa()
+    private Task VerCoordenadasEnMapa()
     {
-        if (solicitud != null && solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
+        if (solicitud == null) return Task.CompletedTask;
+
+        double? lat = null;
+        double? lon = null;
+        if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
         {
-            var latStr = solicitud.Latitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-            var lonStr = solicitud.Longitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-            var url = $"https://www.google.com/maps/search/?api=1&query={latStr},{lonStr}";
-            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            lat = (double)solicitud.Latitud.Value;
+            lon = (double)solicitud.Longitud.Value;
         }
-        else if (solicitud != null && !string.IsNullOrWhiteSpace(solicitud.CoordenadasGPS))
+        else if (!string.IsNullOrWhiteSpace(solicitud.CoordenadasGPS))
         {
-            var url = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(solicitud.CoordenadasGPS.Replace(" ", ""))}";
-            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            var parts = solicitud.CoordenadasGPS.Split(',');
+            if (parts.Length == 2 && 
+                double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedLat) && 
+                double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedLon))
+            {
+                lat = parsedLat;
+                lon = parsedLon;
+            }
         }
+
+        var address = ST1Savall.MapHelper.BuildNormalizedQuery(solicitud.DireccionCliente, solicitud.PoblacionCliente, null, null);
+        if (string.IsNullOrEmpty(address))
+        {
+            address = "Ubicación de Solicitud";
+        }
+
+        var backUrl = "/modelos/solicitudes";
+        if (Id.HasValue)
+        {
+            backUrl = $"/modelos/solicitudes/edit/{Id.Value}";
+        }
+
+        var latParam = lat.HasValue ? $"&lat={lat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
+        var lonParam = lon.HasValue ? $"&lon={lon.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
+
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(address)}&title={Uri.EscapeDataString(solicitud.NombreObra ?? "Ubicación de Solicitud")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
+        NavigationManager.NavigateTo(mapsUrl);
+        return Task.CompletedTask;
     }
 
     private void OnCoordenadasGPSTextChanged(string val)
@@ -442,6 +570,40 @@
         catch (Exception ex)
         {
             errorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
+        }
+    }
+
+    private List<Contenedor> contenedoresEntrega =>
+        contenedoresList?
+            .Where(c => c.EstadoFisico != null && (c.EstadoFisico.Equals("Disponible", StringComparison.OrdinalIgnoreCase)
+                     || (!string.IsNullOrEmpty(solicitud?.CodigoEntrega) && c.NumSerie == solicitud.CodigoEntrega)))
+            .ToList() ?? new List<Contenedor>();
+
+    private List<Contenedor> contenedoresRecogida =>
+        contenedoresList?
+            .Where(c => c.EstadoFisico != null && (c.EstadoFisico.Equals("Entregado", StringComparison.OrdinalIgnoreCase)
+                     || (!string.IsNullOrEmpty(solicitud?.CodigoRecogida) && c.NumSerie == solicitud.CodigoRecogida)))
+            .ToList() ?? new List<Contenedor>();
+
+    private bool IsEntregaEnabled =>
+        solicitud != null && (solicitud.IdTipoTarea == 1 || solicitud.IdTipoTarea == 8);
+
+    private bool IsRecogidaEnabled =>
+        solicitud != null && (solicitud.IdTipoTarea == 7 || solicitud.IdTipoTarea == 8);
+
+    private void OnTareaChanged(int val)
+    {
+        if (solicitud == null) return;
+        solicitud.IdTipoTarea = val;
+        
+        if (val != 1 && val != 8)
+        {
+            solicitud.CodigoEntrega = null;
+        }
+        
+        if (val != 7 && val != 8)
+        {
+            solicitud.CodigoRecogida = null;
         }
     }
 

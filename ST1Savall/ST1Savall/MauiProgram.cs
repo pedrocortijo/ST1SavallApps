@@ -31,7 +31,7 @@ namespace ST1Savall
             builder.Services.AddAuthorizationCore();
             builder.Services.AddScoped<AuthenticationStateProvider, DesktopAuthenticationStateProvider>();
 #if ANDROID
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://10.0.2.2:5077/") });
+            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.18.32:5077/") });
 #else
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
 #endif

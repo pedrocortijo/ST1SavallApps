@@ -11,7 +11,7 @@ public class Solicitud
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int IdSolicitud { get; set; }
 
-    public int IdConductor { get; set; }
+    public int? IdConductor { get; set; }
     public int IdTipoTarea { get; set; }
 
     public DateTime? FechaSolicitud { get; set; }
@@ -38,10 +38,8 @@ public class Solicitud
 
     public string? Observaciones { get; set; }
 
-    public int? IdOperario { get; set; }
-
-    [ForeignKey("IdOperario")]
-    public Operario? Operario { get; set; }
+    [MaxLength(15)]
+    public string? IdOperario { get; set; }
 
     public int? MotivoReprogramacion { get; set; }
 
@@ -50,6 +48,9 @@ public class Solicitud
 
     [MaxLength(200)]
     public string? NombreCliente { get; set; }
+
+    [MaxLength(200)]
+    public string? NombreObra { get; set; }
 
     [MaxLength(200)]
     public string? DireccionCliente { get; set; }
@@ -82,7 +83,16 @@ public class Solicitud
     [NotMapped]
     public string? PrioridadDescripcion { get; set; }
 
+    [NotMapped]
+    public string? ObraDescripcion { get; set; }
+
     public decimal? Latitud { get; set; }
     public decimal? Longitud { get; set; }
     public DateTime? FechaActualizacion { get; set; }
+
+    [MaxLength(100)]
+    public string? Encargado { get; set; }
+
+    [MaxLength(20)]
+    public string? Movil { get; set; }
 }

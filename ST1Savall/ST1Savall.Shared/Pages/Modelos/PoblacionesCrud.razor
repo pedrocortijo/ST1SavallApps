@@ -13,8 +13,8 @@
             <h2 class="fw-bold text-primary mb-1">Poblaciones (Códigos Postales)</h2>
             <p class="text-muted mb-0">Administración de códigos postales y poblaciones de Sage50</p>
         </div>
-        <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
         </NavLink>
     </div>
 
@@ -55,7 +55,7 @@
                         ShowSearchBox="true"
                         SearchBoxNullText="Buscar población...">
                     <Columns>
-                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="() => grid?.StartEditNewRowAsync()"
@@ -66,7 +66,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var item = (CodPosSage50)context.DataItem;
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex gap-1">
                                         <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
                                                 @onclick="() => grid?.StartEditDataItemAsync(item)" 
@@ -225,17 +225,22 @@
         }
     }
 
-    private async Task VerEnMapaAsync(CodPosSage50 item)
+    private Task VerEnMapaAsync(CodPosSage50 item)
     {
-        if (!string.IsNullOrWhiteSpace(item.Lati) && !string.IsNullOrWhiteSpace(item.Longi))
+        if (!string.IsNullOrWhiteSpace(item.Lati) && !string.IsNullOrWhiteSpace(item.Longi) &&
+            double.TryParse(item.Lati.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lat) &&
+            double.TryParse(item.Longi.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lon))
         {
-            var url = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(item.Lati.Trim())},{Uri.EscapeDataString(item.Longi.Trim())}";
-            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            var title = item.Poblacion ?? "Población";
+            var query = ST1Savall.MapHelper.BuildNormalizedQuery(item.Poblacion, null, item.Provincia, item.Codigo);
+            var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(title)}&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}&lon={lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}&backUrl={Uri.EscapeDataString("/modelos/poblaciones")}";
+            NavigationManager.NavigateTo(mapsUrl);
         }
         else
         {
-            errorMessage = "Esta población no tiene coordenadas de latitud y longitud válidas para ver en Google Maps.";
+            errorMessage = "Esta población no tiene coordenadas de latitud y longitud válidas para ver en el mapa.";
         }
+        return Task.CompletedTask;
     }
 
     private async Task ObtenerCoordenadasAsync(CodPosSage50 item)

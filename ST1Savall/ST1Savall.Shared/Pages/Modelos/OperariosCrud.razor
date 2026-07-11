@@ -11,8 +11,8 @@
             <h2 class="fw-bold text-primary mb-1">Operarios</h2>
             <p class="text-muted mb-0">Gestión de operarios, información de contacto, asignación de cargos y permisos</p>
         </div>
-        <NavLink href="/modelos" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Modelos
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
         </NavLink>
     </div>
 
@@ -26,13 +26,13 @@
 
     <div class="card shadow-sm">
         <div class="card-body p-0">
-            @if (operarios == null || cargos == null)
+            @if (operarios == null || cargos == null || plantas == null)
             {
                 <div class="p-5 text-center">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Cargando...</span>
                     </div>
-                    <p class="mt-2 text-muted mb-0">Cargando operarios y cargos...</p>
+                    <p class="mt-2 text-muted mb-0">Cargando operarios, cargos y plantas...</p>
                 </div>
             }
             else
@@ -52,7 +52,7 @@
                         ShowFilterRow="true"
                         ShowSearchBox="true">
                     <Columns>
-                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="() => grid?.StartEditNewRowAsync()"
@@ -63,7 +63,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var oper = (Operario)context.DataItem;
-                                    <div class="d-flex gap-2">
+                                    <div class="d-flex gap-1">
                                         <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
                                                 @onclick="() => grid?.StartEditDataItemAsync(oper)" 
@@ -82,10 +82,10 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridCommandColumn>
-                        <DxGridDataColumn FieldName="IdOperario" Caption="Código" ReadOnly="true" Width="80px" />
-                        <DxGridDataColumn FieldName="Nombre" Caption="Nombre Completo" />
-                        <DxGridDataColumn FieldName="Telefono" Caption="Teléfono" Width="140px" />
-                        <DxGridDataColumn FieldName="IdCargo" Caption="Cargo Asignado">
+                        <DxGridDataColumn FieldName="IdOperario" Caption="Código" ReadOnly="true" Width="80px" Visible="false"/>
+                        <DxGridDataColumn FieldName="Nombre" Caption="Nombre" Width="130px" TextAlignment="GridTextAlignment.Left" />
+                        <DxGridDataColumn FieldName="Telefono" Caption="Teléfono" Width="100px" TextAlignment="GridTextAlignment.Left" />
+                        <DxGridDataColumn FieldName="IdCargo" Caption="Cargo Asignado" Width="150px" TextAlignment="GridTextAlignment.Left">
                             <CellDisplayTemplate>
                                 @{
                                     var oper = (Operario)context.DataItem;
@@ -97,9 +97,21 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="IdPlanta" Caption="Planta Asignada" TextAlignment="GridTextAlignment.Left">
+                            <CellDisplayTemplate>
+                                @{
+                                    var oper = (Operario)context.DataItem;
+                                    if (oper.IdPlanta.HasValue && plantas != null)
+                                    {
+                                        var p = plantas.FirstOrDefault(x => x.IdPlanta == oper.IdPlanta.Value);
+                                        @p?.Nombre
+                                    }
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
-                        <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" />
-                        <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" />
+                        <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" Visible="false" />
+                        <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" Visible="false" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{
@@ -118,11 +130,16 @@
                                             ValueFieldName="IdCargo"
                                             @bind-Value="@oper.IdCargo" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Planta Asignada" ColSpanMd="6">
+                                <DxComboBox Data="@plantas"
+                                            TextFieldName="Nombre"
+                                            ValueFieldName="IdPlanta"
+                                            @bind-Value="@oper.IdPlanta" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="6" BeginRow="true">
                                 <DxCheckBox @bind-Checked="@oper.Activo" LabelPosition="LabelPosition.Right">Operario Activo</DxCheckBox>
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Permisos Especiales" ColSpanMd="12" BeginRow="true" CssClass="border-top pt-2 mt-2 fw-bold text-muted small text-uppercase">
-                                Permisos
                             </DxFormLayoutItem>
                             <DxFormLayoutItem ColSpanMd="4" BeginRow="true">
                                 <DxCheckBox @bind-Checked="@oper.Obras" LabelPosition="LabelPosition.Right">Acceso Obras</DxCheckBox>
@@ -145,6 +162,7 @@
     private IGrid? grid;
     private List<Operario>? operarios;
     private List<Cargo>? cargos;
+    private List<Planta>? plantas;
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -168,6 +186,7 @@
         try
         {
             cargos = await Http.GetFromJsonAsync<List<Cargo>>("api/cargos");
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             errorMessage = null;
         }

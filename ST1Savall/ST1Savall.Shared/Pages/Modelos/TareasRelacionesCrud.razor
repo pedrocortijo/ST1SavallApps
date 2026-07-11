@@ -1,0 +1,333 @@
+@page "/modelos/tareas-relaciones"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Mantenimiento de Relaciones de Tareas</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Relaciones de Tareas</h2>
+            <p class="text-muted mb-0">Gestión de transiciones de tareas permitidas en las obras.</p>
+        </div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
+        </NavLink>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (tareasRelaciones == null || tareasList == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando relaciones de tareas...</p>
+                </div>
+            }
+            else
+            {
+                <DxGrid @ref="grid"
+                        Data="@tareasRelaciones"
+                        KeyFieldName="CompositeKey"
+                        DataItemDeleting="OnDataItemDeleting"
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true"
+                        SearchBoxNullText="Buscar relación...">
+                    <Columns>
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate>
+                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
+                                        @onclick="OpenAddPopup"
+                                        title="Nueva Relación">
+                                    <i class="oi oi-plus me-1"></i> Nueva
+                                </button>
+                            </HeaderTemplate>
+                            <CellDisplayTemplate>
+                                @{
+                                    var relacion = (TareaRelacion)context.DataItem;
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => OpenEditPopup(relacion)" 
+                                                @onclick:stopPropagation
+                                                title="Editar">
+                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(relacion)" 
+                                                @onclick:stopPropagation
+                                                title="Eliminar">
+                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="TareaOrigen.NombreTarea" Caption="Tarea Anterior (Origen)" GroupIndex="0" />
+                        <DxGridDataColumn FieldName="TareaDestino.NombreTarea" Caption="Tarea Siguiente (Destino)" />
+                    </Columns>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+<DxPopup @bind-Visible="@showAddPopup"
+         HeaderText="@(isEditing ? "Editar Relación de Tareas" : "Nueva Relación de Tareas")"
+         HeaderCssClass="bg-primary text-white"
+         MinWidth="500px"
+         ShowFooter="true">
+    <BodyTemplate>
+        <div class="p-3">
+            <div class="mb-3">
+                <label class="form-label fw-bold">1. Tarea Anterior (Origen)</label>
+                <DxComboBox Data="@tareasList"
+                            TextFieldName="NombreTarea"
+                            ValueFieldName="IdTarea"
+                            Value="@selectedOrigenId"
+                            ValueChanged="@((int val) => OnOrigenChanged(val))"
+                            SearchEnabled="true"
+                            Enabled="@(!isEditing)"
+                            NullText="Seleccione la tarea de origen..." />
+            </div>
+
+            @if (selectedOrigenId > 0)
+            {
+                <div class="mb-3">
+                    <label class="form-label fw-bold">2. Tareas Siguientes (Destinos)</label>
+                    <DxTagBox Data="@GetAvailableDestinoTareas()"
+                              TextFieldName="NombreTarea"
+                              ValueFieldName="IdTarea"
+                              @bind-Values="@selectedDestinoIds"
+                              SearchEnabled="true"
+                              NullText="Seleccione las tareas siguientes..." />
+                    <small class="text-muted d-block mt-1">
+                        Seleccione una o varias tareas que se podrán realizar después de la tarea origen. No se incluye la propia tarea origen.
+                    </small>
+                </div>
+            }
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <div class="d-flex justify-content-end gap-2 p-2 border-top">
+            <button class="btn btn-outline-secondary btn-sm px-4" @onclick="CloseAddPopup">Cancelar</button>
+            <button class="btn btn-primary btn-sm px-4" @onclick="SaveNewRelationsAsync" disabled="@IsSaveDisabled()">Guardar</button>
+        </div>
+    </FooterTemplate>
+</DxPopup>
+
+@code {
+    private IGrid? grid;
+    private List<TareaRelacion>? tareasRelaciones;
+    private List<Tarea>? tareasList;
+    private string? errorMessage;
+
+    private bool showAddPopup = false;
+    private int selectedOrigenId;
+    private IEnumerable<int> selectedDestinoIds = Array.Empty<int>();
+
+    private bool isEditing = false;
+    private TareaRelacion? editingRelacion;
+
+    private void OpenAddPopup()
+    {
+        isEditing = false;
+        editingRelacion = null;
+        selectedOrigenId = 0;
+        selectedDestinoIds = Array.Empty<int>();
+        showAddPopup = true;
+    }
+
+    private void OpenEditPopup(TareaRelacion relacion)
+    {
+        isEditing = true;
+        editingRelacion = relacion;
+        selectedOrigenId = relacion.IdTareaOrigen;
+        
+        if (tareasRelaciones != null)
+        {
+            selectedDestinoIds = tareasRelaciones
+                .Where(r => r.IdTareaOrigen == relacion.IdTareaOrigen)
+                .Select(r => r.IdTareaDestino)
+                .ToList();
+        }
+        else
+        {
+            selectedDestinoIds = new List<int> { relacion.IdTareaDestino };
+        }
+        
+        showAddPopup = true;
+    }
+
+    private void CloseAddPopup()
+    {
+        showAddPopup = false;
+    }
+
+    private void OnOrigenChanged(int val)
+    {
+        selectedOrigenId = val;
+        if (tareasRelaciones != null && val > 0)
+        {
+            selectedDestinoIds = tareasRelaciones
+                .Where(r => r.IdTareaOrigen == val)
+                .Select(r => r.IdTareaDestino)
+                .ToList();
+        }
+        else
+        {
+            selectedDestinoIds = Array.Empty<int>();
+        }
+    }
+
+    private bool IsSaveDisabled()
+    {
+        if (selectedOrigenId <= 0) return true;
+        
+        bool hasExistingRelations = tareasRelaciones?.Any(r => r.IdTareaOrigen == selectedOrigenId) == true;
+        return !selectedDestinoIds.Any() && !hasExistingRelations;
+    }
+
+    private IEnumerable<Tarea> GetAvailableDestinoTareas()
+    {
+        if (tareasList == null) return Array.Empty<Tarea>();
+        return tareasList.Where(t => t.IdTarea != selectedOrigenId);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            tareasRelaciones = await Http.GetFromJsonAsync<List<TareaRelacion>>("api/tareasrelaciones");
+            tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar relaciones de tareas: {ex.Message}";
+        }
+    }
+
+    private async Task SaveNewRelationsAsync()
+    {
+        if (selectedOrigenId <= 0) return;
+
+        try
+        {
+            await SetupHeadersAsync();
+
+            var originalDestinoIds = tareasRelaciones?
+                .Where(r => r.IdTareaOrigen == selectedOrigenId)
+                .Select(r => r.IdTareaDestino)
+                .ToList() ?? new List<int>();
+
+            var toAdd = selectedDestinoIds.Except(originalDestinoIds).ToList();
+            var toDelete = originalDestinoIds.Except(selectedDestinoIds).ToList();
+
+            int successCount = 0;
+            int errorCount = 0;
+
+            // 1. Eliminar relaciones quitadas
+            foreach (var destId in toDelete)
+            {
+                var response = await Http.DeleteAsync($"api/tareasrelaciones/{selectedOrigenId}/{destId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    successCount++;
+                }
+                else
+                {
+                    errorCount++;
+                }
+            }
+
+            // 2. Agregar nuevas relaciones
+            foreach (var destId in toAdd)
+            {
+                var newRel = new TareaRelacion
+                {
+                    IdTareaOrigen = selectedOrigenId,
+                    IdTareaDestino = destId
+                };
+
+                var response = await Http.PostAsJsonAsync("api/tareasrelaciones", newRel);
+                if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                {
+                    successCount++;
+                }
+                else
+                {
+                    errorCount++;
+                }
+            }
+
+            if (errorCount > 0)
+            {
+                errorMessage = $"Se procesaron los cambios: {successCount} exitosos, {errorCount} fallidos.";
+            }
+            else
+            {
+                errorMessage = null;
+            }
+
+            showAddPopup = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var dataItem = (TareaRelacion)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/tareasrelaciones/{dataItem.IdTareaOrigen}/{dataItem.IdTareaDestino}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar relación de tarea: {response.ReasonPhrase}";
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar: {ex.Message}";
+        }
+    }
+}
