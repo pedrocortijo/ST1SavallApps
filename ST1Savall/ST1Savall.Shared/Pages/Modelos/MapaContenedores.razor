@@ -7,15 +7,17 @@
 
 <PageTitle>Ubicaciones de Contenedores</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">@PageHeaderTitle</h2>
             <p class="text-muted mb-0">@PageHeaderSubtitle</p>
         </div>
-        <NavLink href="@BackUrl" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> @BackText
-        </NavLink>
+        <div class="d-flex gap-2">
+            <NavLink href="@BackUrl" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> @BackText
+            </NavLink>
+        </div>
     </div>
 
     @if (errorMessage != null)
@@ -78,11 +80,19 @@
     public string? QueryTitle { get; set; }
 
     [Parameter]
+    [SupplyParameterFromQuery(Name = "serie")]
+    public string? QuerySerie { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "obra")]
+    public string? QueryObra { get; set; }
+
+    [Parameter]
     [SupplyParameterFromQuery(Name = "backUrl")]
     public string? QueryBackUrl { get; set; }
 
     private string PageHeaderTitle => !string.IsNullOrEmpty(QueryAddress) || (QueryLat.HasValue && QueryLon.HasValue)
-        ? $"Localización de {QueryTitle ?? "Ubicación"}"
+        ? $"Localización de: {QuerySerie + " (" + QueryTitle + ")" ?? "Ubicación"}"
         : "Mapa de Contenedores";
 
     private string PageHeaderSubtitle => !string.IsNullOrEmpty(QueryAddress) || (QueryLat.HasValue && QueryLon.HasValue)
@@ -99,6 +109,7 @@
     private bool isLoading = true;
     private string? errorMessage;
     private List<MapLocation> locations = new();
+    private bool mapInitialized = false;
 
     private int debugTotalContenedores = 0;
     private int debugEntregados = 0;
@@ -111,10 +122,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!isLoading && locations.Count > 0)
+        if (!isLoading && locations.Count > 0 && !mapInitialized)
         {
             try
             {
+                mapInitialized = true;
                 // Espera breve para asegurar que el DOM del contenedor de mapa se ha renderizado completamente en el cliente
                 await Task.Delay(100);
                 await JSRuntime.InvokeVoidAsync(
@@ -126,6 +138,7 @@
             }
             catch (Exception ex)
             {
+                mapInitialized = false;
                 errorMessage = $"Error al inicializar el mapa: {ex.Message}";
                 StateHasChanged();
             }
@@ -151,13 +164,29 @@
             if (!string.IsNullOrEmpty(QueryAddress) || (QueryLat.HasValue && QueryLon.HasValue))
             {
                 locations.Clear();
-                var infoText = $"<div style='font-family: inherit; font-size: 0.9rem; line-height: 1.4;'><h6 style='margin: 0 0 5px 0; color: #0e7a52; font-weight: bold;'>{QueryTitle ?? "Ubicación"}</h6><strong>Dirección:</strong> {QueryAddress ?? "Coordenadas directas"}</div>";
+                var title = System.Net.WebUtility.HtmlEncode(QueryTitle ?? "Ubicación");
+                var address = System.Net.WebUtility.HtmlEncode(QueryAddress ?? "Coordenadas directas");
+                var serie = string.IsNullOrWhiteSpace(QuerySerie)
+                    ? string.Empty
+                    : $"<div><strong>Nº Serie:</strong> {System.Net.WebUtility.HtmlEncode(QuerySerie)}</div>";
+                var obra = string.IsNullOrWhiteSpace(QueryObra)
+                    ? string.Empty
+                    : $"<div><strong>Obra:</strong> {System.Net.WebUtility.HtmlEncode(QueryObra)}</div>";
+                var infoText = $"<div class='map-marker-popup'><h6 class='map-marker-popup-title'>{title}</h6>{serie}{obra}<div><strong>Dirección:</strong> {address}</div></div>";
+                
+                var labelParts = new List<string>();
+                if (!string.IsNullOrEmpty(QueryTitle)) labelParts.Add(QueryTitle);
+                if (!string.IsNullOrEmpty(QuerySerie)) labelParts.Add($"Serie {QuerySerie}");
+                if (!string.IsNullOrEmpty(QueryObra)) labelParts.Add(QueryObra);
+                var labelText = string.Join(" - ", labelParts);
+
                 locations.Add(new MapLocation
                 {
                     Lat = QueryLat ?? 0,
                     Lon = QueryLon ?? 0,
                     Address = QueryAddress,
-                    Info = infoText
+                    Info = infoText,
+                    LabelText = labelText
                 });
                 errorMessage = null;
                 return;
@@ -194,13 +223,15 @@
                             var tipoDesc = tipos?.FirstOrDefault(t => t.IdTipo == cont.IdTipo)?.Descripcion ?? "Contenedor";
                             var nombreObra = sol.NombreObra ?? "Sin nombre";
                             var infoText = $"<div style='font-family: inherit; font-size: 0.9rem; line-height: 1.4;'><h6 style='margin: 0 0 5px 0; color: #0e7a52; font-weight: bold;'>{tipoDesc}</h6><strong>Nº Serie:</strong> {cont.NumSerie}<br/><strong>Obra:</strong> {nombreObra}<br/><strong>Dirección:</strong> {address}</div>";
+                            var labelText = $"{tipoDesc} - Serie {cont.NumSerie} - {nombreObra}";
 
                             locations.Add(new MapLocation 
                             { 
                                 Lat = lat ?? 0, 
                                 Lon = lon ?? 0, 
                                 Address = address,
-                                Info = infoText 
+                                Info = infoText,
+                                LabelText = labelText
                             });
                         }
                     }
@@ -273,5 +304,8 @@
 
         [System.Text.Json.Serialization.JsonPropertyName("info")]
         public string? Info { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("labelText")]
+        public string? LabelText { get; set; }
     }
 }

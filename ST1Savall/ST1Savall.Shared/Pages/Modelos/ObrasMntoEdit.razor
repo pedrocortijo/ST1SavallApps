@@ -10,7 +10,7 @@
 
 <PageTitle>@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</h2>
@@ -118,7 +118,7 @@
                         <DxFormLayoutItem Caption="Provincia" ColSpanMd="5" BeginRow="true">
                             <DxTextBox @bind-Text="@obra.Provincia" ReadOnly="true" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="5">
+                        <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="7">
                             <DxTextBox @bind-Text="@obra.Libre3" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Encargado" ColSpanMd="4" BeginRow="true">
@@ -130,21 +130,27 @@
                         <DxFormLayoutItem Caption="Móvil" ColSpanMd="4">
                             <DxTextBox @bind-Text="@obra.Movil" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-center">
+                        <DxFormLayoutItem Caption="Contacto Alter." ColSpanMd="4" BeginRow="true">
+                            <DxTextBox @bind-Text="@obra.Libre1" MaxLength="10" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Teléf. Contacto" ColSpanMd="4">
+                            <DxTextBox @bind-Text="@obra.Libre2" MaxLength="10" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-center">
                             <DxCheckBox @bind-Checked="@obra.Vista" LabelPosition="LabelPosition.Right">Visible</DxCheckBox>
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
+                        <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-center">
                             <DxCheckBox @bind-Checked="@obra.Terminada" LabelPosition="LabelPosition.Right">Finalizada</DxCheckBox>
                         </DxFormLayoutItem>
                         
                         <DxFormLayoutItem ColSpanMd="6" BeginRow="true" CssClass="d-flex align-items-end pb-1">
                             <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="async () => await ObtenerUbicacionActualAsync()" style="height: 38px;">
-                                <i class="oi oi-map-marker me-1"></i> Dirección Actual
+                                <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
                             </button>
                         </DxFormLayoutItem>
                         <DxFormLayoutItem ColSpanMd="6" CssClass="d-flex align-items-end pb-1">
-                            <button type="button" class="btn btn-outline-secondary btn-sm w-100" @onclick="async () => await AbrirMapaAsync()" style="height: 38px;">
-                                <i class="oi oi-map me-1"></i> Mapa
+                            <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="async () => await AbrirMapaAsync()" style="height: 38px;" title="Ver en Google Maps">
+                                <i class="oi oi-eye me-1"></i> Ver en Maps
                             </button>
                         </DxFormLayoutItem>
 
@@ -152,7 +158,7 @@
                         <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3 mt-4">
                             Datos del Cliente
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Cliente" ColSpanMd="12" BeginRow="true">
+                        <DxFormLayoutItem Caption="Cliente" ColSpanMd="7" BeginRow="true">
                             <DxComboBox Data="@clientesList"
                                         TData="ClienteSage50"
                                         TValue="string"
@@ -170,6 +176,9 @@
                                 </ItemTemplate>
                             </DxComboBox>
                         </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Teléfono Cliente" ColSpanMd="5">
+                            <DxTextBox Text="@GetClientTelefono(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
+                        </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
                             <DxTextBox Text="@GetClientDireccion(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
                         </DxFormLayoutItem>
@@ -178,9 +187,6 @@
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Cód. Postal" ColSpanMd="3">
                             <DxTextBox Text="@GetClientCodpost(obra.Cliente)" MaxLength="5" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Teléfono Cliente" ColSpanMd="12">
-                            <DxTextBox Text="@GetClientTelefono(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
                         </DxFormLayoutItem>
 
                         <!-- Botones de Acción Formulario -->
@@ -221,8 +227,24 @@
                     <DxFormLayoutItem Caption="Provincia" ColSpanMd="12">
                         <DxTextBox @bind-Text="@newPoblacion.Provincia" MaxLength="50" />
                     </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Latitud" ColSpanMd="6">
+                        <DxTextBox @bind-Text="@newPoblacion.Lati" MaxLength="30" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Longitud" ColSpanMd="6">
+                        <DxTextBox @bind-Text="@newPoblacion.Longi" MaxLength="30" />
+                    </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Visible" ColSpanMd="6">
                         <DxCheckBox @bind-Checked="@newPoblacionVisible" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="7" BeginRow="true" CssClass="d-flex align-items-end pb-1">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="async () => await ObtenerUbicacionActualAsync(newPoblacion)" style="height: 38px;">
+                            <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
+                        </button>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="5" CssClass="d-flex align-items-end pb-1">
+                        <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="async () => await VerPoblacionEnMapaAsync(newPoblacion)" style="height: 38px;" title="Ver en Google Maps">
+                            <i class="oi oi-eye me-1"></i> Ver en Maps
+                        </button>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="12" CssClass="d-flex justify-content-end gap-2 pt-3">
                         <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ClosePoblacionPopup">Cancelar</button>
@@ -485,6 +507,8 @@
             obra.Telefono = obra.Telefono?.Trim() ?? "";
             obra.Movil = obra.Movil?.Trim() ?? "";
             obra.Encargado = obra.Encargado?.Trim() ?? "";
+            obra.Libre1 = obra.Libre1?.Trim() ?? "";
+            obra.Libre2 = obra.Libre2?.Trim() ?? "";
             obra.Libre3 = obra.Libre3?.Trim() ?? "";
 
             if (IsNew)
@@ -597,6 +621,55 @@
         {
             errorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
         }
+    }
+
+    private async Task ObtenerUbicacionActualAsync(CodPosSage50 poblacion)
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<DeviceCoordinates>("eval", @"
+                new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject('Geolocalización no soportada');
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        pos => resolve({ latitud: pos.coords.latitude, longitud: pos.coords.longitude }),
+                        err => reject('Error al obtener ubicación: ' + err.message),
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    );
+                })");
+
+            poblacion.Lati = result.Latitud.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
+            poblacion.Longi = result.Longitud.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            popupErrorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
+        }
+    }
+
+    private Task VerPoblacionEnMapaAsync(CodPosSage50 poblacion)
+    {
+        var query = ST1Savall.MapHelper.BuildNormalizedQuery(poblacion.Poblacion, null, poblacion.Provincia, poblacion.Codigo);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            popupErrorMessage = "Introduzca una población, provincia o código postal primero para verla en el mapa.";
+            return Task.CompletedTask;
+        }
+
+        var latParam = TryParseCoordinate(poblacion.Lati, out var lat) ? $"&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
+        var lonParam = TryParseCoordinate(poblacion.Longi, out var lon) ? $"&lon={lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(poblacion.Poblacion ?? "Población")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(NavigationManager.Uri)}";
+        NavigationManager.NavigateTo(mapsUrl);
+        return Task.CompletedTask;
+    }
+
+    private static bool TryParseCoordinate(string? value, out double coordinate)
+    {
+        return double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out coordinate)
+            || double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, new System.Globalization.CultureInfo("es-ES"), out coordinate);
     }
 
     private void OnConfirmClosed(bool ok)
@@ -775,5 +848,13 @@
         public string? City { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("postcode")]
         public string? Postcode { get; set; }
+    }
+
+    private class DeviceCoordinates
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("latitud")]
+        public double Latitud { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("longitud")]
+        public double Longitud { get; set; }
     }
 }

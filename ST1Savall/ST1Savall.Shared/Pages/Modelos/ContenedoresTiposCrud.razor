@@ -5,7 +5,7 @@
 
 <PageTitle>Tipos de Contenedores</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">Tipos de Contenedores</h2>
@@ -43,6 +43,7 @@
                         EditMode="GridEditMode.PopupEditForm"
                         EditModelSaving="OnEditModelSaving"
                         DataItemDeleting="OnDataItemDeleting"
+                        CustomizeEditModel="Grid_CustomizeEditModel"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormHeaderText="Formulario - Tipo de Contenedor"
                         PopupEditFormCssClass="crud-popup"
@@ -52,10 +53,10 @@
                         ShowFilterRow="true"
                         ShowSearchBox="true">
                     <Columns>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        @onclick="StartNewTipoAsync"
                                         title="Nuevo Tipo de Contenedor">
                                     <i class="oi oi-plus me-1"></i> Nuevo
                                 </button>
@@ -70,6 +71,13 @@
                                                 @onclick:stopPropagation
                                                 title="Editar">
                                             <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center shadow-sm"
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => DuplicateTipoAsync(tipo)"
+                                                @onclick:stopPropagation
+                                                title="Duplicar">
+                                            <i class="oi oi-document" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
@@ -121,6 +129,7 @@
     private IGrid? grid;
     private List<ContenedorTipo>? tipos;
     private string? errorMessage;
+    private ContenedorTipo? tipoToDuplicate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -149,6 +158,40 @@
         {
             errorMessage = $"Error al cargar tipos de contenedores: {ex.Message}";
         }
+    }
+
+    private async Task StartNewTipoAsync()
+    {
+        tipoToDuplicate = null;
+        if (grid is not null)
+        {
+            await grid.StartEditNewRowAsync();
+        }
+    }
+
+    private async Task DuplicateTipoAsync(ContenedorTipo tipo)
+    {
+        tipoToDuplicate = tipo;
+        if (grid is not null)
+        {
+            await grid.StartEditNewRowAsync();
+        }
+    }
+
+    private void Grid_CustomizeEditModel(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew || tipoToDuplicate is null)
+        {
+            return;
+        }
+
+        var newTipo = (ContenedorTipo)e.EditModel;
+        newTipo.Descripcion = $"{tipoToDuplicate.Descripcion} (Copia)";
+        newTipo.CapacidadMetrosCubicos = tipoToDuplicate.CapacidadMetrosCubicos;
+        newTipo.LargoCm = tipoToDuplicate.LargoCm;
+        newTipo.AnchoCm = tipoToDuplicate.AnchoCm;
+        newTipo.AltoCm = tipoToDuplicate.AltoCm;
+        tipoToDuplicate = null;
     }
 
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)

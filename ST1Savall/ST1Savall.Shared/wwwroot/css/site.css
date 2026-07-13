@@ -321,8 +321,47 @@ html.theme-fluent-dark ::deep .menu-button {
     max-width: 90vw !important;
 }
 
+/* Popup de ubicación de contenedor en Leaflet */
+.map-marker-popup-container .leaflet-popup-content-wrapper {
+    border-radius: 14px;
+}
+
+.map-marker-popup-container .leaflet-popup-content {
+    min-width: 305px;
+    margin: 16px 20px;
+}
+
+.map-marker-popup {
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.map-marker-popup-title {
+    margin: 0 0 5px;
+    color: #0e7a52;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.map-marker-popup-button {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 7px 11px;
+    border-radius: 3px;
+    background-color: #198754;
+    color: #ffffff !important;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.map-marker-popup-button:hover {
+    background-color: #146c43;
+    color: #ffffff !important;
+}
+
 /* Fila de contenedor disponible */
 .row-disponible td {
-    background-color: #198754 !important;
-    color: #ffffff !important;
+    background-color: #b7e4c7 !important;
+    color: #0f5132 !important;
 }

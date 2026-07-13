@@ -56,6 +56,21 @@ public class ObrasComunSage50Controller : ControllerBase
     {
         if (codigo != obra.Codigo) return BadRequest();
         _context.Entry(obra).State = EntityState.Modified;
+        var entry = _context.Entry(obra);
+        entry.Property(o => o.Descuento).IsModified = false;
+        entry.Property(o => o.Fax).IsModified = false;
+        entry.Property(o => o.Fpag).IsModified = false;
+        entry.Property(o => o.Isp).IsModified = false;
+        entry.Property(o => o.Marvehic).IsModified = false;
+        entry.Property(o => o.Modvehic).IsModified = false;
+        entry.Property(o => o.Observacio).IsModified = false;
+        entry.Property(o => o.Password).IsModified = false;
+        entry.Property(o => o.Posicion).IsModified = false;
+        entry.Property(o => o.Pp).IsModified = false;
+        entry.Property(o => o.Ruta).IsModified = false;
+        entry.Property(o => o.Tarifa).IsModified = false;
+        entry.Property(o => o.Vendedor).IsModified = false;
+        entry.Property(o => o.Zona).IsModified = false;
         try
         {
             await _context.SaveChangesAsync();

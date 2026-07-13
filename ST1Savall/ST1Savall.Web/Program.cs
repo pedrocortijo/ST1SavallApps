@@ -41,6 +41,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https:/
 builder.Services.AddScoped<ST1Savall.Web.Services.IPortalAccessRequestService, ST1Savall.Web.Services.PortalAccessRequestService>();
 builder.Services.AddScoped<ST1Savall.Shared.Services.IUserDisplayService, ST1Savall.Web.Services.ServerUserDisplayService>();
 builder.Services.AddScoped<ST1Savall.Shared.Services.IAuthService, ST1Savall.Web.Services.WebAuthService>();
+builder.Services.AddScoped<ST1Savall.Shared.Services.ObrasMntoGridState>();
 
 var app = builder.Build();
 

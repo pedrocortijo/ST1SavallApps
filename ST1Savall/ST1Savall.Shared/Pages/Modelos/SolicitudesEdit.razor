@@ -8,7 +8,7 @@
 
 <PageTitle>@(Id.HasValue ? "Editar Solicitud" : "Nueva Solicitud")</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">@(Id.HasValue ? "Editar Solicitud" : "Nueva Solicitud")</h2>
@@ -486,10 +486,26 @@
             backUrl = $"/modelos/solicitudes/edit/{Id.Value}";
         }
 
+        // Obtener la serie del contenedor y su descripción si está asignado
+        var serie = solicitud.CodigoEntrega ?? solicitud.CodigoRecogida ?? string.Empty;
+        var obra = solicitud.NombreObra ?? "Ubicación de Solicitud";
+        var tipo = "Ubicación de Solicitud";
+
+        if (!string.IsNullOrEmpty(serie))
+        {
+            var cont = contenedoresList?.FirstOrDefault(c => c.NumSerie == serie);
+            if (cont != null)
+            {
+                tipo = cont.Tipo?.Descripcion ?? "Contenedor";
+            }
+        }
+
         var latParam = lat.HasValue ? $"&lat={lat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
         var lonParam = lon.HasValue ? $"&lon={lon.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
+        var serieParam = !string.IsNullOrEmpty(serie) ? $"&serie={Uri.EscapeDataString(serie)}" : "";
+        var obraParam = $"&obra={Uri.EscapeDataString(obra)}";
 
-        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(address)}&title={Uri.EscapeDataString(solicitud.NombreObra ?? "Ubicación de Solicitud")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(address)}&title={Uri.EscapeDataString(tipo)}{serieParam}{obraParam}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
         NavigationManager.NavigateTo(mapsUrl);
         return Task.CompletedTask;
     }

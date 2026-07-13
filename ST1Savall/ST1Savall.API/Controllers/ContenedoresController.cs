@@ -21,13 +21,13 @@ public class ContenedoresController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Contenedor>>> GetContenedores()
     {
-        return await _context.Contenedores.Include(c => c.Tipo).ToListAsync();
+        return await _context.Contenedores.Include(c => c.Tipo).Include(c => c.Planta).ToListAsync();
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Contenedor>> GetContenedor(int id)
     {
-        var contenedor = await _context.Contenedores.Include(c => c.Tipo).FirstOrDefaultAsync(c => c.IdContenedor == id);
+        var contenedor = await _context.Contenedores.Include(c => c.Tipo).Include(c => c.Planta).FirstOrDefaultAsync(c => c.IdContenedor == id);
         if (contenedor == null) return NotFound();
         return contenedor;
     }
@@ -76,6 +76,51 @@ public class ContenedoresController : ControllerBase
         _context.Contenedores.Remove(contenedor);
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpPost("seed-random")]
+    public async Task<IActionResult> SeedRandom()
+    {
+        var random = new System.Random();
+        var tipos = await _context.ContenedoresTipos.ToListAsync();
+        var plantas = await _context.Plantas.ToListAsync();
+
+        if (tipos == null || !tipos.Any() || plantas == null || !plantas.Any())
+        {
+            return BadRequest("Se necesitan tipos de contenedores y plantas para crear contenedores.");
+        }
+
+        var estados = new[] { "Disponible", "Entregado", "En Reparacion", "Baja" };
+        var creados = 0;
+
+        for (int i = 0; i < 100; i++)
+        {
+            string numSerie;
+            do
+            {
+                numSerie = $"CONT-{random.Next(100000, 999999)}";
+            } while (await _context.Contenedores.AnyAsync(c => c.NumSerie == numSerie));
+
+            var tipo = tipos[random.Next(tipos.Count)];
+            var planta = plantas[random.Next(plantas.Count)];
+            var estado = estados[random.Next(estados.Length)];
+
+            var cont = new Contenedor
+            {
+                NumSerie = numSerie,
+                IdTipo = tipo.IdTipo,
+                IdPlanta = planta.IdPlanta,
+                EstadoFisico = estado,
+                UltimaRevision = DateOnly.FromDateTime(System.DateTime.Today.AddDays(-random.Next(0, 365))),
+                Observaciones = $"Contenedor de prueba {i + 1}"
+            };
+
+            _context.Contenedores.Add(cont);
+            creados++;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok($"Se han creado {creados} contenedores al azar.");
     }
 
     private bool ContenedorExists(int id)

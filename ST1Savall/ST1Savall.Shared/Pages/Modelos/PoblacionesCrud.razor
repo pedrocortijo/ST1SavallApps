@@ -7,7 +7,7 @@
 
 <PageTitle>Gestión de Poblaciones</PageTitle>
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">Poblaciones (Códigos Postales)</h2>
@@ -111,11 +111,11 @@
                             <DxFormLayoutItem Caption="Provincia" ColSpanMd="12">
                                 <DxTextBox @bind-Text="@item.Provincia" MaxLength="30" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Longitud" ColSpanMd="6">
-                                <DxTextBox @bind-Text="@item.Longi" MaxLength="30" />
-                            </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Latitud" ColSpanMd="6">
                                 <DxTextBox @bind-Text="@item.Lati" MaxLength="30" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Longitud" ColSpanMd="6">
+                                <DxTextBox @bind-Text="@item.Longi" MaxLength="30" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Cód. Municipio" ColSpanMd="6">
                                 <DxTextBox @bind-Text="@item.Cpostalm" MaxLength="5" />
@@ -123,12 +123,14 @@
                             <DxFormLayoutItem Caption="Visible" ColSpanMd="6">
                                 <DxCheckBox @bind-Checked="@item.Vista" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex gap-2 pt-2">
-                                <button type="button" class="btn btn-outline-success btn-sm" @onclick="async () => await VerEnMapaAsync(item)" style="height: 36px;" title="Ver en Google Maps">
-                                    <i class="oi oi-map-marker me-1"></i> Ver en Google Maps
+                            <DxFormLayoutItem ColSpanMd="7" BeginRow="true" CssClass="d-flex align-items-end pb-1">
+                                <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="async () => await ObtenerUbicacionActualAsync(item)" style="height: 38px;">
+                                    <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
                                 </button>
-                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="async () => await ObtenerCoordenadasAsync(item)" style="height: 36px;" title="Obtener Coordenadas">
-                                    <i class="oi oi-location me-1"></i> Obtener Coordenadas
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="5" CssClass="d-flex align-items-end pb-1">
+                                <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="async () => await VerEnMapaAsync(item)" style="height: 38px;" title="Ver en Google Maps">
+                                    <i class="oi oi-eye me-1"></i> Ver en Maps
                                 </button>
                             </DxFormLayoutItem>
                         </DxFormLayout>
@@ -227,20 +229,53 @@
 
     private Task VerEnMapaAsync(CodPosSage50 item)
     {
-        if (!string.IsNullOrWhiteSpace(item.Lati) && !string.IsNullOrWhiteSpace(item.Longi) &&
-            double.TryParse(item.Lati.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lat) &&
-            double.TryParse(item.Longi.Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lon))
+        var title = item.Poblacion ?? "Población";
+        var query = ST1Savall.MapHelper.BuildNormalizedQuery(item.Poblacion, null, item.Provincia, item.Codigo);
+        if (string.IsNullOrWhiteSpace(query))
         {
-            var title = item.Poblacion ?? "Población";
-            var query = ST1Savall.MapHelper.BuildNormalizedQuery(item.Poblacion, null, item.Provincia, item.Codigo);
-            var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(title)}&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}&lon={lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}&backUrl={Uri.EscapeDataString("/modelos/poblaciones")}";
-            NavigationManager.NavigateTo(mapsUrl);
+            errorMessage = "Introduzca una población, provincia o código postal primero para verla en el mapa.";
+            return Task.CompletedTask;
         }
-        else
-        {
-            errorMessage = "Esta población no tiene coordenadas de latitud y longitud válidas para ver en el mapa.";
-        }
+
+        var latParam = TryParseCoordinate(item.Lati, out var lat) ? $"&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
+        var lonParam = TryParseCoordinate(item.Longi, out var lon) ? $"&lon={lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(title)}{latParam}{lonParam}&backUrl={Uri.EscapeDataString("/modelos/poblaciones")}";
+        NavigationManager.NavigateTo(mapsUrl);
         return Task.CompletedTask;
+    }
+
+    private static bool TryParseCoordinate(string? value, out double coordinate)
+    {
+        return double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out coordinate)
+            || double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, new System.Globalization.CultureInfo("es-ES"), out coordinate);
+    }
+
+    private async Task ObtenerUbicacionActualAsync(CodPosSage50 item)
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<DeviceCoordinates>("eval", @"
+                new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject('Geolocalización no soportada');
+                        return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                        pos => resolve({ latitud: pos.coords.latitude, longitud: pos.coords.longitude }),
+                        err => reject('Error al obtener ubicación: ' + err.message),
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    );
+                })");
+
+            item.Lati = result.Latitud.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
+            item.Longi = result.Longitud.ToString("F6", System.Globalization.CultureInfo.InvariantCulture);
+            errorMessage = null;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
+        }
     }
 
     private async Task ObtenerCoordenadasAsync(CodPosSage50 item)
@@ -305,5 +340,13 @@
         public string Latitud { get; set; } = string.Empty;
         [System.Text.Json.Serialization.JsonPropertyName("longitud")]
         public string Longitud { get; set; } = string.Empty;
+    }
+
+    private class DeviceCoordinates
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("latitud")]
+        public double Latitud { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("longitud")]
+        public double Longitud { get; set; }
     }
 }

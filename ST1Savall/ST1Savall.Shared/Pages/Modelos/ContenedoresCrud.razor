@@ -7,7 +7,31 @@
 
 <PageTitle>Contenedores</PageTitle>
 
-<div class="container-fluid py-4">
+<style>
+    .grid-filter-bar {
+        background-color: rgba(0, 0, 0, 0.03);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    
+    html.theme-blazing-dark .grid-filter-bar,
+    html.theme-fluent-dark .grid-filter-bar {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    /* Quitar fondo verde y poner texto verde en tema claro y amarillo en tema oscuro para filas disponibles */
+    .row-disponible td {
+        background-color: transparent !important;
+        color: #198754 !important;
+    }
+    
+    html.theme-blazing-dark .row-disponible td,
+    html.theme-fluent-dark .row-disponible td {
+        background-color: transparent !important;
+        color: #ffc107 !important;
+    }
+</style>
+
+<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">Contenedores</h2>
@@ -33,19 +57,47 @@
 
     <div class="card shadow-sm">
         <div class="card-body p-0">
-            @if (contenedores == null || tipos == null)
+            @if (contenedores == null || tipos == null || plantas == null)
             {
                 <div class="p-5 text-center">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Cargando...</span>
                     </div>
-                    <p class="mt-2 text-muted mb-0">Cargando contenedores y tipos...</p>
+                    <p class="mt-2 text-muted mb-0">Cargando contenedores, tipos y plantas...</p>
                 </div>
             }
             else
             {
+                <div class="grid-filter-bar d-flex flex-wrap align-items-center justify-content-between gap-3 p-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted fw-semibold small">Filtrar por:</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <DxComboBox Data="@comboTipos"
+                                        TextFieldName="Descripcion"
+                                        ValueFieldName="IdTipo"
+                                        @bind-Value="@selectedTipoId"
+                                        Width="200px" />
+                            <DxComboBox Data="@comboPlantas"
+                                        TextFieldName="Nombre"
+                                        ValueFieldName="IdPlanta"
+                                        @bind-Value="@selectedPlantaId"
+                                        Width="200px" />
+                            <DxComboBox Data="@comboEstados"
+                                        @bind-Value="@selectedEstado"
+                                        Width="200px" />
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CollapseAllGroups" title="Colapsar">
+                            <i class="oi oi-collapse-up me-1"></i> Colapsar
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ExpandAllGroups" title="Expandir">
+                            <i class="oi oi-expand-down me-1"></i> Expandir
+                        </button>
+                    </div>
+                </div>
                 <DxGrid @ref="grid"
-                        Data="@contenedores"
+                        Data="@filteredContenedores"
                         KeyFieldName="IdContenedor"
                         EditMode="GridEditMode.PopupEditForm"
                         EditModelSaving="OnEditModelSaving"
@@ -54,14 +106,34 @@
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormCssClass="crud-popup"                        
                         PagerPosition="GridPagerPosition.Bottom"
-                        PageSize="20"
+                        PageSize="100"
                         AllowSort="true"
                         ShowFilterRow="true"
                         ShowSearchBox="true"
+                        ShowGroupedColumns="true"
                         AutoExpandAllGroupRows="true"
-                        CustomizeElement="OnCustomizeElement">
+                        CustomizeElement="OnCustomizeElement"
+                        Height="calc(100vh - 270px)">
                     <Columns>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridDataColumn FieldName="Tipo.Descripcion" Caption="Tipo de Contenedor" Width="calc((100% - 80px) / 5)" TextAlignment="GridTextAlignment.Left" GroupIndex="0" VisibleIndex="1">
+                            <CellDisplayTemplate>
+                                @{
+                                    var cont = (Contenedor)context.DataItem;
+                                    var t = tipos.FirstOrDefault(x => x.IdTipo == cont.IdTipo);
+                                    @t?.Descripcion
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Planta.Nombre" Caption="Planta" Width="calc((100% - 80px) / 3)" GroupIndex="1" VisibleIndex="2">
+                            <CellDisplayTemplate>
+                                @{
+                                    var cont = (Contenedor)context.DataItem;
+                                    var p = plantas?.FirstOrDefault(x => x.IdPlanta == cont.IdPlanta);
+                                    @p?.Nombre
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false" VisibleIndex="0">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="() => grid?.StartEditNewRowAsync()"
@@ -91,17 +163,8 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridCommandColumn>
-                        <DxGridDataColumn FieldName="NumSerie" Caption="Número de Serie" Width="15%" />
-                        <DxGridDataColumn FieldName="Tipo.Descripcion" Caption="Tipo de Contenedor" Width="35%" TextAlignment="GridTextAlignment.Left" GroupIndex="0">
-                            <CellDisplayTemplate>
-                                @{
-                                    var cont = (Contenedor)context.DataItem;
-                                    var t = tipos.FirstOrDefault(x => x.IdTipo == cont.IdTipo);
-                                    @t?.Descripcion
-                                }
-                            </CellDisplayTemplate>
-                        </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="ObraActual" Caption="Ubicación / Obra" Width="30%">
+                        <DxGridDataColumn FieldName="NumSerie" Caption="Nº Serie" Width="110px" />
+                        <DxGridDataColumn FieldName="ObraActual" Caption="Ubicación / Obra" Width="calc((100% - 80px) / 5)">
                             <CellDisplayTemplate>
                                 @{
                                     var cont = (Contenedor)context.DataItem;
@@ -110,7 +173,7 @@
                                         <span>@cont.ObraActual</span>
                                         @if (sol != null)
                                         {
-                                            var mapsUrl = GetMapsUrl(sol);
+                                            var mapsUrl = GetMapsUrl(cont, sol);
                                             @if (!string.IsNullOrEmpty(mapsUrl))
                                             {
                                                 <a href="@mapsUrl" class="btn btn-sm btn-outline-success p-1 d-inline-flex align-items-center justify-content-center shadow-sm" 
@@ -123,32 +186,38 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="EstadoFisico" Caption="Estado" />
-                        <DxGridDataColumn FieldName="UltimaRevision" Caption="Última Revisión" DisplayFormat="dd/MM/yyyy" />
+                        <DxGridDataColumn FieldName="EstadoFisico" Caption="Estado" Width="calc((100% - 80px) / 5)" />
+                        <DxGridDataColumn FieldName="UltimaRevision" Caption="Última Revisión" DisplayFormat="dd/MM/yyyy" Width="13%" Visible="false" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{
                             var cont = (Contenedor)EditFormContext.EditModel;
                         }
                         <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
-                            <DxFormLayoutItem Caption="Número de Serie" ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Número de Serie" ColSpanMd="5">
                                 <DxTextBox @bind-Text="@cont.NumSerie" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Tipo de Contenedor" ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Tipo de Contenedor" ColSpanMd="7">
                                 <DxComboBox Data="@tipos"
                                             TextFieldName="Descripcion"
                                             ValueFieldName="IdTipo"
                                             @bind-Value="@cont.IdTipo" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Estado" ColSpanMd="6" BeginRow="true">
+                            <DxFormLayoutItem Caption="Planta" ColSpanMd="7" BeginRow="true">
+                                <DxComboBox Data="@plantas"
+                                            TextFieldName="Nombre"
+                                            ValueFieldName="IdPlanta"
+                                            @bind-Value="@cont.IdPlanta" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Estado" ColSpanMd="5">
                                 <DxComboBox Data="@estados"
                                             @bind-Value="@cont.EstadoFisico" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Última Revisión" ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Última Revisión" ColSpanMd="4" BeginRow="true">
                                 <DxDateEdit @bind-Date="@cont.UltimaRevision" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12" BeginRow="true">
-                                <DxTextBox @bind-Text="@cont.Observaciones" />
+                            <DxFormLayoutItem Caption="Observaciones" ColSpanMd="8">
+                                <DxMemo @bind-Text="@cont.Observaciones" Rows="3" />
                             </DxFormLayoutItem>
                         </DxFormLayout>
                     </EditFormTemplate>
@@ -163,10 +232,61 @@
     private List<Contenedor>? contenedores;
     private List<ContenedorTipo>? tipos;
     private List<Obra>? obras;
+    private List<Planta>? plantas;
     private List<Solicitud>? solicitudesConContenedores;
     private string? errorMessage;
 
+    private List<ContenedorTipo> comboTipos = new() { new ContenedorTipo { IdTipo = 0, Descripcion = "Todos los tipos" } };
+    private List<Planta> comboPlantas = new() { new Planta { IdPlanta = 0, Nombre = "Todas las plantas" } };
+    private List<Contenedor>? filteredContenedores;
+
+    private int _selectedTipoId = 0;
+    private int selectedTipoId
+    {
+        get => _selectedTipoId;
+        set
+        {
+            if (_selectedTipoId != value)
+            {
+                _selectedTipoId = value;
+                FilterData();
+            }
+        }
+    }
+
+    private int _selectedPlantaId = 0;
+    private int selectedPlantaId
+    {
+        get => _selectedPlantaId;
+        set
+        {
+            if (_selectedPlantaId != value)
+            {
+                _selectedPlantaId = value;
+                FilterData();
+            }
+        }
+    }
+
     private List<string> estados = new() { "Disponible", "Entregado", "En Reparacion", "Baja" };
+    private List<string> comboEstados = new() { "Todos los estados", "Disponible", "Entregado", "En Reparacion", "Baja" };
+    private string _selectedEstado = "Todos los estados";
+    private string selectedEstado
+    {
+        get => _selectedEstado;
+        set
+        {
+            if (_selectedEstado != value)
+            {
+                _selectedEstado = value;
+                FilterData();
+            }
+        }
+    }
+
+    private void CollapseAllGroups() => grid?.CollapseAllGroupRows();
+
+    private void ExpandAllGroups() => grid?.ExpandAllGroupRows();
 
     protected override async Task OnInitializedAsync()
     {
@@ -191,6 +311,19 @@
             tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
             contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores");
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
+
+            comboTipos = new List<ContenedorTipo> { new ContenedorTipo { IdTipo = 0, Descripcion = "Todos los tipos" } };
+            if (tipos != null)
+            {
+                comboTipos.AddRange(tipos);
+            }
+
+            comboPlantas = new List<Planta> { new Planta { IdPlanta = 0, Nombre = "Todas las plantas" } };
+            if (plantas != null)
+            {
+                comboPlantas.AddRange(plantas);
+            }
             
             try
             {
@@ -217,6 +350,7 @@
                 }
             }
 
+            FilterData();
             errorMessage = null;
         }
         catch (Exception ex)
@@ -225,12 +359,45 @@
         }
     }
 
+    private void FilterData()
+    {
+        if (contenedores == null)
+        {
+            filteredContenedores = new List<Contenedor>();
+            return;
+        }
+
+        var query = contenedores.AsEnumerable();
+
+        if (_selectedTipoId != 0)
+        {
+            query = query.Where(c => c.IdTipo == _selectedTipoId);
+        }
+
+        if (_selectedPlantaId != 0)
+        {
+            query = query.Where(c => c.IdPlanta == _selectedPlantaId);
+        }
+
+        if (_selectedEstado != "Todos los estados")
+        {
+            query = query.Where(c => c.EstadoFisico == _selectedEstado);
+        }
+
+        filteredContenedores = query.ToList();
+        StateHasChanged();
+    }
+
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
     {
         var editModel = (Contenedor)e.EditModel;
         try
         {
             await SetupHeadersAsync();
+            if (editModel.IdPlanta == 0 && plantas != null && plantas.Any())
+            {
+                editModel.IdPlanta = plantas.First().IdPlanta;
+            }
             if (e.IsNew)
             {
                 var response = await Http.PostAsJsonAsync("api/contenedores", editModel);
@@ -289,7 +456,7 @@
         }
     }
 
-    private string GetMapsUrl(Solicitud sol)
+    private string GetMapsUrl(Contenedor cont, Solicitud sol)
     {
         double? lat = null;
         double? lon = null;
@@ -334,6 +501,9 @@
         var latParam = lat.HasValue ? $"&lat={lat.Value.ToString(CultureInfo.InvariantCulture)}" : "";
         var lonParam = lon.HasValue ? $"&lon={lon.Value.ToString(CultureInfo.InvariantCulture)}" : "";
         
-        return $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(sol.NombreObra ?? "Ubicación de Contenedor")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString("/modelos/contenedores")}";
+        var tipo = tipos?.FirstOrDefault(t => t.IdTipo == cont.IdTipo)?.Descripcion ?? "Contenedor";
+        var nombreObra = sol.NombreObra ?? "Obra sin nombre";
+
+        return $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(tipo)}&serie={Uri.EscapeDataString(cont.NumSerie)}&obra={Uri.EscapeDataString(nombreObra)}{latParam}{lonParam}&backUrl={Uri.EscapeDataString("/modelos/contenedores")}";
     }
 }

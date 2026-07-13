@@ -36,6 +36,7 @@ namespace ST1Savall
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
 #endif
             builder.Services.AddScoped<IAuthService, DesktopAuthService>();
+            builder.Services.AddScoped<ST1Savall.Shared.Services.ObrasMntoGridState>();
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

@@ -28,7 +28,12 @@
                 </Items>
             </DxMenuItem>
 
-            <DxMenuItem NavigateUrl="@ManageUrl" Text="Configuración" CssClass="menu-item" IconCssClass="icon settings-icon"></DxMenuItem>
+            <DxMenuItem Text="Configuración" CssClass="menu-item" IconCssClass="icon settings-icon">
+                <Items>
+                    <DxMenuItem NavigateUrl="/modelos/parametros" Text="Parámetros" CssClass="menu-item" IconCssClass="icon settings-icon"></DxMenuItem>
+                </Items>
+            </DxMenuItem>
+
         </Items>
     </DxMenu>
     

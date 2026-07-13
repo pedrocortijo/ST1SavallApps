@@ -5,6 +5,8 @@
 @inject ST1Savall.Shared.Services.IUserDisplayService UserDisplayService
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
 @inject ST1Savall.Shared.Services.IAuthService AuthService
+@inject ST1Savall.Shared.Services.ObrasMntoGridState ObrasMntoGridState
+@inject HttpClient Http
 
 <div class="page">
     <Drawer DrawerHeader="drawerHeader">
@@ -16,12 +18,24 @@
         <DrawerTarget>
             <div class="nav-buttons-container align-items-center">
                 <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
-                    <DxButton RenderStyle="@ButtonRenderStyle.Secondary" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button" IconCssClass="oi oi-menu" style="font-size: 1.25rem;"></DxButton>
+                    <DxButton RenderStyle="@ButtonRenderStyle.Secondary" 
+                    RenderStyleMode="@ButtonRenderStyleMode.Text" 
+                    CssClass="menu-button" 
+                    IconCssClass="oi oi-menu" style="font-size: 1.25rem;"></DxButton>
                 </NavLink>
-                <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" style="font-size: 1.1rem; letter-spacing: 0.5px;">JOSE SAVALL RONDA, S.A.</span>
-                @if (new Uri(NavigationManager.Uri).LocalPath != "/") {
-                    <NavLink href="@UrlGenerator.GetUrl("/", ToggledSidebar)" class="button-link hidden">
-                                <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Volver al inicio" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-arrow-left"></DxButton>
+                <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" 
+                style="font-size: 1.1rem; letter-spacing: 0.5px;">@companyName</span>
+                
+                @if (new Uri(NavigationManager.Uri).LocalPath != "/") 
+                {
+                    <NavLink 
+                        href="@UrlGenerator.GetUrl("/", ToggledSidebar)" 
+                        class="button-link hidden">
+                                <DxButton RenderStyle="@ButtonRenderStyle.Dark" 
+                                Text="Volver al inicio" 
+                                RenderStyleMode="@ButtonRenderStyleMode.Text" 
+                                CssClass="menu-button-nav" 
+                                IconCssClass="oi oi-arrow-left"></DxButton>
                     </NavLink>
                 }
                 <AuthorizeView>
@@ -38,7 +52,7 @@
                     </NotAuthorized>
                 </AuthorizeView>
             </div>
-            <div class="px-4 pt-2 pb-4">
+            <div class="px-4 pt-0 pb-4">
                 @Body
             </div>
         </DrawerTarget>
@@ -62,6 +76,7 @@
     </div>;
 
     private string? currentUrl;
+    private string companyName = "JOSE SAVALL RONDA, S.A.";
     private string displayName = "José Savall Ronda S.A.";
 
     protected override async Task OnInitializedAsync() {
@@ -71,6 +86,18 @@
         try {
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             displayName = await UserDisplayService.GetUserDisplayNameAsync(authState.User);
+
+            var token = authState.User.FindFirst("token")?.Value;
+            if (!string.IsNullOrEmpty(token)) {
+                Http.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var parametros = await Http.GetFromJsonAsync<List<ST1Savall.Shared.Data.Parametro>>("api/parametros");
+            var empresa = parametros?.FirstOrDefault()?.Empresa;
+            if (!string.IsNullOrWhiteSpace(empresa)) {
+                companyName = empresa;
+            }
         }
         catch (Exception ex) {
             Console.WriteLine($"Error loading user display name in layout: {ex.Message}");
@@ -78,6 +105,36 @@
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) {
+        var previousPath = new Uri($"{NavigationManager.BaseUri.TrimEnd('/')}/{(currentUrl ?? string.Empty).TrimStart('/')}").LocalPath;
+        var nextPath = new Uri(e.Location).LocalPath;
+
+        const string obrasPath = "/modelos/obrasmnto";
+        const string mapPath = "/modelos/contenedores/mapa";
+        var comesFromObras = previousPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase);
+
+        if (nextPath.Equals(mapPath, StringComparison.OrdinalIgnoreCase)) {
+            if (comesFromObras) {
+                ObrasMntoGridState.IsMapNavigationFromObras = true;
+            }
+            else {
+                ObrasMntoGridState.Clear();
+            }
+        }
+        else if (nextPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase)) {
+            var returnsFromObrasMap = previousPath.Equals(mapPath, StringComparison.OrdinalIgnoreCase)
+                && ObrasMntoGridState.IsMapNavigationFromObras;
+
+            ObrasMntoGridState.IsMapNavigationFromObras = false;
+            if (nextPath.Equals(obrasPath, StringComparison.OrdinalIgnoreCase)
+                && !previousPath.StartsWith($"{obrasPath}/edit", StringComparison.OrdinalIgnoreCase)
+                && !returnsFromObrasMap) {
+                ObrasMntoGridState.Clear();
+            }
+        }
+        else {
+            ObrasMntoGridState.Clear();
+        }
+
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
         StateHasChanged();
     }

@@ -6,11 +6,12 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
+@inject ST1Savall.Shared.Services.ObrasMntoGridState GridState
 
 <PageTitle>Mantenimiento de Obras</PageTitle>
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
             <h2 class="fw-bold text-primary mb-1">Mantenimiento de Obras</h2>
             <p class="text-muted mb-0">Gestión de obras, ubicaciones, licencias y estados de ejecución</p>
@@ -47,6 +48,8 @@
                         DataItemDeleting="OnDataItemDeleting"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
+                        LayoutAutoLoading="OnGridLayoutAutoLoading"
+                        LayoutAutoSaving="OnGridLayoutAutoSaving"
                         AllowSort="true"
                         ShowFilterRow="true"
                         ShowSearchBox="true">
@@ -90,7 +93,26 @@
                         </DxGridCommandColumn>
                         <DxGridDataColumn FieldName="Codigo" Caption="Código" Width="80px" />
                         <DxGridDataColumn FieldName="Nombre" Caption="Nombre de la Obra" />
-                        <DxGridDataColumn FieldName="Direccion" Caption="Dirección" />
+                        <DxGridDataColumn FieldName="Direccion" Caption="Dirección">
+                            <CellDisplayTemplate>
+                                @{
+                                    var obra = (ObraComunSage50)context.DataItem;
+                                }
+                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                    <span>@obra.Direccion</span>
+                                    @if (!string.IsNullOrWhiteSpace(obra.Direccion))
+                                    {
+                                        <button class="btn btn-sm btn-outline-success d-flex align-items-center justify-content-center"
+                                                style="width: 28px; height: 28px;"
+                                                @onclick="() => VerEnMapa(obra)"
+                                                @onclick:stopPropagation
+                                                title="Ver en Maps">
+                                            <i class="oi oi-map-marker" style="font-size: 0.85rem;"></i>
+                                        </button>
+                                    }
+                                </div>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Cliente" Caption="Cliente">
                             <CellDisplayTemplate>
                                 @{
@@ -99,7 +121,7 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="Encargado" Caption="Encargado"/>
+                        <DxGridDataColumn FieldName="Encargado" Caption="Encargado" Visible="false"/>
                         <DxGridDataColumn FieldName="Vista" Caption="Visible" Width="100px" Visible="false" />
                         <DxGridDataColumn FieldName="Terminada" Caption="Finalizada" Width="80px" />
                     </Columns>
@@ -215,5 +237,33 @@
     private void DuplicarObra(ObraComunSage50 o)
     {
         NavigationManager.NavigateTo($"/modelos/obrasmnto/edit/{Uri.EscapeDataString(o.Codigo)}?duplicate=true");
+    }
+
+    private Task OnGridLayoutAutoLoading(GridPersistentLayoutEventArgs e)
+    {
+        if (GridState.Layout != null)
+        {
+            e.Layout = GridState.Layout;
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGridLayoutAutoSaving(GridPersistentLayoutEventArgs e)
+    {
+        GridState.Layout = e.Layout;
+        return Task.CompletedTask;
+    }
+
+    private void VerEnMapa(ObraComunSage50 obra)
+    {
+        var query = ST1Savall.MapHelper.BuildNormalizedQuery(obra.Direccion, obra.Poblacion, obra.Provincia, obra.Codpost);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            errorMessage = "Introduzca una dirección, población, provincia o código postal primero para verla en el mapa.";
+            return;
+        }
+
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(obra.Nombre ?? "Obra")}&backUrl={Uri.EscapeDataString("/modelos/obrasmnto")}";
+        NavigationManager.NavigateTo(mapsUrl);
     }
 }

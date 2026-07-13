@@ -25,6 +25,12 @@ public class Contenedor
     [MaxLength(20)]
     public string EstadoFisico { get; set; } = "Disponible";
 
+    [Required]
+    public int IdPlanta { get; set; }
+
+    [ForeignKey("IdPlanta")]
+    public Planta? Planta { get; set; }
+
     public DateOnly? UltimaRevision { get; set; }
 
     [MaxLength(500)]

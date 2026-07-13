@@ -97,29 +97,60 @@ public static class DbInitializer
                 END
             ");
 
-            // Ensure Obras table contains new fields Poblacion, CodigoPostal, CodigoPostalCliente, EmailCliente, and ResponsableCliente
+            // Ensure Plantas has at least one record to act as default
             await context.Database.ExecuteSqlRawAsync(@"
-                IF EXISTS (SELECT * FROM sysobjects WHERE name='Obras' and xtype='U')
+                IF NOT EXISTS (SELECT 1 FROM Plantas)
                 BEGIN
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'Poblacion')
+                    INSERT INTO Plantas (Nombre, Direccion, Poblacion, CodigoPostal) 
+                    VALUES ('Planta Principal', 'Dirección Principal', 'Población Principal', '00000');
+                END
+            ");
+
+            // Ensure Contenedores has IdPlanta column (step 1: Add column as NULL first to avoid batch compilation error)
+            await context.Database.ExecuteSqlRawAsync(@"
+                IF EXISTS (SELECT * FROM sysobjects WHERE name='Contenedores' and xtype='U')
+                BEGIN
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Contenedores') AND name = 'IdPlanta')
                     BEGIN
-                        ALTER TABLE Obras ADD Poblacion NVARCHAR(100) NULL;
+                        ALTER TABLE Contenedores ADD IdPlanta INT NULL;
                     END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'CodigoPostal')
+                END
+            ");
+
+            // Ensure Contenedores has IdPlanta column values set (step 2: Set default values dynamically)
+            await context.Database.ExecuteSqlRawAsync(@"
+                IF EXISTS (SELECT * FROM sysobjects WHERE name='Contenedores' and xtype='U')
+                BEGIN
+                    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Contenedores') AND name = 'IdPlanta')
                     BEGIN
-                        ALTER TABLE Obras ADD CodigoPostal NVARCHAR(10) NULL;
+                        DECLARE @DefaultPlantaId INT;
+                        SELECT TOP 1 @DefaultPlantaId = IdPlanta FROM Plantas;
+                        
+                        IF @DefaultPlantaId IS NOT NULL
+                        BEGIN
+                            -- Run via sp_executesql to defer compilation of update statement until the column exists
+                            EXEC sp_executesql N'UPDATE Contenedores SET IdPlanta = @plantaId WHERE IdPlanta IS NULL', N'@plantaId INT', @DefaultPlantaId;
+                        END
                     END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'CodigoPostalCliente')
+                END
+            ");
+
+            // Ensure Contenedores has IdPlanta column NOT NULL and Foreign Key set (step 3)
+            await context.Database.ExecuteSqlRawAsync(@"
+                IF EXISTS (SELECT * FROM sysobjects WHERE name='Contenedores' and xtype='U')
+                BEGIN
+                    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Contenedores') AND name = 'IdPlanta')
                     BEGIN
-                        ALTER TABLE Obras ADD CodigoPostalCliente NVARCHAR(10) NULL;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'EmailCliente')
-                    BEGIN
-                        ALTER TABLE Obras ADD EmailCliente NVARCHAR(100) NULL;
-                    END
-                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'ResponsableCliente')
-                    BEGIN
-                        ALTER TABLE Obras ADD ResponsableCliente NVARCHAR(200) NULL;
+                        -- Set column to NOT NULL
+                        ALTER TABLE Contenedores ALTER COLUMN IdPlanta INT NOT NULL;
+                        
+                        -- Add foreign key constraint
+                        IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_Contenedores_Plantas_IdPlanta')
+                        BEGIN
+                            ALTER TABLE Contenedores
+                            ADD CONSTRAINT FK_Contenedores_Plantas_IdPlanta
+                            FOREIGN KEY (IdPlanta) REFERENCES Plantas(IdPlanta);
+                        END
                     END
                 END
             ");
@@ -212,42 +243,6 @@ public static class DbInitializer
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'NombreObra')
                 BEGIN
                     ALTER TABLE Solicitudes ADD NombreObra NVARCHAR(200) NULL;
-                END
-            ");
-
-            // Add client fields to Obras table if they don't exist
-            await context.Database.ExecuteSqlRawAsync(@"
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'NombreCliente')
-                BEGIN
-                    ALTER TABLE Obras ADD NombreCliente NVARCHAR(200) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'DireccionCliente')
-                BEGIN
-                    ALTER TABLE Obras ADD DireccionCliente NVARCHAR(200) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'PoblacionCliente')
-                BEGIN
-                    ALTER TABLE Obras ADD PoblacionCliente NVARCHAR(100) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'TelefonoCliente')
-                BEGIN
-                    ALTER TABLE Obras ADD TelefonoCliente NVARCHAR(20) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'Movil')
-                BEGIN
-                    ALTER TABLE Obras ADD Movil NVARCHAR(20) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'TelefonoContactoCliente')
-                BEGIN
-                    ALTER TABLE Obras ADD TelefonoContactoCliente NVARCHAR(20) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'Telefono')
-                BEGIN
-                    ALTER TABLE Obras ADD Telefono NVARCHAR(20) NULL;
-                END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Obras') AND name = 'Encargado')
-                BEGIN
-                    ALTER TABLE Obras ADD Encargado NVARCHAR(100) NULL;
                 END
             ");
 

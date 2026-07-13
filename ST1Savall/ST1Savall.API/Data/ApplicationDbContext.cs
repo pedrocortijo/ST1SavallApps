@@ -13,7 +13,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Cargo> Cargos { get; set; } = null!;
     public DbSet<Operario> Operarios { get; set; } = null!;
-    public DbSet<Obra> Obras { get; set; } = null!;
     public DbSet<ContenedorTipo> ContenedoresTipos { get; set; } = null!;
     public DbSet<Contenedor> Contenedores { get; set; } = null!;
     public DbSet<Solicitud> Solicitudes { get; set; } = null!;
@@ -22,6 +21,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Tarea> Tareas { get; set; } = null!;
     public DbSet<TareaRelacion> TareasRelaciones { get; set; } = null!;
     public DbSet<Planta> Plantas { get; set; } = null!;
+    public DbSet<Parametro> Parametros { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

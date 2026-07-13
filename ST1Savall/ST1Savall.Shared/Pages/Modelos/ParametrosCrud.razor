@@ -1,0 +1,205 @@
+@page "/modelos/parametros"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Gestión de Parámetros</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Parámetros</h2>
+            <p class="text-muted mb-0">Configuración de correo por empresa</p>
+        </div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
+        </NavLink>
+    </div>
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Cerrar"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (parametros is null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando parámetros...</p>
+                </div>
+            }
+            else
+            {
+                <DxGrid @ref="grid"
+                        Data="@parametros"
+                        KeyFieldName="Id"
+                        EditMode="GridEditMode.PopupEditForm"
+                        EditModelSaving="OnEditModelSaving"
+                        DataItemDeleting="OnDataItemDeleting"
+                        PopupEditFormHeaderCssClass="bg-primary text-white"
+                        PopupEditFormHeaderText="Formulario - Parámetros"
+                        PopupEditFormCssClass="crud-popup"
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true"
+                        SearchBoxNullText="Buscar parámetros...">
+                    <Columns>
+                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate>
+                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100"
+                                        @onclick="() => grid?.StartEditNewRowAsync()" title="Nuevo parámetro">
+                                    <i class="oi oi-plus me-1"></i> Nuevo
+                                </button>
+                            </HeaderTemplate>
+                            <CellDisplayTemplate>
+                                @{ var parametro = (Parametro)context.DataItem; }
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
+                                            style="width: 32px; height: 32px;"
+                                            @onclick="() => grid?.StartEditDataItemAsync(parametro)"
+                                            @onclick:stopPropagation title="Editar">
+                                        <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm"
+                                            style="width: 32px; height: 32px;"
+                                            @onclick="() => grid?.ShowDataItemDeleteConfirmation(parametro)"
+                                            @onclick:stopPropagation title="Eliminar">
+                                        <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                    </button>
+                                </div>
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="Id" Caption="Código" ReadOnly="true" Width="80px" Visible = "false"/>
+                        <DxGridDataColumn FieldName="Empresa" Caption="Empresa" />
+                        <DxGridDataColumn FieldName="SenderEmail" Caption="Email remitente" />
+                        <DxGridDataColumn FieldName="SmtpServer" Caption="Servidor SMTP" />
+                        <DxGridDataColumn FieldName="SmtpPort" Caption="Puerto" Width="90px" />
+                    </Columns>
+                    <EditFormTemplate Context="EditFormContext">
+                        @{ var parametro = (Parametro)EditFormContext.EditModel; }
+                        <DxFormLayout CssClass="w-100 p-3">
+                            <DxFormLayoutItem Caption="Empresa *" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.Empresa" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Email receptor *" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.ReceiverEmail" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Email remitente *" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.SenderEmail" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Servidor SMTP *" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.SmtpServer" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Puerto SMTP *" ColSpanMd="6">
+                                <DxSpinEdit @bind-Value="parametro.SmtpPort" MinValue="1" MaxValue="65535" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Usuario SMTP" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.SmtpUser" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Contraseña SMTP" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.SmtpPassword" Password="true" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="6">
+                                <DxTextBox @bind-Text="parametro.SslSmtpType" />
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<Parametro>? parametros;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros") ?? [];
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar parámetros: {ex.Message}";
+        }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var parametro = (Parametro)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = e.IsNew
+                ? await Http.PostAsJsonAsync("api/parametros", parametro)
+                : await Http.PutAsJsonAsync($"api/parametros/{parametro.Id}", parametro);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al guardar parámetros: {response.ReasonPhrase}";
+                e.Cancel = true;
+                return;
+            }
+
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar parámetros: {ex.Message}";
+            e.Cancel = true;
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var parametro = (Parametro)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/parametros/{parametro.Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar parámetros: {response.ReasonPhrase}";
+                e.Cancel = true;
+                return;
+            }
+
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar parámetros: {ex.Message}";
+            e.Cancel = true;
+        }
+    }
+}
