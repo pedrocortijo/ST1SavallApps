@@ -14,11 +14,33 @@ public class SolicitudesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly PlanificacionService _planificacionService;
+    private readonly CalculoRutaSolicitudService _calculoRutaService;
 
-    public SolicitudesController(ApplicationDbContext context, PlanificacionService planificacionService)
+    public SolicitudesController(
+        ApplicationDbContext context,
+        PlanificacionService planificacionService,
+        CalculoRutaSolicitudService calculoRutaService)
     {
         _context = context;
         _planificacionService = planificacionService;
+        _calculoRutaService = calculoRutaService;
+    }
+
+    [HttpPost("calcular-ruta")]
+    public async Task<ActionResult<CalculoRutaSolicitudResultado>> CalcularRuta(
+        Solicitud solicitud,
+        bool forzarActualizacion = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Ok(await _calculoRutaService.CalcularYAplicarAsync(
+                solicitud, forzarActualizacion, cancellationToken));
+        }
+        catch (GoogleRoutesException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
     }
 
     [HttpGet("siguiente-hueco")]
@@ -69,6 +91,9 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
+        var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
+        if (errorRuta != null) return errorRuta;
+
         var errorPlanificacion = await _planificacionService.PrepararYValidarAsync(solicitud);
         if (errorPlanificacion != null)
             return Conflict(new { message = errorPlanificacion });
@@ -83,6 +108,9 @@ public class SolicitudesController : ControllerBase
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
+        var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
+        if (errorRuta != null) return errorRuta;
+
         var errorPlanificacion = await _planificacionService.PrepararYValidarAsync(solicitud);
         if (errorPlanificacion != null)
             return Conflict(new { message = errorPlanificacion });
@@ -139,5 +167,21 @@ public class SolicitudesController : ControllerBase
     private bool SolicitudExists(int id)
     {
         return _context.Solicitudes.Any(e => e.IdSolicitud == id);
+    }
+
+    private async Task<ObjectResult?> CalcularRutaAutomaticamenteAsync(Solicitud solicitud)
+    {
+        if (!CalculoRutaSolicitudService.TieneDatosCompletos(solicitud))
+            return null;
+
+        try
+        {
+            await _calculoRutaService.CalcularYAplicarAsync(solicitud);
+            return null;
+        }
+        catch (GoogleRoutesException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
     }
 }

@@ -547,6 +547,73 @@ namespace ST1Savall.API.Migrations
                     b.ToTable("Prioridades");
                 });
 
+            modelBuilder.Entity("ST1Savall.Shared.Data.RutaCache", b =>
+                {
+                    b.Property<long>("IdRutaCache")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("IdRutaCache"));
+
+                    b.Property<string>("ClaveRuta")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("DistanciaMetros")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DuracionSegundos")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaCalculoUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaExpiracionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("LatitudDestino")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("LatitudOrigen")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("LongitudDestino")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal>("LongitudOrigen")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<string>("ModoViaje")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("NumeroUsos")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PreferenciaRuta")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("UltimoUsoUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("IdRutaCache");
+
+                    b.HasIndex("ClaveRuta")
+                        .IsUnique();
+
+                    b.HasIndex("FechaExpiracionUtc");
+
+                    b.ToTable("RutasCache");
+                });
+
             modelBuilder.Entity("ST1Savall.Shared.Data.Solicitud", b =>
                 {
                     b.Property<int>("IdSolicitud")

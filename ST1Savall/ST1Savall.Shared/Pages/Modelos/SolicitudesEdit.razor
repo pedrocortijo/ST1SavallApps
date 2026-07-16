@@ -165,13 +165,17 @@
                                     DisplayFormat="dd/MM/yyyy HH:mm" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Duración total (minutos)" ColSpanMd="2">
-                        <DxSpinEdit @bind-Value="@solicitud.DuracionPlanificadaMinutos" MinValue="1" />
+                        <DxSpinEdit Value="@solicitud.DuracionPlanificadaMinutos"
+                                    ValueChanged="@((int? value) => OnDuracionTotalChanged(value))"
+                                    MinValue="1" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Viaje (minutos)" ColSpanMd="1">
-                        <DxSpinEdit @bind-Value="@solicitud.DuracionViajeMinutos" MinValue="0" />
+                        <DxSpinEdit @bind-Value="@solicitud.DuracionViajeMinutos" MinValue="0" Enabled="false" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Operación (minutos)" ColSpanMd="1">
-                        <DxSpinEdit @bind-Value="@solicitud.DuracionOperacionMinutos" MinValue="0" />
+                        <DxSpinEdit Value="@solicitud.DuracionOperacionMinutos"
+                                    ValueChanged="@((int? value) => OnDuracionOperacionChanged(value))"
+                                    MinValue="0" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-end pb-1">
                         <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="ProponerSiguienteHuecoAsync">
@@ -186,6 +190,39 @@
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Central de regreso" ColSpanMd="4">
                         <DxComboBox Data="@plantas" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="@solicitud.IdPlantaRegreso" ClearButtonVisible="true" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="3" BeginRow="true">
+                        <button type="button"
+                                class="btn btn-outline-success btn-sm w-100"
+                                disabled="@calculandoRuta"
+                                @onclick="() => CalcularRutaAsync(true)">
+                            @if (calculandoRuta)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            else
+                            {
+                                <i class="oi oi-map-marker me-1"></i>
+                            }
+                            Calcular ruta
+                        </button>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="3">
+                        <DxCheckBox @bind-Checked="@solicitud.DuracionModificadaManualmente" LabelPosition="LabelPosition.Right">
+                            Duración total manual
+                        </DxCheckBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="6">
+                        @if (solicitud.DistanciaTotalMetros.HasValue)
+                        {
+                            <div class="small text-muted pt-2">
+                                <strong>@FormatKilometros(solicitud.DistanciaTotalMetros)</strong>
+                                · Origen→Obra: @solicitud.MinutosOrigenObra min
+                                · Obra→Descarga: @solicitud.MinutosObraDescarga min
+                                · Descarga→Regreso: @solicitud.MinutosDescargaRegreso min
+                                <span class="ms-2" translate="no" style="font-size: 12px; font-weight: 400; color: #5e5e5e; white-space: nowrap;">Google Maps</span>
+                            </div>
+                        }
                     </DxFormLayoutItem>
                     @if (!string.IsNullOrWhiteSpace(planificacionMessage))
                     {
@@ -343,6 +380,7 @@
     private string? errorMessage;
     private string? comentariosOficina;
     private string? planificacionMessage;
+    private bool calculandoRuta;
 
     private class KeyName
     {
@@ -400,7 +438,8 @@
                     //FechaTarea = DateTime.Today,
                     Estado = 1, // Introducido por defecto
                     IdConductor = null, // Sin asignar por defecto
-                    DuracionPlanificadaMinutos = 60
+                    DuracionPlanificadaMinutos = 60,
+                    DuracionOperacionMinutos = 30
                 };
 
                 if (ObraId.HasValue)
@@ -474,7 +513,10 @@
                 solicitud.LatitudObra = solicitud.Latitud;
                 solicitud.LongitudObra = solicitud.Longitud;
             }
-            solicitud.DuracionModificadaManualmente = solicitud.DuracionPlanificadaMinutos.HasValue;
+
+            if (TieneDatosRutaCompletos() && !await CalcularRutaAsync(false))
+                return;
+
             solicitud.FechaActualizacion = DateTime.Now;
             await SetupHeadersAsync();
             HttpResponseMessage response;
@@ -534,6 +576,91 @@
             planificacionMessage = hueco?.Mensaje ?? "No se encontró disponibilidad.";
         }
     }
+
+    private async Task<bool> CalcularRutaAsync(bool mostrarMensaje)
+    {
+        if (solicitud == null) return false;
+
+        SyncCoordinates();
+        if (!TieneDatosRutaCompletos())
+        {
+            errorMessage = "Seleccione las tres plantas e indique las coordenadas de la obra.";
+            return false;
+        }
+
+        try
+        {
+            calculandoRuta = true;
+            errorMessage = null;
+            await SetupHeadersAsync();
+            var response = await Http.PostAsJsonAsync("api/solicitudes/calcular-ruta", solicitud);
+            if (!response.IsSuccessStatusCode)
+            {
+                var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
+                errorMessage = apiError?.Message ?? $"No se pudo calcular la ruta: {response.ReasonPhrase}";
+                return false;
+            }
+
+            var resultado = await response.Content.ReadFromJsonAsync<CalculoRutaSolicitudResultado>();
+            if (resultado?.Calculado != true || resultado.Solicitud == null)
+            {
+                errorMessage = resultado?.Mensaje ?? "Google Routes no devolvió un cálculo válido.";
+                return false;
+            }
+
+            solicitud = resultado.Solicitud;
+            if (mostrarMensaje)
+            {
+                var origenDatos = resultado.TramosDesdeGoogle > 0
+                    ? $"{resultado.TramosDesdeGoogle} tramo(s) consultados a Google"
+                    : "todos los tramos recuperados de caché";
+                planificacionMessage = $"{resultado.Mensaje} ({origenDatos}).";
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudo calcular la ruta: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            calculandoRuta = false;
+        }
+    }
+
+    private bool TieneDatosRutaCompletos() =>
+        solicitud?.IdPlantaOrigen.HasValue == true &&
+        solicitud.IdPlantaDescarga.HasValue &&
+        solicitud.IdPlantaRegreso.HasValue &&
+        solicitud.Latitud.HasValue &&
+        solicitud.Longitud.HasValue;
+
+    private void OnDuracionTotalChanged(int? value)
+    {
+        if (solicitud == null) return;
+        solicitud.DuracionPlanificadaMinutos = value;
+        solicitud.DuracionModificadaManualmente = true;
+        ActualizarFinPlanificado();
+    }
+
+    private void OnDuracionOperacionChanged(int? value)
+    {
+        if (solicitud == null) return;
+        solicitud.DuracionOperacionMinutos = value;
+        if (!solicitud.DuracionModificadaManualmente)
+            solicitud.DuracionPlanificadaMinutos = solicitud.DuracionViajeMinutos.GetValueOrDefault() + value.GetValueOrDefault();
+        ActualizarFinPlanificado();
+    }
+
+    private void ActualizarFinPlanificado()
+    {
+        if (solicitud?.FechaHoraInicioPlanificada.HasValue == true && solicitud.DuracionPlanificadaMinutos > 0)
+            solicitud.FechaHoraFinPlanificada = solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(solicitud.DuracionPlanificadaMinutos.Value);
+    }
+
+    private static string FormatKilometros(int? metros) => $"{metros.GetValueOrDefault() / 1000d:0.0} km";
 
     private sealed class ApiError
     {

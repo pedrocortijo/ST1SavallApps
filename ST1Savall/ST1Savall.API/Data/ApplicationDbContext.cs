@@ -22,6 +22,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TareaRelacion> TareasRelaciones { get; set; } = null!;
     public DbSet<Planta> Plantas { get; set; } = null!;
     public DbSet<Parametro> Parametros { get; set; } = null!;
+    public DbSet<RutaCache> RutasCache { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -88,5 +89,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Planta>()
             .Property(p => p.Longitud)
             .HasPrecision(9, 6);
+
+        builder.Entity<RutaCache>()
+            .HasIndex(r => r.ClaveRuta)
+            .IsUnique();
+
+        builder.Entity<RutaCache>()
+            .HasIndex(r => r.FechaExpiracionUtc);
+
+        foreach (var propertyName in new[]
+        {
+            nameof(RutaCache.LatitudOrigen), nameof(RutaCache.LongitudOrigen),
+            nameof(RutaCache.LatitudDestino), nameof(RutaCache.LongitudDestino)
+        })
+        {
+            builder.Entity<RutaCache>().Property<decimal>(propertyName).HasPrecision(9, 6);
+        }
     }
 }

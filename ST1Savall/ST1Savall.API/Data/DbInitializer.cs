@@ -82,6 +82,41 @@ public static class DbInitializer
             END
         ");
 
+        // General, temporary cache for Google Routes segments. Expired results are removed at startup.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'RutasCache', N'U') IS NULL
+            BEGIN
+                CREATE TABLE RutasCache (
+                    IdRutaCache BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_RutasCache PRIMARY KEY,
+                    ClaveRuta NVARCHAR(64) NOT NULL,
+                    LatitudOrigen DECIMAL(9,6) NOT NULL,
+                    LongitudOrigen DECIMAL(9,6) NOT NULL,
+                    LatitudDestino DECIMAL(9,6) NOT NULL,
+                    LongitudDestino DECIMAL(9,6) NOT NULL,
+                    ModoViaje NVARCHAR(20) NOT NULL,
+                    PreferenciaRuta NVARCHAR(30) NOT NULL,
+                    DistanciaMetros INT NOT NULL,
+                    DuracionSegundos INT NOT NULL,
+                    FechaCalculoUtc DATETIME2 NOT NULL,
+                    FechaExpiracionUtc DATETIME2 NOT NULL,
+                    UltimoUsoUtc DATETIME2 NOT NULL,
+                    NumeroUsos INT NOT NULL
+                );
+                CREATE UNIQUE INDEX IX_RutasCache_ClaveRuta ON RutasCache(ClaveRuta);
+                CREATE INDEX IX_RutasCache_FechaExpiracionUtc ON RutasCache(FechaExpiracionUtc);
+            END
+            ELSE
+            BEGIN
+                IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID('RutasCache') AND name = 'UQ_RutasCache_ClaveRuta')
+                    ALTER TABLE RutasCache DROP CONSTRAINT UQ_RutasCache_ClaveRuta;
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('RutasCache') AND name = 'IX_RutasCache_ClaveRuta')
+                    CREATE UNIQUE INDEX IX_RutasCache_ClaveRuta ON RutasCache(ClaveRuta);
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('RutasCache') AND name = 'IX_RutasCache_FechaExpiracionUtc')
+                    CREATE INDEX IX_RutasCache_FechaExpiracionUtc ON RutasCache(FechaExpiracionUtc);
+                DELETE FROM RutasCache WHERE FechaExpiracionUtc <= SYSUTCDATETIME();
+            END
+        ");
+
         // Create TareasRelaciones table if it does not exist (in case DB already existed)
         await context.Database.ExecuteSqlRawAsync(@"
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='TareasRelaciones' and xtype='U')

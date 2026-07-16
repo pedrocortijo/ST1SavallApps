@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>ST1Savall.API-8c776b7e-59de-4ec4-8990-239b5f3a7bdb</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
