@@ -220,7 +220,7 @@
                                 · Origen→Obra: @solicitud.MinutosOrigenObra min
                                 · Obra→Descarga: @solicitud.MinutosObraDescarga min
                                 · Descarga→Regreso: @solicitud.MinutosDescargaRegreso min
-                                <span class="ms-2" translate="no" style="font-size: 12px; font-weight: 400; color: #5e5e5e; white-space: nowrap;">Google Maps</span>
+                                <span class="ms-2" translate="no" style="font-size: 12px; font-weight: 400; color: #5e5e5e; white-space: nowrap;">Mapbox</span>
                             </div>
                         }
                     </DxFormLayoutItem>
@@ -604,15 +604,15 @@
             var resultado = await response.Content.ReadFromJsonAsync<CalculoRutaSolicitudResultado>();
             if (resultado?.Calculado != true || resultado.Solicitud == null)
             {
-                errorMessage = resultado?.Mensaje ?? "Google Routes no devolvió un cálculo válido.";
+                errorMessage = resultado?.Mensaje ?? "Mapbox no devolvió un cálculo válido.";
                 return false;
             }
 
             solicitud = resultado.Solicitud;
             if (mostrarMensaje)
             {
-                var origenDatos = resultado.TramosDesdeGoogle > 0
-                    ? $"{resultado.TramosDesdeGoogle} tramo(s) consultados a Google"
+                var origenDatos = resultado.TramosDesdeProveedor > 0
+                    ? $"{resultado.TramosDesdeProveedor} tramo(s) consultados a Mapbox"
                     : "todos los tramos recuperados de caché";
                 planificacionMessage = $"{resultado.Mensaje} ({origenDatos}).";
             }

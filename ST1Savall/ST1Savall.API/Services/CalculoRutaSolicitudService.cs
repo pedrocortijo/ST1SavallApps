@@ -7,12 +7,12 @@ namespace ST1Savall.API.Services;
 public sealed class CalculoRutaSolicitudService
 {
     private readonly ApplicationDbContext _context;
-    private readonly GoogleRoutesService _googleRoutes;
+    private readonly MapboxDirectionsService _mapboxDirections;
 
-    public CalculoRutaSolicitudService(ApplicationDbContext context, GoogleRoutesService googleRoutes)
+    public CalculoRutaSolicitudService(ApplicationDbContext context, MapboxDirectionsService mapboxDirections)
     {
         _context = context;
-        _googleRoutes = googleRoutes;
+        _mapboxDirections = mapboxDirections;
     }
 
     public static bool TieneDatosCompletos(Solicitud solicitud) =>
@@ -28,12 +28,12 @@ public sealed class CalculoRutaSolicitudService
         CancellationToken cancellationToken = default)
     {
         if (!solicitud.IdPlantaOrigen.HasValue || !solicitud.IdPlantaDescarga.HasValue || !solicitud.IdPlantaRegreso.HasValue)
-            throw new GoogleRoutesException("Seleccione la planta origen, la planta de descarga y la central de regreso.");
+            throw new ProveedorRutasException("Seleccione la planta origen, la planta de descarga y la central de regreso.");
 
         var latitudObra = GetLatitudObra(solicitud);
         var longitudObra = GetLongitudObra(solicitud);
         if (!latitudObra.HasValue || !longitudObra.HasValue)
-            throw new GoogleRoutesException("Indique las coordenadas de la obra antes de calcular la ruta.");
+            throw new ProveedorRutasException("Indique las coordenadas de la obra antes de calcular la ruta.");
 
         var ids = new[]
         {
@@ -50,17 +50,17 @@ public sealed class CalculoRutaSolicitudService
         var descarga = GetPlanta(plantas, solicitud.IdPlantaDescarga.Value, "descarga");
         var regreso = GetPlanta(plantas, solicitud.IdPlantaRegreso.Value, "regreso");
 
-        var tramoOrigenObra = await _googleRoutes.CalcularTramoAsync(
+        var tramoOrigenObra = await _mapboxDirections.CalcularTramoAsync(
             origen.Latitud!.Value, origen.Longitud!.Value,
             latitudObra.Value, longitudObra.Value,
             forzarActualizacion, cancellationToken);
 
-        var tramoObraDescarga = await _googleRoutes.CalcularTramoAsync(
+        var tramoObraDescarga = await _mapboxDirections.CalcularTramoAsync(
             latitudObra.Value, longitudObra.Value,
             descarga.Latitud!.Value, descarga.Longitud!.Value,
             forzarActualizacion, cancellationToken);
 
-        var tramoDescargaRegreso = await _googleRoutes.CalcularTramoAsync(
+        var tramoDescargaRegreso = await _mapboxDirections.CalcularTramoAsync(
             descarga.Latitud!.Value, descarga.Longitud!.Value,
             regreso.Latitud!.Value, regreso.Longitud!.Value,
             forzarActualizacion, cancellationToken);
@@ -90,7 +90,7 @@ public sealed class CalculoRutaSolicitudService
             solicitud.FechaHoraFinPlanificada = solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(solicitud.DuracionPlanificadaMinutos.Value);
 
         solicitud.FechaCalculoRuta = DateTime.UtcNow;
-        solicitud.ProveedorCalculoRuta = "Google Routes";
+        solicitud.ProveedorCalculoRuta = "Mapbox Directions";
 
         var tramos = new[] { tramoOrigenObra, tramoObraDescarga, tramoDescargaRegreso };
         var desdeCache = tramos.Count(t => t.DesdeCache);
@@ -99,7 +99,7 @@ public sealed class CalculoRutaSolicitudService
             Calculado = true,
             Mensaje = $"Ruta calculada: {solicitud.DistanciaTotalMetros / 1000d:0.0} km y {solicitud.DuracionViajeMinutos} minutos de viaje.",
             TramosDesdeCache = desdeCache,
-            TramosDesdeGoogle = tramos.Length - desdeCache,
+            TramosDesdeProveedor = tramos.Length - desdeCache,
             Solicitud = solicitud
         };
     }
@@ -107,9 +107,9 @@ public sealed class CalculoRutaSolicitudService
     private static Planta GetPlanta(IReadOnlyDictionary<int, Planta> plantas, int id, string tipo)
     {
         if (!plantas.TryGetValue(id, out var planta))
-            throw new GoogleRoutesException($"La planta de {tipo} seleccionada no existe.");
+            throw new ProveedorRutasException($"La planta de {tipo} seleccionada no existe.");
         if (!planta.Latitud.HasValue || !planta.Longitud.HasValue)
-            throw new GoogleRoutesException($"La planta de {tipo} '{planta.Nombre}' no tiene coordenadas.");
+            throw new ProveedorRutasException($"La planta de {tipo} '{planta.Nombre}' no tiene coordenadas.");
         return planta;
     }
 

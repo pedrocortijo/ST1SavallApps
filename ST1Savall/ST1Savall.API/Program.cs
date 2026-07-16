@@ -14,14 +14,15 @@ var connectionString = builder.Configuration.GetConnectionString("SavallAppsConn
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<PlanificacionService>();
-builder.Services.Configure<GoogleRoutesOptions>(
-    builder.Configuration.GetSection(GoogleRoutesOptions.SectionName));
-builder.Services.AddHttpClient<GoogleRoutesService>((services, client) =>
+builder.Services.Configure<MapboxDirectionsOptions>(
+    builder.Configuration.GetSection(MapboxDirectionsOptions.SectionName));
+builder.Services.AddHttpClient<MapboxDirectionsService>((services, client) =>
 {
-    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<GoogleRoutesOptions>>().Value;
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<MapboxDirectionsOptions>>().Value;
     client.BaseAddress = new Uri(options.BaseUrl);
     client.Timeout = TimeSpan.FromSeconds(20);
 });
+builder.Logging.AddFilter("System.Net.Http.HttpClient.MapboxDirectionsService", LogLevel.Warning);
 builder.Services.AddScoped<CalculoRutaSolicitudService>();
 
 // Add SageGestion DbContext

@@ -37,7 +37,7 @@ public class SolicitudesController : ControllerBase
             return Ok(await _calculoRutaService.CalcularYAplicarAsync(
                 solicitud, forzarActualizacion, cancellationToken));
         }
-        catch (GoogleRoutesException ex)
+        catch (ProveedorRutasException ex)
         {
             return UnprocessableEntity(new { message = ex.Message });
         }
@@ -179,7 +179,7 @@ public class SolicitudesController : ControllerBase
             await _calculoRutaService.CalcularYAplicarAsync(solicitud);
             return null;
         }
-        catch (GoogleRoutesException ex)
+        catch (ProveedorRutasException ex)
         {
             return UnprocessableEntity(new { message = ex.Message });
         }

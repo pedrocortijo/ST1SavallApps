@@ -82,7 +82,7 @@ public static class DbInitializer
             END
         ");
 
-        // General, temporary cache for Google Routes segments. Expired results are removed at startup.
+        // General, temporary cache for route-provider segments. Expired results are removed at startup.
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'RutasCache', N'U') IS NULL
             BEGIN
