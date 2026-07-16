@@ -1,28 +1,29 @@
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
+@inject ST1Savall.Shared.Services.IFormFactor FormFactor
 
-<div>
-    <DxDrawer PanelWidth="@Width" CssClass="@(CssClass + " mobile")" Mode="@DrawerMode.Overlap" IsOpen="@ToggledSidebar" HeaderTemplate="@DrawerHeader" FooterTemplate="@DrawerFooter" ApplyBackgroundShading="false" ClosedCssClass="panel-closed">
-        <BodyTemplate>
-            @DrawerBody
-        </BodyTemplate>
-        <TargetContent>
-            <DxDrawer PanelWidth="@Width" CssClass="@CssClass" Mode="@DrawerMode.Shrink" IsOpen="@(!ToggledSidebar)" HeaderTemplate="@DrawerHeader" FooterTemplate="@DrawerFooter" OpenCssClass="panel-open" >
-                <BodyTemplate>
-                    @DrawerBody
-                </BodyTemplate>
-                <TargetContent>
-                    <div class="shading-copy" />
-                    @DrawerTarget
-                </TargetContent>
-            </DxDrawer>
-        </TargetContent>
-    </DxDrawer>
-</div>
+<DxDrawer PanelWidth="@Width"
+          CssClass="@CssClass"
+          Mode="@Mode"
+          IsOpen="@IsOpen"
+          HeaderTemplate="@DrawerHeader"
+          FooterTemplate="@DrawerFooter"
+          ApplyBackgroundShading="@IsAndroid"
+          OpenCssClass="panel-open">
+    <BodyTemplate>
+        @DrawerBody
+    </BodyTemplate>
+    <TargetContent>
+        @DrawerTarget
+    </TargetContent>
+</DxDrawer>
 
 @code {
     string Width => "240px";
     string CssClass => "navigation-drawer";
+    bool IsAndroid => FormFactor.GetPlatform().StartsWith("Android", StringComparison.OrdinalIgnoreCase);
+    DrawerMode Mode => IsAndroid ? DrawerMode.Overlap : DrawerMode.Shrink;
+    bool IsOpen => IsAndroid ? ToggledSidebar : !ToggledSidebar;
 
     [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }

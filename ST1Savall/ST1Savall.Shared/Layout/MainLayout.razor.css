@@ -1,5 +1,6 @@
 .page {
-    height: 100%;
+    min-height: 100vh;
+    height: auto;
     font-family: var(--bs-font-sans-serif);
 }
 
@@ -8,8 +9,13 @@
 }
 
 ::deep .dxbl-drawer .dxbl-drawer-content {
-    height: 100vh;
-    overflow: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+}
+
+::deep .dxbl-drawer .dxbl-drawer-target-content {
+    overflow: visible;
 }
 
 ::deep .dxbl-drawer > .dxbl-drawer-panel .dxbl-drawer-header {

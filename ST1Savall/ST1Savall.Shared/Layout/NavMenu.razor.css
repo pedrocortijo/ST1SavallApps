@@ -6,6 +6,8 @@
     max-height: 100%;
     display: block;
     background: inherit;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .logo {

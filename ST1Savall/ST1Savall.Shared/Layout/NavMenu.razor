@@ -75,8 +75,12 @@
                 if (!string.IsNullOrEmpty(cookieTheme) && availableThemes.Any(t => t.Id == cookieTheme))
                 {
                     selectedTheme = cookieTheme;
-                    StateHasChanged();
                 }
+
+                // Reaplicar el tema al iniciar para sincronizar la hoja de estilos
+                // y la clase del elemento HTML, especialmente en la versión web.
+                await JSRuntime.InvokeVoidAsync("setTheme", selectedTheme);
+                StateHasChanged();
             }
             catch { }
         }

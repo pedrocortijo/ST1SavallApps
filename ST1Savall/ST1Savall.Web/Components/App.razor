@@ -8,6 +8,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <script>
+        try {
+            const savedTheme = localStorage.getItem("theme");
+            if (savedTheme) document.documentElement.className = "theme-" + savedTheme;
+        } catch { }
+    </script>
     <link href=@AppendVersion(GetThemeUrl()) rel="stylesheet" id="theme-link" />
     @DxResourceManager.RegisterScripts()
     <link rel="stylesheet" href="_content/ST1Savall.Shared/bootstrap/bootstrap.min.css" />
