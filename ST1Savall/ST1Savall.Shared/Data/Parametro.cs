@@ -33,4 +33,12 @@ public class Parametro
 
     [MaxLength(30)]
     public string? SslSmtpType { get; set; }
+
+    public int AvisoTiempoServicio { get; set; }
+
+    public int AvisoTiempoContenedor { get; set; }
+
+    [MaxLength(255)]
+    [Column(TypeName = "varchar(255)")]
+    public string? PathImagenes { get; set; }
 }

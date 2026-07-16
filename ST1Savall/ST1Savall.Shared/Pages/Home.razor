@@ -8,11 +8,17 @@
 
 <PageTitle>Panel de Control - Gestión de Contenedores</PageTitle>
 
+<style>
+    .grid-filter-bar { background-color: rgba(0, 0, 0, 0.03); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+    html.theme-blazing-dark .grid-filter-bar,
+    html.theme-fluent-dark .grid-filter-bar { background-color: rgba(255, 255, 255, 0.03) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+</style>
+
 <div class="container-fluid py-0">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
-            <h2 class="fw-bold text-primary mb-1">GESTIÓN CONTENEDORES</h2>
+            <h2 class="fw-bold text-primary mb-1">ST1 - GESTIÓN CONTENEDORES Ver.: 1.0</h2>
             <p class="text-muted mb-0">Seguimiento de solicitudes</p>
         </div>
         <div class="badge bg-dark text-white p-2 px-3 rounded-pill" style="font-size: 0.9rem;">
@@ -32,9 +38,9 @@
     <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
         <div class="card-header border-0 py-3 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold mb-0">Estado de Solicitudes (Hoy)</h5>
-            @if (selectedEstadoFilter.HasValue)
+            @if (selectedEstadoId >= 0)
             {
-                <button class="btn btn-sm btn-outline-secondary" @onclick="() => selectedEstadoFilter = null">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ClearEstadoFilter">
                     <i class="oi oi-x me-1"></i> Quitar filtro
                 </button>
             }
@@ -50,48 +56,14 @@
             else
             {
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; width: 100%;">
-                    
-                    <!-- 1. Introducido no enviado -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(1)" style="@GetCardStyle(1)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(1)) !important; line-height: 1.1; margin-bottom: 4px;">1. Introducido</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(1)) !important;">@GetStateCount(1)</h3>
-                    </div>
-
-                    <!-- 2. Whatsapp enviado -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(2)" style="@GetCardStyle(2)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(2)) !important; line-height: 1.1; margin-bottom: 4px;">2. Whatsapp</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(2)) !important;">@GetStateCount(2)</h3>
-                    </div>
-
-                    <!-- 3. Leer observaciones -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(3)" style="@GetCardStyle(3)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(3)) !important; line-height: 1.1; margin-bottom: 4px;">3. Observaciones</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(3)) !important;">@GetStateCount(3)</h3>
-                    </div>
-
-                    <!-- 4. No seguimiento contenedor -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(4)" style="@GetCardStyle(4)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(4)) !important; line-height: 1.1; margin-bottom: 4px;">4. No seguimiento</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(4)) !important;">@GetStateCount(4)</h3>
-                    </div>
-
-                    <!-- 5. Finalizado servicio -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(5)" style="@GetCardStyle(5)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(5)) !important; line-height: 1.1; margin-bottom: 4px;">5. Finalizado</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(5)) !important;">@GetStateCount(5)</h3>
-                    </div>
-
-                    <!-- 6. Anulado o reprogramado -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(6)" style="@GetCardStyle(6)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(6)) !important; line-height: 1.1; margin-bottom: 4px;">6. Anulado</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(6)) !important;">@GetStateCount(6)</h3>
-                    </div>
-
-                    <!-- 7. Falta disponibilidad contenedor -->
-                    <div class="card text-center" @onclick="() => ToggleEstadoFilter(7)" style="@GetCardStyle(7)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                        <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(7)) !important; line-height: 1.1; margin-bottom: 4px;">7. Falta disponib.</span>
-                        <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(7)) !important;">@GetStateCount(7)</h3>
-                    </div>
+                    @foreach (var estado in GetFilterableEstados())
+                    {
+                        var estadoId = estado.IdEstado;
+                        <div class="card text-center" @onclick="() => ToggleEstadoFilter(estadoId)" style="@GetCardStyle(estadoId)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+                            <span class="fw-bold" style="font-size: 0.8rem; color: @(GetCardTextStyle(estadoId)) !important; line-height: 1.1; margin-bottom: 4px;">@GetCardLabel(estado)</span>
+                            <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(estadoId)) !important;">@GetStateCount(estadoId)</h3>
+                        </div>
+                    }
                 </div>
             }
         </div>
@@ -114,6 +86,17 @@
             }
             else
             {
+                <div class="grid-filter-bar d-flex flex-wrap align-items-center gap-2 p-2">
+                    <span class="text-muted fw-semibold small">Filtrar por:</span>
+                    @* <span class="text-muted small">Conductor:</span> *@
+                    <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="@selectedConductorId" Width="190px" />
+                    @* <span class="text-muted small">Tipo de tarea:</span> *@
+                    <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" @bind-Value="@selectedTareaId" Width="190px" />
+                    @* <span class="text-muted small">Estado:</span> *@
+                    <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" @bind-Value="@selectedEstadoId" Width="190px" />
+                    @* <span class="text-muted small">Prioridad:</span> *@
+                    <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
+                </div>
                 <DxGrid Data="@GetFilteredSolicitudes()"
                         KeyFieldName="IdSolicitud"
                         PagerPosition="GridPagerPosition.Bottom"
@@ -186,31 +169,29 @@
     private List<Operario>? operarios;
     private bool loading = true;
     private string? errorMessage;
-    private int? selectedEstadoFilter;
+    private int selectedConductorId = -1;
+    private int selectedTareaId = -1;
+    private int selectedEstadoId = -1;
+    private int selectedPrioridadId = -1;
 
     private void ToggleEstadoFilter(int estado)
     {
-        if (selectedEstadoFilter == estado)
-        {
-            selectedEstadoFilter = null;
-        }
-        else
-        {
-            selectedEstadoFilter = estado;
-        }
+        selectedEstadoId = selectedEstadoId == estado ? -1 : estado;
     }
+
+    private void ClearEstadoFilter() => selectedEstadoId = -1;
 
     private IEnumerable<Solicitud> GetFilteredSolicitudes()
     {
         if (solicitudes == null) return Array.Empty<Solicitud>();
-        
-        var todaySols = solicitudes.Where(s => s.FechaTarea?.Date == DateTime.Today);
-        
-        if (selectedEstadoFilter.HasValue)
-        {
-            return todaySols.Where(s => s.Estado == selectedEstadoFilter.Value);
-        }
-        return todaySols;
+
+        var filteredSolicitudes = solicitudes.Where(s => s.FechaTarea?.Date == DateTime.Today);
+
+        if (selectedConductorId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdConductor == selectedConductorId);
+        if (selectedTareaId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdTipoTarea == selectedTareaId);
+        if (selectedEstadoId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
+        if (selectedPrioridadId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Prioridad == selectedPrioridadId);
+        return filteredSolicitudes;
     }
 
     private class KeyName
@@ -220,9 +201,13 @@
     }
 
     private List<Tarea>? tareasList;
+    private List<Operario> comboOperarios = new() { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
+    private List<Tarea> comboTareas = new() { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
+    private List<EstadoSolicitud> comboEstados = new() { new EstadoSolicitud { IdEstado = -1, Descripcion = "Todos los estados" } };
 
     private List<KeyName> prioridadesList = new()
     {
+        new() { Id = -1, Name = "Todas las prioridades" },
         new() { Id = 1, Name = "Alta" },
         new() { Id = 2, Name = "Media" },
         new() { Id = 3, Name = "Baja" }
@@ -255,6 +240,13 @@
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+
+            comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
+            if (operarios != null) comboOperarios.AddRange(operarios);
+            comboTareas = new List<Tarea> { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
+            if (tareasList != null) comboTareas.AddRange(tareasList);
+            comboEstados = new List<EstadoSolicitud> { new EstadoSolicitud { IdEstado = -1, Descripcion = "Todos los estados" } };
+            if (estadosList != null) comboEstados.AddRange(estadosList);
             if (solicitudes != null)
             {
                 foreach (var sol in solicitudes)
@@ -318,7 +310,7 @@
         var est = estadosList?.FirstOrDefault(x => x.IdEstado == estado);
         string bg = est?.BgColor ?? "#ffffff";
         string text = est?.TextColor ?? "#000000";
-        bool isSelected = selectedEstadoFilter == estado;
+        bool isSelected = selectedEstadoId == estado;
         string border = isSelected ? $"4px solid {text}" : "1px solid rgba(0,0,0,0.1)";
         
         return $"background-color: {bg} !important; border: {border} !important; border-radius: 8px; min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;";
@@ -333,5 +325,16 @@
     private int GetStateCount(int estado)
     {
         return solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today && s.Estado == estado) ?? 0;
+    }
+
+    private IEnumerable<EstadoSolicitud> GetFilterableEstados()
+    {
+        return estadosList?.Where(e => e.Filtrar).OrderBy(e => e.IdEstado)
+            ?? Enumerable.Empty<EstadoSolicitud>();
+    }
+
+    private static string GetCardLabel(EstadoSolicitud estado)
+    {
+        return estado.Descripcion ?? string.Empty;
     }
 }

@@ -86,6 +86,7 @@
                         </DxGridCommandColumn>
                         <DxGridDataColumn FieldName="IdEstado" Caption="Código" ReadOnly="true" Width="80px" />
                         <DxGridDataColumn FieldName="Descripcion" Caption="Descripción del Estado" />
+                        <DxGridDataColumn FieldName="Filtrar" Caption="Filtrar" Width="100px" />
                         <DxGridDataColumn FieldName="BgColor" Caption="Color Fondo" Width="140px">
                             <CellDisplayTemplate>
                                 <div class="d-flex align-items-center">
@@ -123,6 +124,9 @@
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Descripción" ColSpanMd="12">
                                 <DxTextBox @bind-Text="@est.Descripcion" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Filtrar" ColSpanMd="12">
+                                <DxCheckBox @bind-Checked="@est.Filtrar" LabelPosition="LabelPosition.Right">Aplicar en filtros</DxCheckBox>
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Color Fondo" ColSpanMd="6">
                                 <div class="d-flex gap-2 align-items-center">

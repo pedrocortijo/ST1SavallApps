@@ -7,11 +7,17 @@
 
 <PageTitle>Solicitudes de Trabajo</PageTitle>
 
+<style>
+    .grid-filter-bar { background-color: rgba(0, 0, 0, 0.03); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+    html.theme-blazing-dark .grid-filter-bar,
+    html.theme-fluent-dark .grid-filter-bar { background-color: rgba(255, 255, 255, 0.03) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+</style>
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">Solicitudes</h2>
-            <p class="text-muted mb-0">Gestión de tareas.</p>
+            <h2 class="fw-bold text-primary mb-1">Solicitudes de servicios</h2>
+            <p class="text-muted mb-0">Gestión de solicitudes.</p>
         </div>
         <NavLink href="/" class="btn btn-outline-secondary btn-sm">
             <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
@@ -42,32 +48,38 @@
                 <!-- Cuadro de Mando de 7 Estados (Todos los Servicios) -->
                 <div class="p-3 border-bottom">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0">Estado de Solicitudes</h5>
-                        @if (selectedEstadoFilter.HasValue)
+                        <h5 class="fw-bold mb-0">Estado de Solicitud</h5>
+                        @if (selectedEstadoId >= 0)
                         {
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => selectedEstadoFilter = null">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="ClearEstadoFilter">
                                 <i class="oi oi-x me-1"></i> Quitar filtro
                             </button>
                         }
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; width: 100%;">
-                        @for (int i = 1; i <= 7; i++)
+                        @foreach (var estado in GetFilterableEstados())
                         {
-                            int estadoId = i;
+                            var estadoId = estado.IdEstado;
                             <div class="card text-center" @onclick="() => ToggleEstadoFilter(estadoId)" style="@GetCardStyle(estadoId)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-                                <span class="fw-bold" style="font-size: 0.65rem; color: @(GetCardTextStyle(estadoId)) !important; line-height: 1.1; margin-bottom: 4px;">
-                                    @(estadoId == 1 ? "1. Introducido" : 
-                                      estadoId == 2 ? "2. Whatsapp" : 
-                                      estadoId == 3 ? "3. Observaciones" : 
-                                      estadoId == 4 ? "4. No seguimiento" : 
-                                      estadoId == 5 ? "5. Finalizado" : 
-                                      estadoId == 6 ? "6. Anulado" : 
-                                      "7. Falta disponib.")
+                                <span class="fw-bold" style="font-size: 0.8rem; color: @(GetCardTextStyle(estadoId)) !important; line-height: 1.1; margin-bottom: 4px;">
+                                    @GetCardLabel(estado)
                                 </span>
                                 <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(estadoId)) !important;">@GetStateCount(estadoId)</h3>
                             </div>
                         }
                     </div>
+                </div>
+
+                <div class="grid-filter-bar d-flex flex-wrap align-items-center gap-2 p-2">
+                    <span class="text-muted fw-semibold small">Filtrar por:</span>
+                    @* <span class="text-muted small">Conductor:</span> *@
+                    <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="@selectedConductorId" Width="190px" />
+                    @* <span class="text-muted small">Tipo de tarea:</span> *@
+                    <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" @bind-Value="@selectedTareaId" Width="190px" />
+                    @* <span class="text-muted small">Estado:</span> *@
+                    <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" @bind-Value="@selectedEstadoId" Width="190px" />
+                    @* <span class="text-muted small">Prioridad:</span> *@
+                    <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
                 </div>
 
                 <DxGrid Data="@GetFilteredSolicitudes()"
@@ -88,6 +100,7 @@
                                     <i class="oi oi-plus me-1"></i> Nueva
                                 </button>
                             </HeaderTemplate>
+
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
@@ -109,6 +122,7 @@
                                     </div>
                                 }
                             </CellDisplayTemplate>
+
                         </DxGridCommandColumn>
                         <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
                             <CellDisplayTemplate>
@@ -171,31 +185,48 @@
     private List<Solicitud>? solicitudes;
     private List<Operario>? operarios;
     private string? errorMessage;
-    private int? selectedEstadoFilter;
+    private int selectedConductorId = -1;
+    private int selectedTareaId = -1;
+    private int selectedEstadoId = -1;
+    private int selectedPrioridadId = -1;
 
     private List<EstadoSolicitud>? estadosList;
     private List<Tarea>? tareasList;
+    private List<Operario> comboOperarios = new() { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
+    private List<Tarea> comboTareas = new() { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
+    private List<EstadoSolicitud> comboEstados = new() { new EstadoSolicitud { IdEstado = -1, Descripcion = "Todos los estados" } };
+
+    private class KeyName
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private List<KeyName> prioridadesList = new()
+    {
+        new() { Id = -1, Name = "Todas las prioridades" },
+        new() { Id = 1, Name = "Alta" },
+        new() { Id = 2, Name = "Media" },
+        new() { Id = 3, Name = "Baja" }
+    };
 
     private void ToggleEstadoFilter(int estado)
     {
-        if (selectedEstadoFilter == estado)
-        {
-            selectedEstadoFilter = null;
-        }
-        else
-        {
-            selectedEstadoFilter = estado;
-        }
+        selectedEstadoId = selectedEstadoId == estado ? -1 : estado;
     }
+
+    private void ClearEstadoFilter() => selectedEstadoId = -1;
 
     private IEnumerable<Solicitud> GetFilteredSolicitudes()
     {
         if (solicitudes == null) return Array.Empty<Solicitud>();
-        if (selectedEstadoFilter.HasValue)
-        {
-            return solicitudes.Where(s => s.Estado == selectedEstadoFilter.Value);
-        }
-        return solicitudes;
+
+        var filteredSolicitudes = solicitudes.AsEnumerable();
+        if (selectedConductorId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdConductor == selectedConductorId);
+        if (selectedTareaId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdTipoTarea == selectedTareaId);
+        if (selectedEstadoId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
+        if (selectedPrioridadId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Prioridad == selectedPrioridadId);
+        return filteredSolicitudes;
     }
 
     private int GetStateCount(int estado)
@@ -203,12 +234,23 @@
         return solicitudes?.Count(s => s.Estado == estado) ?? 0;
     }
 
+    private IEnumerable<EstadoSolicitud> GetFilterableEstados()
+    {
+        return estadosList?.Where(e => e.Filtrar).OrderBy(e => e.IdEstado)
+            ?? Enumerable.Empty<EstadoSolicitud>();
+    }
+
+    private static string GetCardLabel(EstadoSolicitud estado)
+    {
+        return estado.Descripcion ?? string.Empty;
+    }
+
     private string GetCardStyle(int estado)
     {
         var est = estadosList?.FirstOrDefault(x => x.IdEstado == estado);
         string bg = est?.BgColor ?? "#ffffff";
         string text = est?.TextColor ?? "#000000";
-        bool isSelected = selectedEstadoFilter == estado;
+        bool isSelected = selectedEstadoId == estado;
         string border = isSelected ? $"4px solid {text}" : "1px solid rgba(0,0,0,0.1)";
         
         return $"background-color: {bg} !important; border: {border} !important; border-radius: 8px; min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;";
@@ -346,6 +388,13 @@
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+
+            comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
+            if (operarios != null) comboOperarios.AddRange(operarios);
+            comboTareas = new List<Tarea> { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
+            if (tareasList != null) comboTareas.AddRange(tareasList);
+            comboEstados = new List<EstadoSolicitud> { new EstadoSolicitud { IdEstado = -1, Descripcion = "Todos los estados" } };
+            if (estadosList != null) comboEstados.AddRange(estadosList);
             if (solicitudes != null)
             {
                 foreach (var sol in solicitudes)

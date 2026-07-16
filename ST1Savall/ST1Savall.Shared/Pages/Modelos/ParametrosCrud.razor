@@ -111,6 +111,15 @@
                             <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="6">
                                 <DxTextBox @bind-Text="parametro.SslSmtpType" />
                             </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Aviso tiempo de servicio" ColSpanMd="6" BeginRow="true">
+                                <DxSpinEdit @bind-Value="parametro.AvisoTiempoServicio" MinValue="0" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Aviso tiempo de contenedor" ColSpanMd="6">
+                                <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">
+                                <DxTextBox @bind-Text="parametro.PathImagenes" />
+                            </DxFormLayoutItem>
                         </DxFormLayout>
                     </EditFormTemplate>
                 </DxGrid>

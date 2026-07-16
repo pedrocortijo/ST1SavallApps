@@ -16,6 +16,23 @@ public static class DbInitializer
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
 
+        // Ensure new Parametros columns exist in databases created before these fields were added.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'Parametros', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH('Parametros', 'AvisoTiempoServicio') IS NULL
+                    ALTER TABLE Parametros ADD AvisoTiempoServicio INT NOT NULL
+                        CONSTRAINT DF_Parametros_AvisoTiempoServicio DEFAULT (0);
+
+                IF COL_LENGTH('Parametros', 'AvisoTiempoContenedor') IS NULL
+                    ALTER TABLE Parametros ADD AvisoTiempoContenedor INT NOT NULL
+                        CONSTRAINT DF_Parametros_AvisoTiempoContenedor DEFAULT (0);
+
+                IF COL_LENGTH('Parametros', 'PathImagenes') IS NULL
+                    ALTER TABLE Parametros ADD PathImagenes VARCHAR(255) NULL;
+            END
+        ");
+
         // Create TareasRelaciones table if it does not exist (in case DB already existed)
         await context.Database.ExecuteSqlRawAsync(@"
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='TareasRelaciones' and xtype='U')
@@ -188,7 +205,7 @@ public static class DbInitializer
                 END
             ");
             
-            // Add BgColor and TextColor columns to EstadosSolicitud if they don't exist
+            // Add presentation and filtering columns to EstadosSolicitud if they don't exist
             await context.Database.ExecuteSqlRawAsync(@"
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('EstadosSolicitud') AND name = 'BgColor')
                 BEGIN
@@ -197,6 +214,10 @@ public static class DbInitializer
                 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('EstadosSolicitud') AND name = 'TextColor')
                 BEGIN
                     ALTER TABLE EstadosSolicitud ADD TextColor NVARCHAR(20) NULL;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('EstadosSolicitud') AND name = 'Filtrar')
+                BEGIN
+                    ALTER TABLE EstadosSolicitud ADD Filtrar BIT NOT NULL CONSTRAINT DF_EstadosSolicitud_Filtrar DEFAULT 0;
                 END
             ");
             

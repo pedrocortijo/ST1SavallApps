@@ -19,4 +19,6 @@ public class EstadoSolicitud
 
     [MaxLength(20)]
     public string? TextColor { get; set; }
+
+    public bool Filtrar { get; set; }
 }

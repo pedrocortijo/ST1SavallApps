@@ -328,6 +328,9 @@ namespace ST1Savall.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("Filtrar")
+                        .HasColumnType("bit");
+
                     b.Property<string>("TextColor")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -382,6 +385,12 @@ namespace ST1Savall.API.Migrations
 
             modelBuilder.Entity("ST1Savall.Shared.Data.Parametro", b =>
                 {
+                    b.Property<int>("AvisoTiempoContenedor")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvisoTiempoServicio")
+                        .HasColumnType("int");
+
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
@@ -397,6 +406,10 @@ namespace ST1Savall.API.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PathImagenes")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("SenderEmail")
                         .IsRequired()
