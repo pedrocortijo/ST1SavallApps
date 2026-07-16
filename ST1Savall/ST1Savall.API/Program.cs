@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ST1Savall.API.Data;
+using ST1Savall.API.Services;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.Services.AddControllers();
 var connectionString = builder.Configuration.GetConnectionString("SavallAppsConnection") ?? throw new InvalidOperationException("Connection string 'SavallAppsConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+builder.Services.AddScoped<PlanificacionService>();
 
 // Add SageGestion DbContext
 var sageGestionConnectionString = builder.Configuration.GetConnectionString("SageGestionConnection") 

@@ -357,6 +357,33 @@ namespace ST1Savall.API.Migrations
                     b.Property<int?>("IdPlanta")
                         .HasColumnType("int");
 
+                    b.Property<string>("EstadoLaboral")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<TimeSpan?>("HoraFinJornada")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("HoraInicioJornada")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime?>("InactivoDesde")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("InactivoHasta")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MinutosMaximosDiarios")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinutosMaximosSemanales")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MotivoInactividad")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<bool?>("Mensajes")
                         .HasColumnType("bit");
 
@@ -370,6 +397,12 @@ namespace ST1Savall.API.Migrations
                     b.Property<string>("Telefono")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("TrabajaDomingos")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TrabajaSabados")
+                        .HasColumnType("bit");
 
                     b.Property<bool?>("Tierras")
                         .HasColumnType("bit");
@@ -538,6 +571,30 @@ namespace ST1Savall.API.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int?>("DistanciaDescargaRegresoMetros")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DistanciaObraDescargaMetros")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DistanciaOrigenObraMetros")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DistanciaTotalMetros")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("DuracionModificadaManualmente")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("DuracionOperacionMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DuracionPlanificadaMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DuracionViajeMinutos")
+                        .HasColumnType("int");
+
                     b.Property<string>("Encargado")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -546,6 +603,15 @@ namespace ST1Savall.API.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("FechaActualizacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaCalculoRuta")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaHoraFinPlanificada")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaHoraInicioPlanificada")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("FechaFinOVP")
@@ -578,6 +644,15 @@ namespace ST1Savall.API.Migrations
                     b.Property<int?>("IdHoraDisponible")
                         .HasColumnType("int");
 
+                    b.Property<int?>("IdPlantaDescarga")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("IdPlantaOrigen")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("IdPlantaRegreso")
+                        .HasColumnType("int");
+
                     b.Property<string>("IdOperario")
                         .HasMaxLength(15)
                         .HasColumnType("nvarchar(15)");
@@ -592,9 +667,50 @@ namespace ST1Savall.API.Migrations
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
 
+                    b.Property<decimal?>("LatitudDescarga")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LatitudObra")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LatitudOrigen")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LatitudRegreso")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
                     b.Property<decimal?>("Longitud")
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LongitudDescarga")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LongitudObra")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LongitudOrigen")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("LongitudRegreso")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<int?>("MinutosDescargaRegreso")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MinutosObraDescarga")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MinutosOrigenObra")
+                        .HasColumnType("int");
 
                     b.Property<int?>("MotivoReprogramacion")
                         .HasColumnType("int");
@@ -625,6 +741,10 @@ namespace ST1Savall.API.Migrations
                     b.Property<int?>("Prioridad")
                         .HasColumnType("int");
 
+                    b.Property<string>("ProveedorCalculoRuta")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<bool>("RequiereOVP")
                         .HasColumnType("bit");
 
@@ -635,6 +755,9 @@ namespace ST1Savall.API.Migrations
                     b.HasKey("IdSolicitud");
 
                     b.HasIndex("Estado");
+
+                    b.HasIndex("IdConductor", "FechaHoraInicioPlanificada", "FechaHoraFinPlanificada")
+                        .HasDatabaseName("IX_Solicitudes_Conductor_Inicio_Fin");
 
                     b.ToTable("Solicitudes");
                 });

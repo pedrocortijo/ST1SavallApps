@@ -33,6 +33,55 @@ public static class DbInitializer
             END
         ");
 
+        // Ensure service planning columns exist in databases created before planning was introduced.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'Operarios', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH('Operarios', 'EstadoLaboral') IS NULL ALTER TABLE Operarios ADD EstadoLaboral NVARCHAR(20) NOT NULL CONSTRAINT DF_Operarios_EstadoLaboral DEFAULT ('Activo');
+                IF COL_LENGTH('Operarios', 'MotivoInactividad') IS NULL ALTER TABLE Operarios ADD MotivoInactividad NVARCHAR(30) NULL;
+                IF COL_LENGTH('Operarios', 'InactivoDesde') IS NULL ALTER TABLE Operarios ADD InactivoDesde DATETIME2 NULL;
+                IF COL_LENGTH('Operarios', 'InactivoHasta') IS NULL ALTER TABLE Operarios ADD InactivoHasta DATETIME2 NULL;
+                IF COL_LENGTH('Operarios', 'HoraInicioJornada') IS NULL ALTER TABLE Operarios ADD HoraInicioJornada TIME NULL CONSTRAINT DF_Operarios_HoraInicioJornada DEFAULT ('08:00');
+                IF COL_LENGTH('Operarios', 'HoraFinJornada') IS NULL ALTER TABLE Operarios ADD HoraFinJornada TIME NULL CONSTRAINT DF_Operarios_HoraFinJornada DEFAULT ('17:00');
+                IF COL_LENGTH('Operarios', 'MinutosMaximosDiarios') IS NULL ALTER TABLE Operarios ADD MinutosMaximosDiarios INT NOT NULL CONSTRAINT DF_Operarios_MinutosMaximosDiarios DEFAULT (480);
+                IF COL_LENGTH('Operarios', 'MinutosMaximosSemanales') IS NULL ALTER TABLE Operarios ADD MinutosMaximosSemanales INT NOT NULL CONSTRAINT DF_Operarios_MinutosMaximosSemanales DEFAULT (2400);
+                IF COL_LENGTH('Operarios', 'TrabajaSabados') IS NULL ALTER TABLE Operarios ADD TrabajaSabados BIT NOT NULL CONSTRAINT DF_Operarios_TrabajaSabados DEFAULT (0);
+                IF COL_LENGTH('Operarios', 'TrabajaDomingos') IS NULL ALTER TABLE Operarios ADD TrabajaDomingos BIT NOT NULL CONSTRAINT DF_Operarios_TrabajaDomingos DEFAULT (0);
+            END
+
+            IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH('Solicitudes', 'FechaHoraInicioPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraInicioPlanificada DATETIME2 NULL;
+                IF COL_LENGTH('Solicitudes', 'FechaHoraFinPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraFinPlanificada DATETIME2 NULL;
+                IF COL_LENGTH('Solicitudes', 'DuracionPlanificadaMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionPlanificadaMinutos INT NULL;
+                IF COL_LENGTH('Solicitudes', 'DuracionViajeMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionViajeMinutos INT NULL;
+                IF COL_LENGTH('Solicitudes', 'DuracionOperacionMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionOperacionMinutos INT NULL;
+                IF COL_LENGTH('Solicitudes', 'IdPlantaOrigen') IS NULL ALTER TABLE Solicitudes ADD IdPlantaOrigen INT NULL;
+                IF COL_LENGTH('Solicitudes', 'IdPlantaDescarga') IS NULL ALTER TABLE Solicitudes ADD IdPlantaDescarga INT NULL;
+                IF COL_LENGTH('Solicitudes', 'IdPlantaRegreso') IS NULL ALTER TABLE Solicitudes ADD IdPlantaRegreso INT NULL;
+                IF COL_LENGTH('Solicitudes', 'DistanciaOrigenObraMetros') IS NULL ALTER TABLE Solicitudes ADD DistanciaOrigenObraMetros INT NULL;
+                IF COL_LENGTH('Solicitudes', 'DistanciaObraDescargaMetros') IS NULL ALTER TABLE Solicitudes ADD DistanciaObraDescargaMetros INT NULL;
+                IF COL_LENGTH('Solicitudes', 'DistanciaDescargaRegresoMetros') IS NULL ALTER TABLE Solicitudes ADD DistanciaDescargaRegresoMetros INT NULL;
+                IF COL_LENGTH('Solicitudes', 'MinutosOrigenObra') IS NULL ALTER TABLE Solicitudes ADD MinutosOrigenObra INT NULL;
+                IF COL_LENGTH('Solicitudes', 'MinutosObraDescarga') IS NULL ALTER TABLE Solicitudes ADD MinutosObraDescarga INT NULL;
+                IF COL_LENGTH('Solicitudes', 'MinutosDescargaRegreso') IS NULL ALTER TABLE Solicitudes ADD MinutosDescargaRegreso INT NULL;
+                IF COL_LENGTH('Solicitudes', 'DistanciaTotalMetros') IS NULL ALTER TABLE Solicitudes ADD DistanciaTotalMetros INT NULL;
+                IF COL_LENGTH('Solicitudes', 'LatitudOrigen') IS NULL ALTER TABLE Solicitudes ADD LatitudOrigen DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LongitudOrigen') IS NULL ALTER TABLE Solicitudes ADD LongitudOrigen DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LatitudObra') IS NULL ALTER TABLE Solicitudes ADD LatitudObra DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LongitudObra') IS NULL ALTER TABLE Solicitudes ADD LongitudObra DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LatitudDescarga') IS NULL ALTER TABLE Solicitudes ADD LatitudDescarga DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LongitudDescarga') IS NULL ALTER TABLE Solicitudes ADD LongitudDescarga DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LatitudRegreso') IS NULL ALTER TABLE Solicitudes ADD LatitudRegreso DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'LongitudRegreso') IS NULL ALTER TABLE Solicitudes ADD LongitudRegreso DECIMAL(9,6) NULL;
+                IF COL_LENGTH('Solicitudes', 'DuracionModificadaManualmente') IS NULL ALTER TABLE Solicitudes ADD DuracionModificadaManualmente BIT NOT NULL CONSTRAINT DF_Solicitudes_DuracionManual DEFAULT (0);
+                IF COL_LENGTH('Solicitudes', 'FechaCalculoRuta') IS NULL ALTER TABLE Solicitudes ADD FechaCalculoRuta DATETIME2 NULL;
+                IF COL_LENGTH('Solicitudes', 'ProveedorCalculoRuta') IS NULL ALTER TABLE Solicitudes ADD ProveedorCalculoRuta NVARCHAR(30) NULL;
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'IX_Solicitudes_Conductor_Inicio_Fin')
+                    CREATE INDEX IX_Solicitudes_Conductor_Inicio_Fin ON Solicitudes(IdConductor, FechaHoraInicioPlanificada, FechaHoraFinPlanificada);
+            END
+        ");
+
         // Create TareasRelaciones table if it does not exist (in case DB already existed)
         await context.Database.ExecuteSqlRawAsync(@"
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='TareasRelaciones' and xtype='U')

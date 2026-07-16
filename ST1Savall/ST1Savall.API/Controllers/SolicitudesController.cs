@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ST1Savall.API.Data;
 using ST1Savall.Shared.Data;
+using ST1Savall.API.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -12,10 +13,23 @@ namespace ST1Savall.API.Controllers;
 public class SolicitudesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly PlanificacionService _planificacionService;
 
-    public SolicitudesController(ApplicationDbContext context)
+    public SolicitudesController(ApplicationDbContext context, PlanificacionService planificacionService)
     {
         _context = context;
+        _planificacionService = planificacionService;
+    }
+
+    [HttpGet("siguiente-hueco")]
+    public async Task<ActionResult<PlanificacionHueco>> GetSiguienteHueco(
+        int idConductor,
+        DateTime fecha,
+        int duracionMinutos,
+        int excluirSolicitudId = 0)
+    {
+        return Ok(await _planificacionService.BuscarSiguienteHuecoAsync(
+            idConductor, fecha, duracionMinutos, excluirSolicitudId));
     }
 
     [HttpGet]
@@ -55,6 +69,10 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
+        var errorPlanificacion = await _planificacionService.PrepararYValidarAsync(solicitud);
+        if (errorPlanificacion != null)
+            return Conflict(new { message = errorPlanificacion });
+
         _context.Solicitudes.Add(solicitud);
         await ActualizarEstadosContenedores(solicitud);
         await _context.SaveChangesAsync();
@@ -65,6 +83,10 @@ public class SolicitudesController : ControllerBase
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
+        var errorPlanificacion = await _planificacionService.PrepararYValidarAsync(solicitud);
+        if (errorPlanificacion != null)
+            return Conflict(new { message = errorPlanificacion });
+
         _context.Entry(solicitud).State = EntityState.Modified;
         await ActualizarEstadosContenedores(solicitud);
         try

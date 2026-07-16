@@ -35,6 +35,9 @@ public class OperariosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Operario>> PostOperario(Operario operario)
     {
+        var validationError = NormalizarYValidarDisponibilidad(operario);
+        if (validationError != null) return BadRequest(new { message = validationError });
+
         _context.Operarios.Add(operario);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetOperario), new { id = operario.IdOperario }, operario);
@@ -44,6 +47,9 @@ public class OperariosController : ControllerBase
     public async Task<IActionResult> PutOperario(int id, Operario operario)
     {
         if (id != operario.IdOperario) return BadRequest();
+        var validationError = NormalizarYValidarDisponibilidad(operario);
+        if (validationError != null) return BadRequest(new { message = validationError });
+
         _context.Entry(operario).State = EntityState.Modified;
         try
         {
@@ -70,5 +76,50 @@ public class OperariosController : ControllerBase
     private bool OperarioExists(int id)
     {
         return _context.Operarios.Any(e => e.IdOperario == id);
+    }
+
+    private static string? NormalizarYValidarDisponibilidad(Operario operario)
+    {
+        operario.EstadoLaboral = string.IsNullOrWhiteSpace(operario.EstadoLaboral)
+            ? "Activo"
+            : operario.EstadoLaboral.Trim();
+
+        if (string.Equals(operario.EstadoLaboral, "Activo", StringComparison.OrdinalIgnoreCase))
+        {
+            operario.EstadoLaboral = "Activo";
+            operario.Activo = true;
+            operario.MotivoInactividad = null;
+            operario.InactivoDesde = null;
+            operario.InactivoHasta = null;
+        }
+        else if (string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+        {
+            operario.EstadoLaboral = "Inactivo";
+            operario.Activo = false;
+            if (string.IsNullOrWhiteSpace(operario.MotivoInactividad))
+                return "Debe indicar el motivo de inactividad.";
+            if (!operario.InactivoDesde.HasValue || !operario.InactivoHasta.HasValue)
+                return "Debe indicar las fechas Desde y Hasta de la inactividad.";
+
+            var inactivoDesde = operario.InactivoDesde.Value.Date;
+            var inactivoHasta = operario.InactivoHasta.Value.Date;
+            if (inactivoHasta < inactivoDesde)
+                return "La fecha Hasta no puede ser anterior a Desde.";
+
+            // Las fechas del formulario representan días completos e inclusivos.
+            operario.InactivoDesde = inactivoDesde;
+            operario.InactivoHasta = inactivoHasta.AddDays(1).AddTicks(-1);
+        }
+        else
+        {
+            return "El estado laboral debe ser Activo o Inactivo.";
+        }
+
+        if (operario.HoraInicioJornada >= operario.HoraFinJornada)
+            return "La hora de fin de jornada debe ser posterior a la de inicio.";
+        if (operario.MinutosMaximosDiarios <= 0 || operario.MinutosMaximosSemanales <= 0)
+            return "Los límites diario y semanal deben ser mayores que cero.";
+
+        return null;
     }
 }

@@ -14,9 +14,14 @@
             <h2 class="fw-bold text-primary mb-1">@(Id.HasValue ? "Editar Solicitud" : "Nueva Solicitud")</h2>
             <p class="text-muted mb-0">Complete los datos de la solicitud de trabajo</p>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Solicitudes
-        </button>
+        <div class="d-flex gap-2">
+            <NavLink href="/servicios/planificacion" class="btn btn-outline-primary btn-sm">
+                <i class="oi oi-calendar me-1"></i> Planificación
+            </NavLink>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
+                <i class="oi oi-arrow-left me-1"></i> Volver a Solicitudes
+            </button>
+        </div>
     </div>
 
     @if (errorMessage != null)
@@ -145,6 +150,49 @@
                                     ValueFieldName="Id"
                                     @bind-Value="@solicitud.Prioridad" />
                     </DxFormLayoutItem>
+
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Planificación del servicio
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Inicio planificado" ColSpanMd="3" BeginRow="true">
+                        <DxDateEdit @bind-Date="@solicitud.FechaHoraInicioPlanificada"
+                                    TimeSectionVisible="true"
+                                    DisplayFormat="dd/MM/yyyy HH:mm" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Fin planificado" ColSpanMd="3" Enabled="false">
+                        <DxDateEdit @bind-Date="@solicitud.FechaHoraFinPlanificada"
+                                    TimeSectionVisible="true"
+                                    DisplayFormat="dd/MM/yyyy HH:mm" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Duración total (minutos)" ColSpanMd="2">
+                        <DxSpinEdit @bind-Value="@solicitud.DuracionPlanificadaMinutos" MinValue="1" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Viaje (minutos)" ColSpanMd="1">
+                        <DxSpinEdit @bind-Value="@solicitud.DuracionViajeMinutos" MinValue="0" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Operación (minutos)" ColSpanMd="1">
+                        <DxSpinEdit @bind-Value="@solicitud.DuracionOperacionMinutos" MinValue="0" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-end pb-1">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="ProponerSiguienteHuecoAsync">
+                            <i class="oi oi-clock me-1"></i> Siguiente hora libre
+                        </button>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Planta origen" ColSpanMd="4" BeginRow="true">
+                        <DxComboBox Data="@plantas" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="@solicitud.IdPlantaOrigen" ClearButtonVisible="true" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Planta descarga" ColSpanMd="4">
+                        <DxComboBox Data="@plantas" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="@solicitud.IdPlantaDescarga" ClearButtonVisible="true" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Central de regreso" ColSpanMd="4">
+                        <DxComboBox Data="@plantas" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="@solicitud.IdPlantaRegreso" ClearButtonVisible="true" />
+                    </DxFormLayoutItem>
+                    @if (!string.IsNullOrWhiteSpace(planificacionMessage))
+                    {
+                        <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                            <div class="alert alert-info py-2 mb-0">@planificacionMessage</div>
+                        </DxFormLayoutItem>
+                    }
 
                     <DxFormLayoutItem Caption="Observaciones para el conductor" ColSpanMd="12" BeginRow="true">
                         <DxTextBox @bind-Text="@solicitud.Observaciones" />
@@ -290,9 +338,11 @@
     private List<EstadoSolicitud>? estadosList;
     private List<Obra>? obras;
     private List<Contenedor>? contenedoresList;
+    private List<Planta>? plantas;
     private bool loading = true;
     private string? errorMessage;
     private string? comentariosOficina;
+    private string? planificacionMessage;
 
     private class KeyName
     {
@@ -335,6 +385,7 @@
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
 
             if (Id.HasValue)
             {
@@ -348,7 +399,8 @@
                     //FechaInicial = DateTime.Today,
                     //FechaTarea = DateTime.Today,
                     Estado = 1, // Introducido por defecto
-                    IdConductor = null // Sin asignar por defecto
+                    IdConductor = null, // Sin asignar por defecto
+                    DuracionPlanificadaMinutos = 60
                 };
 
                 if (ObraId.HasValue)
@@ -417,6 +469,12 @@
         try
         {
             SyncCoordinates();
+            if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
+            {
+                solicitud.LatitudObra = solicitud.Latitud;
+                solicitud.LongitudObra = solicitud.Longitud;
+            }
+            solicitud.DuracionModificadaManualmente = solicitud.DuracionPlanificadaMinutos.HasValue;
             solicitud.FechaActualizacion = DateTime.Now;
             await SetupHeadersAsync();
             HttpResponseMessage response;
@@ -435,7 +493,8 @@
             }
             else
             {
-                errorMessage = $"Error al guardar la solicitud: {response.ReasonPhrase}";
+                var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
+                errorMessage = apiError?.Message ?? $"Error al guardar la solicitud: {response.ReasonPhrase}";
             }
         }
         catch (Exception ex)
@@ -447,6 +506,38 @@
     private void GoBack()
     {
         NavigationManager.NavigateTo("/modelos/solicitudes");
+    }
+
+    private async Task ProponerSiguienteHuecoAsync()
+    {
+        if (solicitud?.IdConductor == null)
+        {
+            planificacionMessage = "Seleccione primero un conductor.";
+            return;
+        }
+
+        var duracion = solicitud.DuracionPlanificadaMinutos.GetValueOrDefault(60);
+        var desde = solicitud.FechaHoraInicioPlanificada
+                    ?? solicitud.FechaTarea?.Date.AddHours(8)
+                    ?? DateTime.Today.AddHours(8);
+        var url = $"api/solicitudes/siguiente-hueco?idConductor={solicitud.IdConductor.Value}&fecha={Uri.EscapeDataString(desde.ToString("O"))}&duracionMinutos={duracion}&excluirSolicitudId={solicitud.IdSolicitud}";
+        var hueco = await Http.GetFromJsonAsync<PlanificacionHueco>(url);
+        if (hueco?.Disponible == true)
+        {
+            solicitud.FechaHoraInicioPlanificada = hueco.Inicio;
+            solicitud.FechaHoraFinPlanificada = hueco.Fin;
+            solicitud.FechaTarea = hueco.Inicio?.Date;
+            planificacionMessage = $"Hueco propuesto: {hueco.Inicio:dd/MM/yyyy HH:mm}–{hueco.Fin:HH:mm}.";
+        }
+        else
+        {
+            planificacionMessage = hueco?.Mensaje ?? "No se encontró disponibilidad.";
+        }
+    }
+
+    private sealed class ApiError
+    {
+        public string? Message { get; set; }
     }
 
 

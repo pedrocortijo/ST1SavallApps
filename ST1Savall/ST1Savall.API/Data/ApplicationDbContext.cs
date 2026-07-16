@@ -66,6 +66,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .Property(s => s.Longitud)
             .HasPrecision(9, 6);
 
+        foreach (var propertyName in new[]
+        {
+            nameof(Solicitud.LatitudOrigen), nameof(Solicitud.LongitudOrigen),
+            nameof(Solicitud.LatitudObra), nameof(Solicitud.LongitudObra),
+            nameof(Solicitud.LatitudDescarga), nameof(Solicitud.LongitudDescarga),
+            nameof(Solicitud.LatitudRegreso), nameof(Solicitud.LongitudRegreso)
+        })
+        {
+            builder.Entity<Solicitud>().Property<decimal?>(propertyName).HasPrecision(9, 6);
+        }
+
+        builder.Entity<Solicitud>()
+            .HasIndex(s => new { s.IdConductor, s.FechaHoraInicioPlanificada, s.FechaHoraFinPlanificada })
+            .HasDatabaseName("IX_Solicitudes_Conductor_Inicio_Fin");
+
         builder.Entity<Planta>()
             .Property(p => p.Latitud)
             .HasPrecision(9, 6);

@@ -110,6 +110,9 @@
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
+                        <DxGridDataColumn FieldName="EstadoLaboral" Caption="Estado laboral" Width="120px" />
+                        <DxGridDataColumn FieldName="HoraInicioJornada" Caption="Inicio jornada" DisplayFormat="hh\\:mm" Width="110px" />
+                        <DxGridDataColumn FieldName="HoraFinJornada" Caption="Fin jornada" DisplayFormat="hh\\:mm" Width="110px" />
                         <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" Visible="false" />
                         <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" Visible="false" />
                     </Columns>
@@ -136,8 +139,42 @@
                                             ValueFieldName="IdPlanta"
                                             @bind-Value="@oper.IdPlanta" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="6" BeginRow="true">
-                                <DxCheckBox @bind-Checked="@oper.Activo" LabelPosition="LabelPosition.Right">Operario Activo</DxCheckBox>
+                            <DxFormLayoutItem Caption="Estado laboral" ColSpanMd="4" BeginRow="true">
+                                <DxComboBox Data="@estadosLaborales"
+                                            TextFieldName="Text"
+                                            ValueFieldName="Value"
+                                            @bind-Value="@oper.EstadoLaboral" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Motivo" ColSpanMd="4" Enabled="@IsInactivo(oper)">
+                                <DxComboBox Data="@motivosInactividad"
+                                            TextFieldName="Text"
+                                            ValueFieldName="Value"
+                                            @bind-Value="@oper.MotivoInactividad"
+                                            ClearButtonVisible="true" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Desde" ColSpanMd="2" Enabled="@IsInactivo(oper)">
+                                <DxDateEdit @bind-Date="@oper.InactivoDesde" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Hasta" ColSpanMd="2" Enabled="@IsInactivo(oper)">
+                                <DxDateEdit @bind-Date="@oper.InactivoHasta" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Inicio jornada" ColSpanMd="3" BeginRow="true">
+                                <DxTimeEdit @bind-Time="@oper.HoraInicioJornada" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Fin jornada" ColSpanMd="3">
+                                <DxTimeEdit @bind-Time="@oper.HoraFinJornada" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Máximo diario (minutos)" ColSpanMd="3">
+                                <DxSpinEdit @bind-Value="@oper.MinutosMaximosDiarios" MinValue="1" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Máximo semanal (minutos)" ColSpanMd="3">
+                                <DxSpinEdit @bind-Value="@oper.MinutosMaximosSemanales" MinValue="1" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3" BeginRow="true">
+                                <DxCheckBox @bind-Checked="@oper.TrabajaSabados" LabelPosition="LabelPosition.Right">Trabaja sábados</DxCheckBox>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3">
+                                <DxCheckBox @bind-Checked="@oper.TrabajaDomingos" LabelPosition="LabelPosition.Right">Trabaja domingos</DxCheckBox>
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Permisos Especiales" ColSpanMd="12" BeginRow="true" CssClass="border-top pt-2 mt-2 fw-bold text-muted small text-uppercase">
                             </DxFormLayoutItem>
@@ -164,6 +201,30 @@
     private List<Cargo>? cargos;
     private List<Planta>? plantas;
     private string? errorMessage;
+
+    private sealed class TextValue
+    {
+        public string Text { get; init; } = string.Empty;
+        public string Value { get; init; } = string.Empty;
+    }
+
+    private readonly List<TextValue> estadosLaborales =
+    [
+        new() { Text = "Activo", Value = "Activo" },
+        new() { Text = "Inactivo", Value = "Inactivo" }
+    ];
+
+    private readonly List<TextValue> motivosInactividad =
+    [
+        new() { Text = "Baja", Value = "Baja" },
+        new() { Text = "Descanso", Value = "Descanso" },
+        new() { Text = "Vacaciones", Value = "Vacaciones" },
+        new() { Text = "Trámites", Value = "Trámites" },
+        new() { Text = "Otros", Value = "Otros" }
+    ];
+
+    private static bool IsInactivo(Operario operario) =>
+        string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {

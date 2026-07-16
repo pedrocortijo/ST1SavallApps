@@ -90,6 +90,39 @@ public class Solicitud
     public decimal? Longitud { get; set; }
     public DateTime? FechaActualizacion { get; set; }
 
+    public DateTime? FechaHoraInicioPlanificada { get; set; }
+    public DateTime? FechaHoraFinPlanificada { get; set; }
+    public int? DuracionPlanificadaMinutos { get; set; }
+    public int? DuracionViajeMinutos { get; set; }
+    public int? DuracionOperacionMinutos { get; set; }
+
+    public int? IdPlantaOrigen { get; set; }
+    public int? IdPlantaDescarga { get; set; }
+    public int? IdPlantaRegreso { get; set; }
+
+    public int? DistanciaOrigenObraMetros { get; set; }
+    public int? DistanciaObraDescargaMetros { get; set; }
+    public int? DistanciaDescargaRegresoMetros { get; set; }
+    public int? MinutosOrigenObra { get; set; }
+    public int? MinutosObraDescarga { get; set; }
+    public int? MinutosDescargaRegreso { get; set; }
+    public int? DistanciaTotalMetros { get; set; }
+
+    public decimal? LatitudOrigen { get; set; }
+    public decimal? LongitudOrigen { get; set; }
+    public decimal? LatitudObra { get; set; }
+    public decimal? LongitudObra { get; set; }
+    public decimal? LatitudDescarga { get; set; }
+    public decimal? LongitudDescarga { get; set; }
+    public decimal? LatitudRegreso { get; set; }
+    public decimal? LongitudRegreso { get; set; }
+
+    public bool DuracionModificadaManualmente { get; set; }
+    public DateTime? FechaCalculoRuta { get; set; }
+
+    [MaxLength(30)]
+    public string? ProveedorCalculoRuta { get; set; }
+
     [MaxLength(100)]
     public string? Encargado { get; set; }
 
