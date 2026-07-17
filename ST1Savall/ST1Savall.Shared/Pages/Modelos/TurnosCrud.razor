@@ -79,11 +79,11 @@
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Total minutos" ColSpanMd="6">
-                        <DxTextBox Text="@turno.TotalMinutos.ToString()" ReadOnly="true" EnableValidation="false" />
+                        <div class="form-control bg-body-secondary">@turno.TotalMinutos min</div>
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Total horas" ColSpanMd="6">
-                        <DxTextBox Text="@FormatearHoras(turno)" ReadOnly="true" EnableValidation="false" />
+                        <div class="form-control bg-body-secondary">@FormatearHoras(turno) h</div>
                     </DxFormLayoutItem>
 
                 </DxFormLayout>
