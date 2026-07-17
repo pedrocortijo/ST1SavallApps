@@ -19,7 +19,13 @@ public class Turno {
         {
             var jornada = HoraSalida - HoraEntrada;
             if (jornada < TimeSpan.Zero) jornada += TimeSpan.FromDays(1);
-            return Math.Max(0, (int)jornada.TotalMinutes);
+
+            if (HoraInicioBreak is not { } inicioBreak || HoraFinBreak is not { } finBreak)
+                return Math.Max(0, (int)jornada.TotalMinutes);
+
+            var descanso = finBreak - inicioBreak;
+            if (descanso < TimeSpan.Zero) descanso += TimeSpan.FromDays(1);
+            return Math.Max(0, (int)(jornada - descanso).TotalMinutes);
         }
     }
 
