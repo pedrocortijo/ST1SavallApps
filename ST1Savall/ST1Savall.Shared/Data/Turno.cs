@@ -11,4 +11,18 @@ public class Turno {
     public TimeSpan? HoraFinBreak { get; set; }
     public int TiempoAlmuerzoMinutos { get; set; }
     public int ToleranciaEntradaMinutos { get; set; }
+
+    [NotMapped]
+    public int TotalMinutos
+    {
+        get
+        {
+            var jornada = HoraSalida - HoraEntrada;
+            if (jornada < TimeSpan.Zero) jornada += TimeSpan.FromDays(1);
+            return Math.Max(0, (int)jornada.TotalMinutes);
+        }
+    }
+
+    [NotMapped]
+    public decimal TotalHoras => Math.Round(TotalMinutos / 60m, 2);
 }

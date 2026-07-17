@@ -32,8 +32,10 @@
                 <DxGridDataColumn FieldName="NombreTurno" Caption="Turno" />
                 <DxGridDataColumn FieldName="HoraEntrada" Caption="Entrada" DisplayFormat="hh':'mm" />
                 <DxGridDataColumn FieldName="HoraSalida" Caption="Salida" DisplayFormat="hh':'mm" />
-                <DxGridDataColumn FieldName="HoraInicioBreak" Caption="Inicio almuerzo" DisplayFormat="hh':'mm" />
-                <DxGridDataColumn FieldName="HoraFinBreak" Caption="Fin almuerzo" DisplayFormat="hh':'mm" />
+                <DxGridDataColumn FieldName="HoraInicioBreak" Caption="Inicio descanso" DisplayFormat="hh':'mm" />
+                <DxGridDataColumn FieldName="HoraFinBreak" Caption="Fin descanso" DisplayFormat="hh':'mm" />
+                <DxGridDataColumn FieldName="TotalMinutos" Caption="Total (min)" ReadOnly="true" />
+                <DxGridDataColumn FieldName="TotalHoras" Caption="Total (h)" ReadOnly="true" DisplayFormat="n2" />
                 <DxGridDataColumn FieldName="ToleranciaEntradaMinutos" Caption="Tolerancia (min)" />
             </Columns>
 
@@ -61,7 +63,7 @@
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                       Almuerzo
+                            Almuerzo / Cena / Descanso
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Inicio">
@@ -73,7 +75,15 @@
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        Almuerzo
+                        Resumen
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Total minutos" ColSpanMd="6">
+                        <DxTextBox Text="@turno.TotalMinutos.ToString()" ReadOnly="true" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Total horas" ColSpanMd="6">
+                        <DxTextBox Text="@FormatearHoras(turno)" ReadOnly="true" />
                     </DxFormLayoutItem>
 
                 </DxFormLayout>
@@ -87,6 +97,7 @@
     private List<Turno> turnos = [];
     protected override Task OnInitializedAsync() => Load();
     private async Task Load() => turnos = await Http.GetFromJsonAsync<List<Turno>>("api/turnos") ?? [];
+    private static string FormatearHoras(Turno turno) => turno.TotalHoras.ToString("0.00");
     private async Task Duplicar(int id) { await Http.PostAsync($"api/turnos/{id}/duplicar", null); await Load(); }
     private async Task Save(GridEditModelSavingEventArgs e) { var turno = (Turno)e.EditModel; if (e.IsNew) await Http.PostAsJsonAsync("api/turnos", turno); else await Http.PutAsJsonAsync($"api/turnos/{turno.IdTurno}", turno); await Load(); }
     private async Task Delete(GridDataItemDeletingEventArgs e) { await Http.DeleteAsync($"api/turnos/{((Turno)e.DataItem).IdTurno}"); await Load(); }
