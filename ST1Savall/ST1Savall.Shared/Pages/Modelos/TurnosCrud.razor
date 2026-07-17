@@ -24,6 +24,7 @@
                         @{ var turno = (Turno)context.DataItem; }
                         <div class="d-flex gap-1">
                             <button class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(turno)" @onclick:stopPropagation><i class="oi oi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-info" title="Duplicar" @onclick="() => Duplicar(turno.IdTurno)" @onclick:stopPropagation><i class="oi oi-layers"></i></button>
                             <button class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(turno)" @onclick:stopPropagation><i class="oi oi-trash"></i></button>
                         </div>
                     </CellDisplayTemplate>
@@ -35,17 +36,46 @@
                 <DxGridDataColumn FieldName="HoraFinBreak" Caption="Fin almuerzo" DisplayFormat="hh':'mm" />
                 <DxGridDataColumn FieldName="ToleranciaEntradaMinutos" Caption="Tolerancia (min)" />
             </Columns>
+
             <EditFormTemplate Context="ctx">
                 @{ var turno = (Turno)ctx.EditModel; }
-                <DxFormLayout CssClass="w-100 p-3">
-                    <DxFormLayoutItem Caption="Nombre"><DxTextBox @bind-Text="turno.NombreTurno" /></DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Entrada"><DxTimeEdit @bind-Time="turno.HoraEntrada" /></DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Salida"><DxTimeEdit @bind-Time="turno.HoraSalida" /></DxFormLayoutItem>
-                    <DxFormLayoutGroup Caption="Almuerzo" ColSpanMd="12">
-                        <DxFormLayoutItem Caption="Inicio"><DxTimeEdit @bind-Time="turno.HoraInicioBreak" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Fin"><DxTimeEdit @bind-Time="turno.HoraFinBreak" /></DxFormLayoutItem>
-                    </DxFormLayoutGroup>
-                    <DxFormLayoutItem Caption="Tolerancia (minutos)"><DxSpinEdit @bind-Value="turno.ToleranciaEntradaMinutos" /></DxFormLayoutItem>
+                
+                <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+
+                    <DxFormLayoutItem Caption="Descripción del turno" ColSpanMd="12">
+                        <DxTextBox @bind-Text="turno.NombreTurno" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Entrada" ColSpanMd="4" BeginRow="true">
+                        <DxTimeEdit @bind-Time="turno.HoraEntrada"
+                         DisplayFormat="HH:mm" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Salida" ColSpanMd="4">
+                        <DxTimeEdit @bind-Time="turno.HoraSalida" 
+                        DisplayFormat="HH:mm" />
+                    </DxFormLayoutItem>
+
+                        <DxFormLayoutItem Caption="Tolerancia (minutos)" ColSpanMd="4">
+                        <DxSpinEdit @bind-Value="turno.ToleranciaEntradaMinutos" BeginRow="true" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                       Almuerzo
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Inicio">
+                        <DxTimeEdit @bind-Time="turno.HoraInicioBreak" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Fin">
+                        <DxTimeEdit @bind-Time="turno.HoraFinBreak" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Almuerzo
+                    </DxFormLayoutItem>
+
                 </DxFormLayout>
             </EditFormTemplate>
         </DxGrid>
@@ -57,6 +87,7 @@
     private List<Turno> turnos = [];
     protected override Task OnInitializedAsync() => Load();
     private async Task Load() => turnos = await Http.GetFromJsonAsync<List<Turno>>("api/turnos") ?? [];
+    private async Task Duplicar(int id) { await Http.PostAsync($"api/turnos/{id}/duplicar", null); await Load(); }
     private async Task Save(GridEditModelSavingEventArgs e) { var turno = (Turno)e.EditModel; if (e.IsNew) await Http.PostAsJsonAsync("api/turnos", turno); else await Http.PutAsJsonAsync($"api/turnos/{turno.IdTurno}", turno); await Load(); }
     private async Task Delete(GridDataItemDeletingEventArgs e) { await Http.DeleteAsync($"api/turnos/{((Turno)e.DataItem).IdTurno}"); await Load(); }
 }
