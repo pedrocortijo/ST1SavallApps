@@ -119,7 +119,11 @@ public static class DbInitializer
 
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'Turnos', N'U') IS NULL
-                CREATE TABLE Turnos (IdTurno INT IDENTITY(1,1) PRIMARY KEY, NombreTurno NVARCHAR(80) NOT NULL, HoraEntrada TIME NOT NULL, HoraSalida TIME NOT NULL, TiempoAlmuerzoMinutos INT NOT NULL DEFAULT(0), ToleranciaEntradaMinutos INT NOT NULL DEFAULT(0));
+                CREATE TABLE Turnos (IdTurno INT IDENTITY(1,1) PRIMARY KEY, NombreTurno NVARCHAR(80) NOT NULL, HoraEntrada TIME NOT NULL, HoraSalida TIME NOT NULL, HoraInicioBreak TIME NULL, HoraFinBreak TIME NULL, TiempoAlmuerzoMinutos INT NOT NULL DEFAULT(0), ToleranciaEntradaMinutos INT NOT NULL DEFAULT(0));
+            IF COL_LENGTH(N'Turnos', N'HoraInicioBreak') IS NULL
+                ALTER TABLE Turnos ADD HoraInicioBreak TIME NULL;
+            IF COL_LENGTH(N'Turnos', N'HoraFinBreak') IS NULL
+                ALTER TABLE Turnos ADD HoraFinBreak TIME NULL;
             IF OBJECT_ID(N'HorariosOperarios', N'U') IS NULL
                 CREATE TABLE HorariosOperarios (IdAsignacion INT IDENTITY(1,1) PRIMARY KEY, IdOperario INT NOT NULL, IdTurno INT NOT NULL, DiaSemana INT NOT NULL, FechaInicioVigencia DATE NOT NULL, FechaFinVigencia DATE NULL, CONSTRAINT FK_HorariosOperarios_Operarios FOREIGN KEY (IdOperario) REFERENCES Operarios(IdOperario) ON DELETE CASCADE, CONSTRAINT FK_HorariosOperarios_Turnos FOREIGN KEY (IdTurno) REFERENCES Turnos(IdTurno));
         ");

@@ -31,7 +31,8 @@
                 <DxGridDataColumn FieldName="NombreTurno" Caption="Turno" />
                 <DxGridDataColumn FieldName="HoraEntrada" Caption="Entrada" DisplayFormat="hh':'mm" />
                 <DxGridDataColumn FieldName="HoraSalida" Caption="Salida" DisplayFormat="hh':'mm" />
-                <DxGridDataColumn FieldName="TiempoAlmuerzoMinutos" Caption="Almuerzo (min)" />
+                <DxGridDataColumn FieldName="HoraInicioBreak" Caption="Inicio almuerzo" DisplayFormat="hh':'mm" />
+                <DxGridDataColumn FieldName="HoraFinBreak" Caption="Fin almuerzo" DisplayFormat="hh':'mm" />
                 <DxGridDataColumn FieldName="ToleranciaEntradaMinutos" Caption="Tolerancia (min)" />
             </Columns>
             <EditFormTemplate Context="ctx">
@@ -40,7 +41,10 @@
                     <DxFormLayoutItem Caption="Nombre"><DxTextBox @bind-Text="turno.NombreTurno" /></DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Entrada"><DxTimeEdit @bind-Time="turno.HoraEntrada" /></DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Salida"><DxTimeEdit @bind-Time="turno.HoraSalida" /></DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Almuerzo (minutos)"><DxSpinEdit @bind-Value="turno.TiempoAlmuerzoMinutos" /></DxFormLayoutItem>
+                    <DxFormLayoutGroup Caption="Almuerzo" ColSpanMd="12">
+                        <DxFormLayoutItem Caption="Inicio"><DxTimeEdit @bind-Time="turno.HoraInicioBreak" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Fin"><DxTimeEdit @bind-Time="turno.HoraFinBreak" /></DxFormLayoutItem>
+                    </DxFormLayoutGroup>
                     <DxFormLayoutItem Caption="Tolerancia (minutos)"><DxSpinEdit @bind-Value="turno.ToleranciaEntradaMinutos" /></DxFormLayoutItem>
                 </DxFormLayout>
             </EditFormTemplate>
