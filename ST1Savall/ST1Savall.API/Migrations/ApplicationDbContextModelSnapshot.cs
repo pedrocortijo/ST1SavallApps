@@ -626,6 +626,14 @@ namespace ST1Savall.API.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("CodigoAmbosEntrega")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("CodigoAmbosRecogida")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("CodigoRecogida")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -832,13 +840,28 @@ namespace ST1Savall.API.Migrations
             modelBuilder.Entity("ST1Savall.Shared.Data.Tarea", b =>
                 {
                     b.Property<int>("IdTarea")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdTarea"));
+
+                    b.Property<bool>("Entrega1")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Entrega2")
+                        .HasColumnType("bit");
 
                     b.Property<string>("NombreTarea")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)")
                         .HasColumnName("Tarea");
+
+                    b.Property<bool>("Recoger1")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Recoger2")
+                        .HasColumnType("bit");
 
                     b.HasKey("IdTarea");
 

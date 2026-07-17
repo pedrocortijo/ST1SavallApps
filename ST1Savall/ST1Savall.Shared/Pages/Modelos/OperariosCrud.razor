@@ -111,8 +111,8 @@
                         </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
                         <DxGridDataColumn FieldName="EstadoLaboral" Caption="Estado laboral" Width="120px" />
-                        <DxGridDataColumn FieldName="HoraInicioJornada" Caption="Inicio jornada" DisplayFormat="hh\\:mm" Width="110px" />
-                        <DxGridDataColumn FieldName="HoraFinJornada" Caption="Fin jornada" DisplayFormat="hh\\:mm" Width="110px" />
+                        <DxGridDataColumn FieldName="HoraInicioJornada" Caption="Inicio jornada" DisplayFormat="hh':'mm" Width="110px" />
+                        <DxGridDataColumn FieldName="HoraFinJornada" Caption="Fin jornada" DisplayFormat="hh':'mm" Width="110px" />
                         <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" Visible="false" />
                         <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" Visible="false" />
                     </Columns>
@@ -246,14 +246,17 @@
     {
         try
         {
-            cargos = await Http.GetFromJsonAsync<List<Cargo>>("api/cargos");
-            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
-            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            cargos = await Http.GetFromJsonAsync<List<Cargo>>("api/cargos") ?? new List<Cargo>();
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? new List<Planta>();
+            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? new List<Operario>();
             errorMessage = null;
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar operarios: {ex.Message}";
+            cargos ??= new List<Cargo>();
+            plantas ??= new List<Planta>();
+            operarios ??= new List<Operario>();
         }
     }
 

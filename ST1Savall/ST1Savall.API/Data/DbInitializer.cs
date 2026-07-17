@@ -117,6 +117,35 @@ public static class DbInitializer
             END
         ");
 
+        // Ensure additional container fields exist in databases created before they were introduced.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH('Solicitudes', 'CodigoAmbosEntrega') IS NULL
+                    ALTER TABLE Solicitudes ADD CodigoAmbosEntrega NVARCHAR(20) NULL;
+                IF COL_LENGTH('Solicitudes', 'CodigoAmbosRecogida') IS NULL
+                    ALTER TABLE Solicitudes ADD CodigoAmbosRecogida NVARCHAR(20) NULL;
+            END
+
+            IF OBJECT_ID(N'Tareas', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH('Tareas', 'Recoger1') IS NULL ALTER TABLE Tareas ADD Recoger1 BIT NOT NULL CONSTRAINT DF_Tareas_Recoger1 DEFAULT (0);
+                IF COL_LENGTH('Tareas', 'Recoger2') IS NULL ALTER TABLE Tareas ADD Recoger2 BIT NOT NULL CONSTRAINT DF_Tareas_Recoger2 DEFAULT (0);
+                IF COL_LENGTH('Tareas', 'Entrega1') IS NULL ALTER TABLE Tareas ADD Entrega1 BIT NOT NULL CONSTRAINT DF_Tareas_Entrega1 DEFAULT (0);
+                IF COL_LENGTH('Tareas', 'Entrega2') IS NULL ALTER TABLE Tareas ADD Entrega2 BIT NOT NULL CONSTRAINT DF_Tareas_Entrega2 DEFAULT (0);
+
+                UPDATE Tareas SET Recoger1 = 0 WHERE Recoger1 IS NULL;
+                UPDATE Tareas SET Recoger2 = 0 WHERE Recoger2 IS NULL;
+                UPDATE Tareas SET Entrega1 = 0 WHERE Entrega1 IS NULL;
+                UPDATE Tareas SET Entrega2 = 0 WHERE Entrega2 IS NULL;
+
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Recoger1' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Recoger1 BIT NOT NULL;
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Recoger2' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Recoger2 BIT NOT NULL;
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Entrega1' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Entrega1 BIT NOT NULL;
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Entrega2' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Entrega2 BIT NOT NULL;
+            END
+        ");
+
         // Create TareasRelaciones table if it does not exist (in case DB already existed)
         await context.Database.ExecuteSqlRawAsync(@"
             IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='TareasRelaciones' and xtype='U')

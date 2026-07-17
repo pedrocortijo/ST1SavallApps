@@ -10,6 +10,8 @@
 
 <PageTitle>@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</PageTitle>
 
+<UnsavedChangesGuard HasUnsavedChanges="@HayCambiosPendientes" />
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -280,6 +282,7 @@
     private CodPosSage50 newPoblacion = new();
     private bool newPoblacionVisible = true;
     private string? popupErrorMessage;
+    private string? obraInicial;
 
     protected override async Task OnInitializedAsync()
     {
@@ -396,6 +399,7 @@
         }
         finally
         {
+            obraInicial = SerializarObra();
             isLoading = false;
         }
     }
@@ -551,6 +555,7 @@
                 }
             }
 
+            obraInicial = SerializarObra();
             NavigationManager.NavigateTo("/modelos/obrasmnto");
         }
         catch (Exception ex)
@@ -563,6 +568,15 @@
     {
         NavigationManager.NavigateTo("/modelos/obrasmnto");
     }
+
+    private bool HayCambiosPendientes =>
+        obra != null
+        && !string.IsNullOrEmpty(obraInicial)
+        && !string.Equals(obraInicial, SerializarObra(), StringComparison.Ordinal);
+
+    private string? SerializarObra() => obra == null
+        ? null
+        : System.Text.Json.JsonSerializer.Serialize(obra);
 
     // Geolocalización
     private async Task ObtenerUbicacionActualAsync()

@@ -21,7 +21,10 @@ public class OperariosController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Operario>>> GetOperarios()
     {
-        return await _context.Operarios.Include(o => o.Cargo).Include(o => o.Planta).ToListAsync();
+        return await _context.Operarios
+            .AsNoTracking()
+            .OrderBy(o => o.Nombre)
+            .ToListAsync();
     }
 
     [HttpGet("{id}")]

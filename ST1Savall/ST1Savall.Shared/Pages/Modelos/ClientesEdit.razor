@@ -11,6 +11,8 @@
 
 <PageTitle>@(HasKeyParams ? "Editar Cliente" : "Nuevo Cliente")</PageTitle>
 
+<UnsavedChangesGuard HasUnsavedChanges="@HayCambiosPendientes" />
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -395,6 +397,7 @@
     private CodPosSage50 newPoblacion = new();
     private bool newPoblacionVisible = true;
     private string? popupErrorMessage;
+    private string? clienteInicial;
     private DotNetObjectReference<ClientesEdit>? selfRef;
     private List<ContlfCliSage50>? contactos;
     private IGrid? contactsGrid;
@@ -595,6 +598,7 @@
                 tiposIvaList = tiposIvaList.OrderBy(t => t.Codigo).ToList();
             }
             await LoadContactsAsync();
+            clienteInicial = SerializarCliente();
             errorMessage = null;
         }
         catch (Exception ex)
@@ -1015,6 +1019,7 @@
 
             if (response.IsSuccessStatusCode)
             {
+                clienteInicial = SerializarCliente();
                 GoBack();
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
@@ -1037,6 +1042,15 @@
     {
         NavigationManager.NavigateTo("/modelos/clientes");
     }
+
+    private bool HayCambiosPendientes =>
+        cliente != null
+        && !string.IsNullOrEmpty(clienteInicial)
+        && !string.Equals(clienteInicial, SerializarCliente(), StringComparison.Ordinal);
+
+    private string? SerializarCliente() => cliente == null
+        ? null
+        : System.Text.Json.JsonSerializer.Serialize(cliente);
 
     private Task VerEnMapaAsync()
     {

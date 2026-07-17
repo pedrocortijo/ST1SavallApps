@@ -8,8 +8,49 @@
 
 <PageTitle>@(Id.HasValue ? "Editar - Solicitud de Servicio" : "Nueva - Solicitud de Servicio")</PageTitle>
 
-<NavigationLock OnBeforeInternalNavigation="ConfirmarSalidaAsync"
-                ConfirmExternalNavigation="@HayCambiosPendientes" />
+<UnsavedChangesGuard HasUnsavedChanges="@HayCambiosPendientes" />
+
+<DxPopup @bind-Visible="confirmacionCambioTareaVisible"
+         HeaderText="Contenedores afectados"
+         ShowFooter="true"
+         Width="500px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p>El cambio de tipo de tarea eliminará los siguientes datos de contenedores:</p>
+            <ul class="mb-0">
+                @if (entrega1Afectada)
+                {
+                    <li>Entrega [1]: <strong>@solicitud?.CodigoEntrega</strong></li>
+                }
+                @if (entrega2Afectada)
+                {
+                    <li>Entrega [2]: <strong>@solicitud?.CodigoAmbosEntrega</strong></li>
+                }
+                @if (recogida1Afectada)
+                {
+                    <li>Recogida [1]: <strong>@solicitud?.CodigoRecogida</strong></li>
+                }
+                @if (recogida2Afectada)
+                {
+                    <li>Recogida [2]: <strong>@solicitud?.CodigoAmbosRecogida</strong></li>
+                }
+            </ul>
+            <p class="mt-3 mb-0">Al guardar el servicio, los contenedores recuperarán el estado que les corresponda.</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-center gap-2 w-100">
+            <DxButton Text="Cancelar"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      Click="CancelarCambioTarea" />
+            <DxButton Text="Continuar"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      Click="ConfirmarCambioTarea" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
 
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -130,7 +171,7 @@
                                     ClearButtonVisible="true" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="5">
+                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="4">
                         <DxComboBox Data="@tareasList"
                                     TextFieldName="NombreTarea"
                                     ValueFieldName="IdTarea"
@@ -280,8 +321,9 @@
                                 <!-- Columna Izquierda: Contenedor -->
                                 <div class="col-md-6 border-end pe-md-4">
                                     <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Contenedores</h6>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted small mb-1">Entrega - Nº Serie del contenedor</label>
+                                    <div class="row g-2">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label fw-bold text-muted small mb-1">Entrega [1] - Nº Serie</label>
                                         <DxComboBox Data="@contenedoresEntrega"
                                                     Enabled="@IsEntregaEnabled"
                                                     TData="Contenedor"
@@ -300,15 +342,15 @@
                                             </Columns>
                                         </DxComboBox>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted small mb-1">Recogida - Nº Serie del contenedor</label>
-                                        <DxComboBox Data="@contenedoresRecogida"
-                                                    Enabled="@IsRecogidaEnabled"
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label fw-bold text-muted small mb-1">Entrega [2] - Nº Serie</label>
+                                        <DxComboBox Data="@contenedoresEntrega"
+                                                    Enabled="@IsEntrega2Enabled"
                                                     TData="Contenedor"
                                                     TValue="string"
                                                     TextFieldName="NumSerie"
                                                     ValueFieldName="NumSerie"
-                                                    @bind-Value="@solicitud.CodigoRecogida"
+                                                    @bind-Value="@solicitud.CodigoAmbosEntrega"
                                                     ClearButtonVisible="true"
                                                     SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains"
@@ -319,6 +361,39 @@
                                                 <DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" />
                                             </Columns>
                                         </DxComboBox>
+                                    </div>
+                                    </div>
+                                    <div class="row g-2">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label fw-bold text-muted small mb-1">Retirada [1] - Nº Serie</label>
+                                        <DxComboBox Data="@contenedoresRecogida" Enabled="@IsRecogidaEnabled"
+                                                    TData="Contenedor" TValue="string"
+                                                    TextFieldName="NumSerie" ValueFieldName="NumSerie"
+                                                    @bind-Value="@solicitud.CodigoRecogida"
+                                                    ClearButtonVisible="true" SearchMode="ListSearchMode.AutoSearch"
+                                                    SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="false">
+                                            <Columns>
+                                                <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
+                                                <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
+                                                <DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" />
+                                            </Columns>
+                                        </DxComboBox>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                            <label class="form-label fw-bold text-muted small mb-1">Retirada [2] - Nº Serie</label>
+                                        <DxComboBox Data="@contenedoresRecogida" Enabled="@IsRecogida2Enabled"
+                                                    TData="Contenedor" TValue="string"
+                                                    TextFieldName="NumSerie" ValueFieldName="NumSerie"
+                                                    @bind-Value="@solicitud.CodigoAmbosRecogida"
+                                                    ClearButtonVisible="true" SearchMode="ListSearchMode.AutoSearch"
+                                                    SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="false">
+                                            <Columns>
+                                                <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
+                                                <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
+                                                <DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" />
+                                            </Columns>
+                                        </DxComboBox>
+                                    </div>
                                     </div>
                                 </div>
 
@@ -423,6 +498,12 @@
     private string? planificacionMessage;
     private bool calculandoRuta;
     private string? solicitudInicial;
+    private bool confirmacionCambioTareaVisible;
+    private int? tipoTareaPendiente;
+    private bool entrega1Afectada;
+    private bool entrega2Afectada;
+    private bool recogida1Afectada;
+    private bool recogida2Afectada;
 
     private class KeyName
     {
@@ -613,18 +694,6 @@
     private string? SerializarSolicitud() => solicitud == null
         ? null
         : System.Text.Json.JsonSerializer.Serialize(solicitud);
-
-    private async Task ConfirmarSalidaAsync(LocationChangingContext context)
-    {
-        if (!HayCambiosPendientes)
-            return;
-
-        var abandonar = await JSRuntime.InvokeAsync<bool>("confirm",
-            "Hay cambios sin guardar. ¿Desea abandonar el formulario?");
-
-        if (!abandonar)
-            context.PreventNavigation();
-    }
 
     private async Task ProponerSiguienteHuecoAsync()
     {
@@ -923,6 +992,7 @@
 
     private List<Contenedor> contenedoresEntrega => contenedoresList?
         .Where(c => EsContenedorActual(c, solicitud?.CodigoEntrega)
+            || EsContenedorActual(c, solicitud?.CodigoAmbosEntrega)
             || (IdPlantaConductor.HasValue
                 && c.IdPlanta == IdPlantaConductor.Value
                 && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase)))
@@ -931,6 +1001,7 @@
 
     private List<Contenedor> contenedoresRecogida => contenedoresList?
         .Where(c => EsContenedorActual(c, solicitud?.CodigoRecogida)
+            || EsContenedorActual(c, solicitud?.CodigoAmbosRecogida)
             || (string.Equals(c.EstadoFisico, "Entregado", StringComparison.OrdinalIgnoreCase)
                 && EstaEntregadoEnObraSeleccionada(c)))
         .OrderBy(c => c.NumSerie)
@@ -946,26 +1017,79 @@
             s.IdCliente == solicitud.IdCliente
             && string.Equals(s.CodigoEntrega, contenedor.NumSerie, StringComparison.OrdinalIgnoreCase)) == true;
 
-    private bool IsEntregaEnabled =>
-        solicitud != null && (solicitud.IdTipoTarea == 1 || solicitud.IdTipoTarea == 8);
+    private Tarea? TareaSeleccionada => tareasList?
+        .FirstOrDefault(t => t.IdTarea == solicitud?.IdTipoTarea);
 
-    private bool IsRecogidaEnabled =>
-        solicitud != null && (solicitud.IdTipoTarea == 7 || solicitud.IdTipoTarea == 8);
+    private bool IsEntregaEnabled => TareaSeleccionada?.Entrega1 == true;
+    private bool IsEntrega2Enabled => TareaSeleccionada?.Entrega2 == true;
+    private bool IsRecogidaEnabled => TareaSeleccionada?.Recoger1 == true;
+    private bool IsRecogida2Enabled => TareaSeleccionada?.Recoger2 == true;
 
     private void OnTareaChanged(int val)
     {
         if (solicitud == null) return;
-        solicitud.IdTipoTarea = val;
-        
-        if (val != 1 && val != 8)
+
+        var nuevaTarea = tareasList?.FirstOrDefault(t => t.IdTarea == val);
+        var seAfectaEntrega1 = !string.IsNullOrWhiteSpace(solicitud.CodigoEntrega) && nuevaTarea?.Entrega1 != true;
+        var seAfectaEntrega2 = !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega) && nuevaTarea?.Entrega2 != true;
+        var seAfectaRecogida1 = !string.IsNullOrWhiteSpace(solicitud.CodigoRecogida) && nuevaTarea?.Recoger1 != true;
+        var seAfectaRecogida2 = !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida) && nuevaTarea?.Recoger2 != true;
+
+        if (seAfectaEntrega1 || seAfectaEntrega2 || seAfectaRecogida1 || seAfectaRecogida2)
         {
+            tipoTareaPendiente = val;
+            entrega1Afectada = seAfectaEntrega1;
+            entrega2Afectada = seAfectaEntrega2;
+            recogida1Afectada = seAfectaRecogida1;
+            recogida2Afectada = seAfectaRecogida2;
+            confirmacionCambioTareaVisible = true;
+            return;
+        }
+
+        AplicarCambioTarea(val);
+    }
+
+    private void ConfirmarCambioTarea()
+    {
+        if (tipoTareaPendiente.HasValue)
+        {
+            AplicarCambioTarea(tipoTareaPendiente.Value);
+        }
+
+        LimpiarCambioTareaPendiente();
+    }
+
+    private void CancelarCambioTarea() => LimpiarCambioTareaPendiente();
+
+    private void AplicarCambioTarea(int tipoTarea)
+    {
+        if (solicitud == null) return;
+
+        solicitud.IdTipoTarea = tipoTarea;
+
+        var tarea = tareasList?.FirstOrDefault(t => t.IdTarea == tipoTarea);
+
+        if (tarea?.Entrega1 != true)
             solicitud.CodigoEntrega = null;
-        }
-        
-        if (val != 7 && val != 8)
-        {
+
+        if (tarea?.Recoger1 != true)
             solicitud.CodigoRecogida = null;
-        }
+
+        if (tarea?.Entrega2 != true)
+            solicitud.CodigoAmbosEntrega = null;
+
+        if (tarea?.Recoger2 != true)
+            solicitud.CodigoAmbosRecogida = null;
+    }
+
+    private void LimpiarCambioTareaPendiente()
+    {
+        confirmacionCambioTareaVisible = false;
+        tipoTareaPendiente = null;
+        entrega1Afectada = false;
+        entrega2Afectada = false;
+        recogida1Afectada = false;
+        recogida2Afectada = false;
     }
 
     private void OnConductorChanged(int? idConductor)

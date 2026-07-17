@@ -42,6 +42,7 @@
                         Data="@tareas"
                         KeyFieldName="IdTarea"
                         EditMode="GridEditMode.PopupEditForm"
+                        CustomizeEditModel="OnCustomizeEditModel"
                         EditModelSaving="OnEditModelSaving"
                         DataItemDeleting="OnDataItemDeleting"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
@@ -54,7 +55,7 @@
                         ShowSearchBox="true"
                         SearchBoxNullText="Buscar tarea...">
                     <Columns>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="() => grid?.StartEditNewRowAsync()"
@@ -73,6 +74,13 @@
                                                 title="Editar">
                                             <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
                                         </button>
+                                        <button class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center shadow-sm"
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => DuplicarTareaAsync(tarea)"
+                                                @onclick:stopPropagation
+                                                title="Duplicar">
+                                            <i class="oi oi-document" style="font-size: 0.9rem;"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
                                                 @onclick="() => grid?.ShowDataItemDeleteConfirmation(tarea)" 
@@ -86,17 +94,47 @@
                         </DxGridCommandColumn>
                         <DxGridDataColumn FieldName="IdTarea" Caption="Código" Width="70px" />
                         <DxGridDataColumn FieldName="NombreTarea" Caption="Tarea (Descripción)" />
+                        <DxGridDataColumn FieldName="Entrega1" Caption="Entrega {1]" Width="105px" />
+                        <DxGridDataColumn FieldName="Entrega2" Caption="Entrega {2]" Width="105px" />
+                        <DxGridDataColumn FieldName="Recoger1" Caption="Retirada {1]" Width="105px" />
+                        <DxGridDataColumn FieldName="Recoger2" Caption="Retirada {2]" Width="105px" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{
                             var tarea = (Tarea)EditFormContext.EditModel;
                         }
                         <DxFormLayout CssClass="w-100 p-3">
-                            <DxFormLayoutItem Caption="Código" ColSpanMd="12" Enabled="@(EditFormContext.DataItem == null)">
-                                <DxSpinEdit @bind-Value="@tarea.IdTarea" />
+                            <DxFormLayoutItem Caption="Código" ColSpanMd="12">
+                                <DxSpinEdit @bind-Value="@tarea.IdTarea" Enabled="false" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Tarea (Descripción)" ColSpanMd="12">
                                 <DxTextBox @bind-Text="@tarea.NombreTarea" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-3 border-bottom pb-2 mb-2">Configuración de recogidas y entregas de contenedores
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3" BeginRow="true">
+                                <div class="d-flex align-items-center gap-2 pt-2">
+                                    <DxCheckBox @bind-Checked="@tarea.Entrega1" />
+                                    <span>Entrega [1]</span>
+                                </div>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3">
+                                <div class="d-flex align-items-center gap-2 pt-2">
+                                    <DxCheckBox @bind-Checked="@tarea.Entrega2" />
+                                    <span>Entrega [2]</span>
+                                </div>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3">
+                                <div class="d-flex align-items-center gap-2 pt-2">
+                                    <DxCheckBox @bind-Checked="@tarea.Recoger1" />
+                                    <span>Retirada [1]</span>
+                                </div>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="3">
+                                <div class="d-flex align-items-center gap-2 pt-2">
+                                    <DxCheckBox @bind-Checked="@tarea.Recoger2" />
+                                    <span>Retirada [2]</span>
+                                </div>
                             </DxFormLayoutItem>
                         </DxFormLayout>
                     </EditFormTemplate>
@@ -170,6 +208,36 @@
         {
             errorMessage = $"Error al guardar: {ex.Message}";
         }
+    }
+
+    private async Task DuplicarTareaAsync(Tarea tarea)
+    {
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.PostAsync($"api/tareas/{tarea.IdTarea}/duplicar", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al duplicar tarea: {response.ReasonPhrase}";
+                return;
+            }
+
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al duplicar tarea: {ex.Message}";
+        }
+    }
+
+    private void OnCustomizeEditModel(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew)
+            return;
+
+        var nuevaTarea = (Tarea)e.EditModel;
+        nuevaTarea.IdTarea = 0;
+
     }
 
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)

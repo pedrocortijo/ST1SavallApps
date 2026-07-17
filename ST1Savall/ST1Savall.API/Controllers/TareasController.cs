@@ -51,6 +51,7 @@ public class TareasController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Tarea>> PostTarea(Tarea tarea)
     {
+        tarea.IdTarea = 0;
         _context.Tareas.Add(tarea);
         try
         {
@@ -67,6 +68,28 @@ public class TareasController : ControllerBase
         return CreatedAtAction(nameof(GetTarea), new { id = tarea.IdTarea }, tarea);
     }
 
+    [HttpPost("{id}/duplicar")]
+    public async Task<ActionResult<Tarea>> DuplicarTarea(int id)
+    {
+        var tareaOrigen = await _context.Tareas
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.IdTarea == id);
+        if (tareaOrigen == null) return NotFound();
+
+        var copia = new Tarea
+        {
+            NombreTarea = $"{tareaOrigen.NombreTarea} (Copia)",
+            Recoger1 = tareaOrigen.Recoger1,
+            Recoger2 = tareaOrigen.Recoger2,
+            Entrega1 = tareaOrigen.Entrega1,
+            Entrega2 = tareaOrigen.Entrega2
+        };
+
+        _context.Tareas.Add(copia);
+        await _context.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetTarea), new { id = copia.IdTarea }, copia);
+    }
+
     [HttpPut("{id}")]
     public async Task<IActionResult> PutTarea(int id, Tarea tarea)
     {
@@ -79,6 +102,10 @@ public class TareasController : ControllerBase
         }
 
         dbTarea.NombreTarea = tarea.NombreTarea;
+        dbTarea.Recoger1 = tarea.Recoger1;
+        dbTarea.Recoger2 = tarea.Recoger2;
+        dbTarea.Entrega1 = tarea.Entrega1;
+        dbTarea.Entrega2 = tarea.Entrega2;
 
         try
         {

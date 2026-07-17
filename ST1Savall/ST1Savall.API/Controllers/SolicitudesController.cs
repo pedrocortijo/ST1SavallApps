@@ -108,6 +108,12 @@ public class SolicitudesController : ControllerBase
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
+
+        var solicitudAnterior = await _context.Solicitudes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.IdSolicitud == id);
+        if (solicitudAnterior == null) return NotFound();
+
         var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
         if (errorRuta != null) return errorRuta;
 
@@ -116,6 +122,7 @@ public class SolicitudesController : ControllerBase
             return Conflict(new { message = errorPlanificacion });
 
         _context.Entry(solicitud).State = EntityState.Modified;
+        await RestaurarEstadosContenedoresEliminados(solicitudAnterior, solicitud);
         await ActualizarEstadosContenedores(solicitud);
         try
         {
@@ -160,6 +167,75 @@ public class SolicitudesController : ControllerBase
             {
                 contenedorRecogida.EstadoFisico = "Disponible";
                 _context.Entry(contenedorRecogida).State = EntityState.Modified;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(solicitud.CodigoAmbosEntrega))
+        {
+            var contenedorEntrega = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitud.CodigoAmbosEntrega);
+            if (contenedorEntrega != null)
+            {
+                contenedorEntrega.EstadoFisico = "Entregado";
+                _context.Entry(contenedorEntrega).State = EntityState.Modified;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(solicitud.CodigoAmbosRecogida))
+        {
+            var contenedorRecogida = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitud.CodigoAmbosRecogida);
+            if (contenedorRecogida != null)
+            {
+                contenedorRecogida.EstadoFisico = "Disponible";
+                _context.Entry(contenedorRecogida).State = EntityState.Modified;
+            }
+        }
+    }
+
+    private async Task RestaurarEstadosContenedoresEliminados(Solicitud solicitudAnterior, Solicitud solicitudActual)
+    {
+        if (!string.IsNullOrWhiteSpace(solicitudAnterior.CodigoEntrega)
+            && !string.Equals(solicitudAnterior.CodigoEntrega, solicitudActual.CodigoEntrega, StringComparison.OrdinalIgnoreCase))
+        {
+            var contenedorEntrega = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitudAnterior.CodigoEntrega);
+            if (contenedorEntrega != null)
+            {
+                contenedorEntrega.EstadoFisico = "Disponible";
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(solicitudAnterior.CodigoRecogida)
+            && !string.Equals(solicitudAnterior.CodigoRecogida, solicitudActual.CodigoRecogida, StringComparison.OrdinalIgnoreCase))
+        {
+            var contenedorRecogida = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitudAnterior.CodigoRecogida);
+            if (contenedorRecogida != null)
+            {
+                contenedorRecogida.EstadoFisico = "Entregado";
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(solicitudAnterior.CodigoAmbosEntrega)
+            && !string.Equals(solicitudAnterior.CodigoAmbosEntrega, solicitudActual.CodigoAmbosEntrega, StringComparison.OrdinalIgnoreCase))
+        {
+            var contenedorEntrega = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitudAnterior.CodigoAmbosEntrega);
+            if (contenedorEntrega != null)
+            {
+                contenedorEntrega.EstadoFisico = "Disponible";
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(solicitudAnterior.CodigoAmbosRecogida)
+            && !string.Equals(solicitudAnterior.CodigoAmbosRecogida, solicitudActual.CodigoAmbosRecogida, StringComparison.OrdinalIgnoreCase))
+        {
+            var contenedorRecogida = await _context.Contenedores
+                .FirstOrDefaultAsync(c => c.NumSerie == solicitudAnterior.CodigoAmbosRecogida);
+            if (contenedorRecogida != null)
+            {
+                contenedorRecogida.EstadoFisico = "Entregado";
             }
         }
     }

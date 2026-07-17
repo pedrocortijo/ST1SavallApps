@@ -1,0 +1,82 @@
+@inject NavigationManager NavigationManager
+
+<NavigationLock OnBeforeInternalNavigation="ConfirmarNavegacionAsync"
+                ConfirmExternalNavigation="@HasUnsavedChanges" />
+
+<DxPopup @bind-Visible="confirmacionVisible"
+         HeaderText="@Title"
+         ShowFooter="true"
+         Width="440px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="text-center py-3">@Message</div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-center gap-2 w-100">
+            <DxButton Text="@CancelText"
+                      RenderStyle="ButtonRenderStyle.Secondary"
+                      Click="CancelarSalida" />
+            <DxButton Text="@ConfirmText"
+                      RenderStyle="ButtonRenderStyle.Primary"
+                      Click="ConfirmarSalida" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+@code {
+    [Parameter, EditorRequired]
+    public bool HasUnsavedChanges { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Cambios sin guardar";
+
+    [Parameter]
+    public string Message { get; set; } = "Hay cambios sin guardar. ¿Desea abandonar el formulario?";
+
+    [Parameter]
+    public string ConfirmText { get; set; } = "Sí, abandonar";
+
+    [Parameter]
+    public string CancelText { get; set; } = "No";
+
+    private bool confirmacionVisible;
+    private bool permitirNavegacion;
+    private string? destinoNavegacionPendiente;
+
+    private Task ConfirmarNavegacionAsync(LocationChangingContext context)
+    {
+        if (permitirNavegacion)
+        {
+            permitirNavegacion = false;
+            return Task.CompletedTask;
+        }
+
+        if (!HasUnsavedChanges)
+            return Task.CompletedTask;
+
+        context.PreventNavigation();
+        destinoNavegacionPendiente = context.TargetLocation;
+        confirmacionVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private void ConfirmarSalida()
+    {
+        confirmacionVisible = false;
+
+        if (string.IsNullOrWhiteSpace(destinoNavegacionPendiente))
+            return;
+
+        var destino = destinoNavegacionPendiente;
+        destinoNavegacionPendiente = null;
+        permitirNavegacion = true;
+        NavigationManager.NavigateTo(destino);
+    }
+
+    private void CancelarSalida()
+    {
+        confirmacionVisible = false;
+        destinoNavegacionPendiente = null;
+    }
+}

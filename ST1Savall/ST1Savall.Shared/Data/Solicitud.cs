@@ -29,6 +29,12 @@ public class Solicitud
     [MaxLength(20)]
     public string? CodigoRecogida { get; set; }
 
+    [MaxLength(20)]
+    public string? CodigoAmbosEntrega { get; set; }
+
+    [MaxLength(20)]
+    public string? CodigoAmbosRecogida { get; set; }
+
     public int Estado { get; set; }
 
     [ForeignKey("Estado")]
