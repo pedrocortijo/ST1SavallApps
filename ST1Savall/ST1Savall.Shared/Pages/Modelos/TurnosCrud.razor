@@ -18,7 +18,7 @@
                 EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true" SearchBoxNullText="Buscar turno..."
                 PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Formulario - Turno" PopupEditFormCssClass="crud-popup">
             <Columns>
-                <DxGridCommandColumn Width="128px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                <DxGridCommandColumn Width="116px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                     <HeaderTemplate><button class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i>Nueva</button></HeaderTemplate>
                     <CellDisplayTemplate>
                         @{ var turno = (Turno)context.DataItem; }
@@ -29,7 +29,7 @@
                         </div>
                     </CellDisplayTemplate>
                 </DxGridCommandColumn>
-                <DxGridDataColumn FieldName="NombreTurno" Caption="Turno" />
+                <DxGridDataColumn FieldName="NombreTurno" Caption="Turno" Width="220px" />
                 <DxGridDataColumn FieldName="HoraEntrada" Caption="Entrada" DisplayFormat="hh':'mm" />
                 <DxGridDataColumn FieldName="HoraSalida" Caption="Salida" DisplayFormat="hh':'mm" />
                 <DxGridDataColumn FieldName="HoraInicioBreak" Caption="Inicio descanso" DisplayFormat="hh':'mm" />
