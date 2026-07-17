@@ -23,6 +23,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Planta> Plantas { get; set; } = null!;
     public DbSet<Parametro> Parametros { get; set; } = null!;
     public DbSet<RutaCache> RutasCache { get; set; } = null!;
+    public DbSet<Turno> Turnos { get; set; } = null!;
+    public DbSet<HorarioOperario> HorariosOperarios { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -43,6 +45,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .WithMany()
             .HasForeignKey(tr => tr.IdTareaDestino)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<HorarioOperario>().HasOne(h => h.Operario).WithMany().HasForeignKey(h => h.IdOperario).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<HorarioOperario>().HasOne(h => h.Turno).WithMany().HasForeignKey(h => h.IdTurno).OnDelete(DeleteBehavior.Restrict);
 
         // Configure Operario ID to seed from 0
         builder.Entity<Operario>()

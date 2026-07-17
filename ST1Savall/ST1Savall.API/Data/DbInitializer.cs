@@ -117,6 +117,13 @@ public static class DbInitializer
             END
         ");
 
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'Turnos', N'U') IS NULL
+                CREATE TABLE Turnos (IdTurno INT IDENTITY(1,1) PRIMARY KEY, NombreTurno NVARCHAR(80) NOT NULL, HoraEntrada TIME NOT NULL, HoraSalida TIME NOT NULL, TiempoAlmuerzoMinutos INT NOT NULL DEFAULT(0), ToleranciaEntradaMinutos INT NOT NULL DEFAULT(0));
+            IF OBJECT_ID(N'HorariosOperarios', N'U') IS NULL
+                CREATE TABLE HorariosOperarios (IdAsignacion INT IDENTITY(1,1) PRIMARY KEY, IdOperario INT NOT NULL, IdTurno INT NOT NULL, DiaSemana INT NOT NULL, FechaInicioVigencia DATE NOT NULL, FechaFinVigencia DATE NULL, CONSTRAINT FK_HorariosOperarios_Operarios FOREIGN KEY (IdOperario) REFERENCES Operarios(IdOperario) ON DELETE CASCADE, CONSTRAINT FK_HorariosOperarios_Turnos FOREIGN KEY (IdTurno) REFERENCES Turnos(IdTurno));
+        ");
+
         // Ensure additional container fields exist in databases created before they were introduced.
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL

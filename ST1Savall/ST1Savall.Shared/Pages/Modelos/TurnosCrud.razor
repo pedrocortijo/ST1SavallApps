@@ -1,0 +1,11 @@
+@page "/modelos/turnos"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+<PageTitle>Turnos</PageTitle>
+<h2 class="fw-bold text-primary">Turnos</h2>
+<p class="text-muted">Plantillas de horarios de trabajo.</p>
+<DxGrid Data="@turnos" KeyFieldName="IdTurno" EditMode="GridEditMode.PopupEditForm" EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true">
+ <Columns><DxGridCommandColumn NewButtonVisible="true" EditButtonVisible="true" DeleteButtonVisible="true" /><DxGridDataColumn FieldName="NombreTurno" Caption="Turno" /><DxGridDataColumn FieldName="HoraEntrada" Caption="Entrada" DisplayFormat="hh':'mm" /><DxGridDataColumn FieldName="HoraSalida" Caption="Salida" DisplayFormat="hh':'mm" /><DxGridDataColumn FieldName="TiempoAlmuerzoMinutos" Caption="Almuerzo (min)" /><DxGridDataColumn FieldName="ToleranciaEntradaMinutos" Caption="Tolerancia (min)" /></Columns>
+ <EditFormTemplate Context="ctx">@{ var t=(Turno)ctx.EditModel; }<DxFormLayout CssClass="p-3"><DxFormLayoutItem Caption="Nombre"><DxTextBox @bind-Text="t.NombreTurno" /></DxFormLayoutItem><DxFormLayoutItem Caption="Entrada"><DxTimeEdit @bind-Time="t.HoraEntrada" /></DxFormLayoutItem><DxFormLayoutItem Caption="Salida"><DxTimeEdit @bind-Time="t.HoraSalida" /></DxFormLayoutItem><DxFormLayoutItem Caption="Almuerzo (minutos)"><DxSpinEdit @bind-Value="t.TiempoAlmuerzoMinutos" /></DxFormLayoutItem><DxFormLayoutItem Caption="Tolerancia (minutos)"><DxSpinEdit @bind-Value="t.ToleranciaEntradaMinutos" /></DxFormLayoutItem></DxFormLayout></EditFormTemplate>
+</DxGrid>
+@code { List<Turno> turnos=[]; protected override async Task OnInitializedAsync()=>turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[]; async Task Save(GridEditModelSavingEventArgs e){var t=(Turno)e.EditModel; if(e.IsNew)await Http.PostAsJsonAsync("api/turnos",t);else await Http.PutAsJsonAsync($"api/turnos/{t.IdTurno}",t);turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[];} async Task Delete(GridDataItemDeletingEventArgs e){await Http.DeleteAsync($"api/turnos/{((Turno)e.DataItem).IdTurno}");turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[];} }
