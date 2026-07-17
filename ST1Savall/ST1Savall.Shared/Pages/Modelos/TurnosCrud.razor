@@ -1,11 +1,58 @@
 @page "/modelos/turnos"
 @using ST1Savall.Shared.Data
 @inject HttpClient Http
+
 <PageTitle>Turnos</PageTitle>
-<h2 class="fw-bold text-primary">Turnos</h2>
-<p class="text-muted">Plantillas de horarios de trabajo.</p>
-<DxGrid Data="@turnos" KeyFieldName="IdTurno" EditMode="GridEditMode.PopupEditForm" EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true">
- <Columns><DxGridCommandColumn NewButtonVisible="true" EditButtonVisible="true" DeleteButtonVisible="true" /><DxGridDataColumn FieldName="NombreTurno" Caption="Turno" /><DxGridDataColumn FieldName="HoraEntrada" Caption="Entrada" DisplayFormat="hh':'mm" /><DxGridDataColumn FieldName="HoraSalida" Caption="Salida" DisplayFormat="hh':'mm" /><DxGridDataColumn FieldName="TiempoAlmuerzoMinutos" Caption="Almuerzo (min)" /><DxGridDataColumn FieldName="ToleranciaEntradaMinutos" Caption="Tolerancia (min)" /></Columns>
- <EditFormTemplate Context="ctx">@{ var t=(Turno)ctx.EditModel; }<DxFormLayout CssClass="p-3"><DxFormLayoutItem Caption="Nombre"><DxTextBox @bind-Text="t.NombreTurno" /></DxFormLayoutItem><DxFormLayoutItem Caption="Entrada"><DxTimeEdit @bind-Time="t.HoraEntrada" /></DxFormLayoutItem><DxFormLayoutItem Caption="Salida"><DxTimeEdit @bind-Time="t.HoraSalida" /></DxFormLayoutItem><DxFormLayoutItem Caption="Almuerzo (minutos)"><DxSpinEdit @bind-Value="t.TiempoAlmuerzoMinutos" /></DxFormLayoutItem><DxFormLayoutItem Caption="Tolerancia (minutos)"><DxSpinEdit @bind-Value="t.ToleranciaEntradaMinutos" /></DxFormLayoutItem></DxFormLayout></EditFormTemplate>
-</DxGrid>
-@code { List<Turno> turnos=[]; protected override async Task OnInitializedAsync()=>turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[]; async Task Save(GridEditModelSavingEventArgs e){var t=(Turno)e.EditModel; if(e.IsNew)await Http.PostAsJsonAsync("api/turnos",t);else await Http.PutAsJsonAsync($"api/turnos/{t.IdTurno}",t);turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[];} async Task Delete(GridDataItemDeletingEventArgs e){await Http.DeleteAsync($"api/turnos/{((Turno)e.DataItem).IdTurno}");turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[];} }
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Turnos</h2>
+            <p class="text-muted mb-0">Plantillas de horarios de trabajo.</p>
+        </div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
+    </div>
+
+    <div class="card shadow-sm"><div class="card-body p-0">
+        <DxGrid @ref="grid" Data="@turnos" KeyFieldName="IdTurno" EditMode="GridEditMode.PopupEditForm"
+                EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true" SearchBoxNullText="Buscar turno..."
+                PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Formulario - Turno" PopupEditFormCssClass="crud-popup">
+            <Columns>
+                <DxGridCommandColumn Width="110px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                    <HeaderTemplate><button class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i>Nueva</button></HeaderTemplate>
+                    <CellDisplayTemplate>
+                        @{ var turno = (Turno)context.DataItem; }
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(turno)" @onclick:stopPropagation><i class="oi oi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(turno)" @onclick:stopPropagation><i class="oi oi-trash"></i></button>
+                        </div>
+                    </CellDisplayTemplate>
+                </DxGridCommandColumn>
+                <DxGridDataColumn FieldName="NombreTurno" Caption="Turno" />
+                <DxGridDataColumn FieldName="HoraEntrada" Caption="Entrada" DisplayFormat="hh':'mm" />
+                <DxGridDataColumn FieldName="HoraSalida" Caption="Salida" DisplayFormat="hh':'mm" />
+                <DxGridDataColumn FieldName="TiempoAlmuerzoMinutos" Caption="Almuerzo (min)" />
+                <DxGridDataColumn FieldName="ToleranciaEntradaMinutos" Caption="Tolerancia (min)" />
+            </Columns>
+            <EditFormTemplate Context="ctx">
+                @{ var turno = (Turno)ctx.EditModel; }
+                <DxFormLayout CssClass="w-100 p-3">
+                    <DxFormLayoutItem Caption="Nombre"><DxTextBox @bind-Text="turno.NombreTurno" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Entrada"><DxTimeEdit @bind-Time="turno.HoraEntrada" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Salida"><DxTimeEdit @bind-Time="turno.HoraSalida" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Almuerzo (minutos)"><DxSpinEdit @bind-Value="turno.TiempoAlmuerzoMinutos" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Tolerancia (minutos)"><DxSpinEdit @bind-Value="turno.ToleranciaEntradaMinutos" /></DxFormLayoutItem>
+                </DxFormLayout>
+            </EditFormTemplate>
+        </DxGrid>
+    </div></div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<Turno> turnos = [];
+    protected override Task OnInitializedAsync() => Load();
+    private async Task Load() => turnos = await Http.GetFromJsonAsync<List<Turno>>("api/turnos") ?? [];
+    private async Task Save(GridEditModelSavingEventArgs e) { var turno = (Turno)e.EditModel; if (e.IsNew) await Http.PostAsJsonAsync("api/turnos", turno); else await Http.PutAsJsonAsync($"api/turnos/{turno.IdTurno}", turno); await Load(); }
+    private async Task Delete(GridDataItemDeletingEventArgs e) { await Http.DeleteAsync($"api/turnos/{((Turno)e.DataItem).IdTurno}"); await Load(); }
+}

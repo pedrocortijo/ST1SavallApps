@@ -1,11 +1,54 @@
 @page "/modelos/horarios-operarios"
 @using ST1Savall.Shared.Data
 @inject HttpClient Http
+
 <PageTitle>Horarios de operarios</PageTitle>
-<h2 class="fw-bold text-primary">Horarios de operarios</h2>
-<p class="text-muted">Asignación de turnos por día y periodo de vigencia.</p>
-<DxGrid Data="@horarios" KeyFieldName="IdAsignacion" EditMode="GridEditMode.PopupEditForm" EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true">
- <Columns><DxGridCommandColumn NewButtonVisible="true" EditButtonVisible="true" DeleteButtonVisible="true" /><DxGridDataColumn FieldName="IdOperario" Caption="Operario"><CellDisplayTemplate>@operarios.FirstOrDefault(o=>o.IdOperario==((HorarioOperario)context.DataItem).IdOperario)?.Nombre</CellDisplayTemplate></DxGridDataColumn><DxGridDataColumn FieldName="IdTurno" Caption="Turno"><CellDisplayTemplate>@turnos.FirstOrDefault(t=>t.IdTurno==((HorarioOperario)context.DataItem).IdTurno)?.NombreTurno</CellDisplayTemplate></DxGridDataColumn><DxGridDataColumn FieldName="DiaSemana" Caption="Día" /><DxGridDataColumn FieldName="FechaInicioVigencia" Caption="Desde" /><DxGridDataColumn FieldName="FechaFinVigencia" Caption="Hasta" /></Columns>
- <EditFormTemplate Context="ctx">@{var h=(HorarioOperario)ctx.EditModel;}<DxFormLayout CssClass="p-3"><DxFormLayoutItem Caption="Operario"><DxComboBox Data="@operarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="h.IdOperario" /></DxFormLayoutItem><DxFormLayoutItem Caption="Turno"><DxComboBox Data="@turnos" TextFieldName="NombreTurno" ValueFieldName="IdTurno" @bind-Value="h.IdTurno" /></DxFormLayoutItem><DxFormLayoutItem Caption="Día (1=Lunes)"><DxSpinEdit @bind-Value="h.DiaSemana" MinValue="1" MaxValue="7" /></DxFormLayoutItem><DxFormLayoutItem Caption="Desde"><DxDateEdit @bind-Date="h.FechaInicioVigencia" /></DxFormLayoutItem><DxFormLayoutItem Caption="Hasta"><DxDateEdit @bind-Date="h.FechaFinVigencia" /></DxFormLayoutItem></DxFormLayout></EditFormTemplate>
-</DxGrid>
-@code {List<HorarioOperario> horarios=[];List<Operario> operarios=[];List<Turno> turnos=[];protected override async Task OnInitializedAsync(){horarios=await Http.GetFromJsonAsync<List<HorarioOperario>>("api/horariosoperarios")??[];operarios=await Http.GetFromJsonAsync<List<Operario>>("api/operarios")??[];turnos=await Http.GetFromJsonAsync<List<Turno>>("api/turnos")??[];}async Task Save(GridEditModelSavingEventArgs e){var h=(HorarioOperario)e.EditModel;if(e.IsNew)await Http.PostAsJsonAsync("api/horariosoperarios",h);else await Http.PutAsJsonAsync($"api/horariosoperarios/{h.IdAsignacion}",h);horarios=await Http.GetFromJsonAsync<List<HorarioOperario>>("api/horariosoperarios")??[];}async Task Delete(GridDataItemDeletingEventArgs e){await Http.DeleteAsync($"api/horariosoperarios/{((HorarioOperario)e.DataItem).IdAsignacion}");horarios=await Http.GetFromJsonAsync<List<HorarioOperario>>("api/horariosoperarios")??[];}}
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h2 class="fw-bold text-primary mb-1">Horarios de operarios</h2><p class="text-muted mb-0">Asignación de turnos por día y periodo de vigencia.</p></div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
+    </div>
+    <div class="card shadow-sm"><div class="card-body p-0">
+        <DxGrid @ref="grid" Data="@horarios" KeyFieldName="IdAsignacion" EditMode="GridEditMode.PopupEditForm" EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true" SearchBoxNullText="Buscar asignación..." PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Formulario - Horario de operario" PopupEditFormCssClass="crud-popup">
+            <Columns>
+                <DxGridCommandColumn Width="110px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                    <HeaderTemplate><button class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i>Nueva</button></HeaderTemplate>
+                    <CellDisplayTemplate>
+                        @{ var horario = (HorarioOperario)context.DataItem; }
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(horario)" @onclick:stopPropagation><i class="oi oi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(horario)" @onclick:stopPropagation><i class="oi oi-trash"></i></button>
+                        </div>
+                    </CellDisplayTemplate>
+                </DxGridCommandColumn>
+                <DxGridDataColumn FieldName="IdOperario" Caption="Operario"><CellDisplayTemplate>@operarios.FirstOrDefault(o => o.IdOperario == ((HorarioOperario)context.DataItem).IdOperario)?.Nombre</CellDisplayTemplate></DxGridDataColumn>
+                <DxGridDataColumn FieldName="IdTurno" Caption="Turno"><CellDisplayTemplate>@turnos.FirstOrDefault(t => t.IdTurno == ((HorarioOperario)context.DataItem).IdTurno)?.NombreTurno</CellDisplayTemplate></DxGridDataColumn>
+                <DxGridDataColumn FieldName="DiaSemana" Caption="Día" />
+                <DxGridDataColumn FieldName="FechaInicioVigencia" Caption="Desde" />
+                <DxGridDataColumn FieldName="FechaFinVigencia" Caption="Hasta" />
+            </Columns>
+            <EditFormTemplate Context="ctx">
+                @{ var horario = (HorarioOperario)ctx.EditModel; }
+                <DxFormLayout CssClass="w-100 p-3">
+                    <DxFormLayoutItem Caption="Operario"><DxComboBox Data="@operarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="horario.IdOperario" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Turno"><DxComboBox Data="@turnos" TextFieldName="NombreTurno" ValueFieldName="IdTurno" @bind-Value="horario.IdTurno" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Día (1=Lunes)"><DxSpinEdit @bind-Value="horario.DiaSemana" MinValue="1" MaxValue="7" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Desde"><DxDateEdit @bind-Date="horario.FechaInicioVigencia" /></DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Hasta"><DxDateEdit @bind-Date="horario.FechaFinVigencia" /></DxFormLayoutItem>
+                </DxFormLayout>
+            </EditFormTemplate>
+        </DxGrid>
+    </div></div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<HorarioOperario> horarios = [];
+    private List<Operario> operarios = [];
+    private List<Turno> turnos = [];
+    protected override async Task OnInitializedAsync() { await Load(); operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? []; turnos = await Http.GetFromJsonAsync<List<Turno>>("api/turnos") ?? []; }
+    private async Task Load() => horarios = await Http.GetFromJsonAsync<List<HorarioOperario>>("api/horariosoperarios") ?? [];
+    private async Task Save(GridEditModelSavingEventArgs e) { var horario = (HorarioOperario)e.EditModel; if (e.IsNew) await Http.PostAsJsonAsync("api/horariosoperarios", horario); else await Http.PutAsJsonAsync($"api/horariosoperarios/{horario.IdAsignacion}", horario); await Load(); }
+    private async Task Delete(GridDataItemDeletingEventArgs e) { await Http.DeleteAsync($"api/horariosoperarios/{((HorarioOperario)e.DataItem).IdAsignacion}"); await Load(); }
+}
