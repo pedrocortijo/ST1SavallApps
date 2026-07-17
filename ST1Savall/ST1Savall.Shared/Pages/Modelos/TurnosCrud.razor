@@ -18,14 +18,14 @@
                 EditModelSaving="Save" DataItemDeleting="Delete" ShowSearchBox="true" SearchBoxNullText="Buscar turno..."
                 PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Formulario - Turno" PopupEditFormCssClass="crud-popup">
             <Columns>
-                <DxGridCommandColumn Width="110px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                <DxGridCommandColumn Width="128px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                     <HeaderTemplate><button class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i>Nueva</button></HeaderTemplate>
                     <CellDisplayTemplate>
                         @{ var turno = (Turno)context.DataItem; }
                         <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(turno)" @onclick:stopPropagation><i class="oi oi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-info" title="Duplicar" @onclick="() => Duplicar(turno.IdTurno)" @onclick:stopPropagation><i class="oi oi-layers"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(turno)" @onclick:stopPropagation><i class="oi oi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-primary" style="width:32px;height:32px" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(turno)" @onclick:stopPropagation><i class="oi oi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-info" style="width:32px;height:32px" title="Duplicar" @onclick="() => Duplicar(turno.IdTurno)" @onclick:stopPropagation><i class="oi oi-layers"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" style="width:32px;height:32px" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(turno)" @onclick:stopPropagation><i class="oi oi-trash"></i></button>
                         </div>
                     </CellDisplayTemplate>
                 </DxGridCommandColumn>
