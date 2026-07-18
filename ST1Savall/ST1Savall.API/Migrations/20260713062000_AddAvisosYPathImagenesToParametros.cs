@@ -12,26 +12,9 @@ public partial class AddAvisosYPathImagenesToParametros : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.AddColumn<int>(
-            name: "AvisoTiempoContenedor",
-            table: "Parametros",
-            type: "int",
-            nullable: false,
-            defaultValue: 0);
-
-        migrationBuilder.AddColumn<int>(
-            name: "AvisoTiempoServicio",
-            table: "Parametros",
-            type: "int",
-            nullable: false,
-            defaultValue: 0);
-
-        migrationBuilder.AddColumn<string>(
-            name: "PathImagenes",
-            table: "Parametros",
-            type: "varchar(255)",
-            maxLength: 255,
-            nullable: true);
+        migrationBuilder.Sql("IF COL_LENGTH('Parametros', 'AvisoTiempoContenedor') IS NULL ALTER TABLE [Parametros] ADD [AvisoTiempoContenedor] int NOT NULL CONSTRAINT [DF_Parametros_AvisoTiempoContenedor] DEFAULT 0;");
+        migrationBuilder.Sql("IF COL_LENGTH('Parametros', 'AvisoTiempoServicio') IS NULL ALTER TABLE [Parametros] ADD [AvisoTiempoServicio] int NOT NULL CONSTRAINT [DF_Parametros_AvisoTiempoServicio] DEFAULT 0;");
+        migrationBuilder.Sql("IF COL_LENGTH('Parametros', 'PathImagenes') IS NULL ALTER TABLE [Parametros] ADD [PathImagenes] varchar(255) NULL;");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

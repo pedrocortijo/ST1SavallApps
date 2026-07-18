@@ -99,7 +99,7 @@
                             <DxFormLayoutItem Caption="Servidor SMTP *" ColSpanMd="12">
                                 <DxTextBox @bind-Text="parametro.SmtpServer" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Puerto SMTP *" ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Puerto SMTP *" ColSpanMd="12">
                                 <DxSpinEdit @bind-Value="parametro.SmtpPort" MinValue="1" MaxValue="65535" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Usuario SMTP" ColSpanMd="12">
@@ -108,13 +108,13 @@
                             <DxFormLayoutItem Caption="Contraseña SMTP" ColSpanMd="12">
                                 <DxTextBox @bind-Text="parametro.SmtpPassword" Password="true" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="12">
                                 <DxTextBox @bind-Text="parametro.SslSmtpType" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Aviso tiempo de servicio" ColSpanMd="6" BeginRow="true">
+                            <DxFormLayoutItem Caption="Tolerancia para inicio servicio (minu.)" ColSpanMd="12" BeginRow="true">
                                 <DxSpinEdit @bind-Value="parametro.AvisoTiempoServicio" MinValue="0" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Aviso tiempo de contenedor" ColSpanMd="6">
+                            <DxFormLayoutItem Caption="Aviso días antelación contenedor OVP" ColSpanMd="12">
                                 <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">

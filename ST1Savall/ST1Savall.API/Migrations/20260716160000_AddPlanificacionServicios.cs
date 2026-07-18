@@ -12,6 +12,10 @@ public partial class AddPlanificacionServicios : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        // El esquema se desplegó antes de incorporar esta migración al historial.
+        // Los objetos se verifican en la migración de sincronización posterior.
+        return;
+#pragma warning disable CS0162
         migrationBuilder.AddColumn<string>(name: "EstadoLaboral", table: "Operarios", type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Activo");
         migrationBuilder.AddColumn<string>(name: "MotivoInactividad", table: "Operarios", type: "nvarchar(30)", maxLength: 30, nullable: true);
         migrationBuilder.AddColumn<DateTime>(name: "InactivoDesde", table: "Operarios", type: "datetime2", nullable: true);
@@ -47,6 +51,7 @@ public partial class AddPlanificacionServicios : Migration
         migrationBuilder.AddColumn<string>(name: "ProveedorCalculoRuta", table: "Solicitudes", type: "nvarchar(30)", maxLength: 30, nullable: true);
 
         migrationBuilder.CreateIndex(name: "IX_Solicitudes_Conductor_Inicio_Fin", table: "Solicitudes", columns: new[] { "IdConductor", "FechaHoraInicioPlanificada", "FechaHoraFinPlanificada" });
+#pragma warning restore CS0162
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

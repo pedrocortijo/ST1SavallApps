@@ -11,7 +11,7 @@
 
 <PageTitle>@(HasKeyParams ? "Editar Cliente" : "Nuevo Cliente")</PageTitle>
 
-<UnsavedChangesGuard HasUnsavedChanges="@HayCambiosPendientes" />
+<UnsavedChangesGuard @ref="unsavedChangesGuard" HasUnsavedChanges="@HayCambiosPendientes" />
 
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -1020,6 +1020,7 @@
             if (response.IsSuccessStatusCode)
             {
                 clienteInicial = SerializarCliente();
+                unsavedChangesGuard?.AllowNextNavigation();
                 GoBack();
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
@@ -1042,6 +1043,8 @@
     {
         NavigationManager.NavigateTo("/modelos/clientes");
     }
+
+    private UnsavedChangesGuard? unsavedChangesGuard;
 
     private bool HayCambiosPendientes =>
         cliente != null

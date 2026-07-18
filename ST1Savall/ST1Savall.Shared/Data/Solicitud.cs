@@ -98,6 +98,7 @@ public class Solicitud
 
     public DateTime? FechaHoraInicioPlanificada { get; set; }
     public DateTime? FechaHoraFinPlanificada { get; set; }
+    public bool NotificacionInicioVisualizada { get; set; }
     public int? DuracionPlanificadaMinutos { get; set; }
     public int? DuracionViajeMinutos { get; set; }
     public int? DuracionOperacionMinutos { get; set; }

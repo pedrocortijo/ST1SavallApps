@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ST1Savall.API.Data;
 
@@ -11,9 +12,11 @@ using ST1Savall.API.Data;
 namespace ST1Savall.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717173609_SyncApplicationModelSnapshot")]
+    partial class SyncApplicationModelSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -243,36 +246,6 @@ namespace ST1Savall.API.Migrations
                     b.ToTable("Cargos");
                 });
 
-            modelBuilder.Entity("ST1Savall.Shared.Data.Ausencia", b =>
-                {
-                    b.Property<int>("IdAusencia")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdAusencia"));
-
-                    b.Property<DateOnly>("FechaFin")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("FechaInicio")
-                        .HasColumnType("date");
-
-                    b.Property<int>("IdConductor")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(150)");
-
-                    b.HasKey("IdAusencia");
-
-                    b.HasIndex("IdConductor", "FechaInicio");
-
-                    b.ToTable("Ausencias");
-                });
-
             modelBuilder.Entity("ST1Savall.Shared.Data.Contenedor", b =>
                 {
                     b.Property<int>("IdContenedor")
@@ -375,6 +348,38 @@ namespace ST1Savall.API.Migrations
                     b.ToTable("EstadosSolicitud");
                 });
 
+            modelBuilder.Entity("ST1Savall.Shared.Data.HorarioOperario", b =>
+                {
+                    b.Property<int>("IdAsignacion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdAsignacion"));
+
+                    b.Property<int>("DiaSemana")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("FechaFinVigencia")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("FechaInicioVigencia")
+                        .HasColumnType("date");
+
+                    b.Property<int>("IdOperario")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IdTurno")
+                        .HasColumnType("int");
+
+                    b.HasKey("IdAsignacion");
+
+                    b.HasIndex("IdOperario");
+
+                    b.HasIndex("IdTurno");
+
+                    b.ToTable("HorariosOperarios");
+                });
+
             modelBuilder.Entity("ST1Savall.Shared.Data.Operario", b =>
                 {
                     b.Property<int>("IdOperario")
@@ -391,24 +396,14 @@ namespace ST1Savall.API.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<TimeSpan>("FinJornada")
-                        .HasColumnName("fin_jornada")
+                    b.Property<TimeSpan?>("HoraFinJornada")
                         .HasColumnType("time");
 
-                    b.Property<TimeSpan?>("FinDescanso")
-                        .HasColumnName("fin_descanso")
+                    b.Property<TimeSpan?>("HoraInicioJornada")
                         .HasColumnType("time");
 
                     b.Property<int?>("IdCargo")
                         .HasColumnType("int");
-
-                    b.Property<TimeSpan>("InicioJornada")
-                        .HasColumnName("inicio_jornada")
-                        .HasColumnType("time");
-
-                    b.Property<TimeSpan?>("InicioDescanso")
-                        .HasColumnName("inicio_descanso")
-                        .HasColumnType("time");
 
                     b.Property<int?>("IdPlanta")
                         .HasColumnType("int");
@@ -421,6 +416,12 @@ namespace ST1Savall.API.Migrations
 
                     b.Property<bool?>("Mensajes")
                         .HasColumnType("bit");
+
+                    b.Property<int>("MinutosMaximosDiarios")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinutosMaximosSemanales")
+                        .HasColumnType("int");
 
                     b.Property<string>("MotivoInactividad")
                         .HasMaxLength(30)
@@ -438,6 +439,12 @@ namespace ST1Savall.API.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<bool?>("Tierras")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TrabajaDomingos")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TrabajaSabados")
                         .HasColumnType("bit");
 
                     b.HasKey("IdOperario");
@@ -918,6 +925,42 @@ namespace ST1Savall.API.Migrations
                     b.ToTable("TareasRelaciones");
                 });
 
+            modelBuilder.Entity("ST1Savall.Shared.Data.Turno", b =>
+                {
+                    b.Property<int>("IdTurno")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdTurno"));
+
+                    b.Property<TimeSpan>("HoraEntrada")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("HoraFinBreak")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("HoraInicioBreak")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan>("HoraSalida")
+                        .HasColumnType("time");
+
+                    b.Property<string>("NombreTurno")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("TiempoAlmuerzoMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ToleranciaEntradaMinutos")
+                        .HasColumnType("int");
+
+                    b.HasKey("IdTurno");
+
+                    b.ToTable("Turnos");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -988,15 +1031,23 @@ namespace ST1Savall.API.Migrations
                     b.Navigation("Tipo");
                 });
 
-            modelBuilder.Entity("ST1Savall.Shared.Data.Ausencia", b =>
+            modelBuilder.Entity("ST1Savall.Shared.Data.HorarioOperario", b =>
                 {
-                    b.HasOne("ST1Savall.Shared.Data.Operario", "Conductor")
+                    b.HasOne("ST1Savall.Shared.Data.Operario", "Operario")
                         .WithMany()
-                        .HasForeignKey("IdConductor")
+                        .HasForeignKey("IdOperario")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Conductor");
+                    b.HasOne("ST1Savall.Shared.Data.Turno", "Turno")
+                        .WithMany()
+                        .HasForeignKey("IdTurno")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Operario");
+
+                    b.Navigation("Turno");
                 });
 
             modelBuilder.Entity("ST1Savall.Shared.Data.Operario", b =>

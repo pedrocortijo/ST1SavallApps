@@ -39,10 +39,16 @@ public class Operario
     public DateTime? InactivoDesde { get; set; }
     public DateTime? InactivoHasta { get; set; }
 
-    public TimeSpan? HoraInicioJornada { get; set; } = new(8, 0, 0);
-    public TimeSpan? HoraFinJornada { get; set; } = new(17, 0, 0);
-    public int MinutosMaximosDiarios { get; set; } = 480;
-    public int MinutosMaximosSemanales { get; set; } = 2400;
-    public bool TrabajaSabados { get; set; }
-    public bool TrabajaDomingos { get; set; }
+    [Column("inicio_jornada")]
+    public TimeSpan InicioJornada { get; set; } = new(8, 0, 0);
+
+    [Column("fin_jornada")]
+    public TimeSpan FinJornada { get; set; } = new(17, 0, 0);
+
+    [Column("inicio_descanso")]
+    public TimeSpan? InicioDescanso { get; set; }
+
+    [Column("fin_descanso")]
+    public TimeSpan? FinDescanso { get; set; }
+
 }

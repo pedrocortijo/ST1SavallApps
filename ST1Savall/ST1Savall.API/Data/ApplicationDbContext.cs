@@ -23,8 +23,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Planta> Plantas { get; set; } = null!;
     public DbSet<Parametro> Parametros { get; set; } = null!;
     public DbSet<RutaCache> RutasCache { get; set; } = null!;
-    public DbSet<Turno> Turnos { get; set; } = null!;
-    public DbSet<HorarioOperario> HorariosOperarios { get; set; } = null!;
+    public DbSet<Ausencia> Ausencias { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -46,13 +45,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasForeignKey(tr => tr.IdTareaDestino)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.Entity<HorarioOperario>().HasOne(h => h.Operario).WithMany().HasForeignKey(h => h.IdOperario).OnDelete(DeleteBehavior.Cascade);
-        builder.Entity<HorarioOperario>().HasOne(h => h.Turno).WithMany().HasForeignKey(h => h.IdTurno).OnDelete(DeleteBehavior.Restrict);
-
         // Configure Operario ID to seed from 0
         builder.Entity<Operario>()
             .Property(o => o.IdOperario)
             .UseIdentityColumn(0, 1);
+
+        builder.Entity<Ausencia>()
+            .HasOne(a => a.Conductor)
+            .WithMany()
+            .HasForeignKey(a => a.IdConductor)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Ausencia>()
+            .HasIndex(a => new { a.IdConductor, a.FechaInicio });
+
+        builder.Entity<Ausencia>()
+            .Property(a => a.Tipo)
+            .IsUnicode(false);
 
         // Configure Contenedor NumSerie to be unique
         builder.Entity<Contenedor>()

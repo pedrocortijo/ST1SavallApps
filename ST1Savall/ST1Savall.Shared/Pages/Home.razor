@@ -1,4 +1,5 @@
 @page "/"
+@implements IAsyncDisposable
 @using ST1Savall.Shared.Data
 @using ST1Savall.Shared.Services
 @inject IFormFactor FormFactor
@@ -12,13 +13,26 @@
     .grid-filter-bar { background-color: rgba(0, 0, 0, 0.03); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
     html.theme-blazing-dark .grid-filter-bar,
     html.theme-fluent-dark .grid-filter-bar { background-color: rgba(255, 255, 255, 0.03) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+    .dashboard-summary { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; }
+    .dashboard-indicator { border: 0; border-radius: 14px; min-height: 152px; padding: 20px; text-align: left; color: white; box-shadow: 0 7px 20px rgba(0, 0, 0, .15); transition: transform .18s ease, box-shadow .18s ease; }
+    .dashboard-indicator:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0, 0, 0, .22); }
+    .dashboard-indicator .indicator-icon { font-size: 2rem; opacity: .9; }
+    .dashboard-indicator .indicator-value { font-size: 2.5rem; font-weight: 700; line-height: 1; }
+    .dashboard-indicator .indicator-label { font-size: 1rem; font-weight: 600; }
+    .dashboard-indicator .indicator-detail { font-size: .8rem; opacity: .88; }
+    .dashboard-services { background: linear-gradient(135deg, #0d6efd, #084298); }
+    .dashboard-inactive { background: linear-gradient(135deg, #dc3545, #9d1625); }
+    .dashboard-ovp { background: linear-gradient(135deg, #f59f00, #b86f00); }
+    .dashboard-blocked { background: linear-gradient(135deg, #6f42c1, #43257c); }
+    .dashboard-notifications { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+    @@media (max-width: 900px) { .dashboard-summary { grid-template-columns: 1fr; } }
 </style>
 
 <div class="container-fluid py-0">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
-            <h2 class="fw-bold text-primary mb-1">ST1 - GESTIÓN CONTENEDORES Ver.: 1.0</h2>
+            <h2 class="fw-bold mb-1" style="color: #f59e0b;">ST1 - GESTIÓN CONTENEDORES Ver.: 1.0</h2>
             <p class="text-muted mb-0">Seguimiento de solicitudes</p>
         </div>
         <div class="badge bg-dark text-white p-2 px-3 rounded-pill" style="font-size: 0.9rem;">
@@ -34,6 +48,97 @@
         </div>
     }
 
+    <DxPopup @bind-Visible="notificacionesServiciosVisibles"
+             HeaderText="Notificaciones de servicios"
+             ShowFooter="true"
+             Width="680px"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <p class="mb-3">Servicios que han superado la tolerancia de inicio y aún no están marcados como iniciados:</p>
+            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true">
+                <Columns>
+                    <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="70px" />
+                    <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="125px" />
+                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" />
+                    <DxGridDataColumn FieldName="NombreObra" Caption="Obra" />
+                </Columns>
+            </DxGrid>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <div class="d-flex justify-content-end gap-2 w-100">
+                <DxButton Text="Ver avisos" RenderStyle="ButtonRenderStyle.Primary" Click="MostrarNotificacionesServicios" />
+                <DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="CerrarNotificacionesServicios" />
+            </div>
+        </FooterContentTemplate>
+    </DxPopup>
+
+    <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header border-0 py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="fw-bold mb-0">Resumen operativo de hoy</h5>
+                <span class="text-muted small">Situación actual para el @DateTime.Today.ToString("dd/MM/yyyy")</span>
+            </div>
+            <DxButton Text="Actualizar" IconCssClass="oi oi-reload" RenderStyle="ButtonRenderStyle.Secondary" Click="@LoadDataAsync" />
+        </div>
+        <div class="card-body p-3 pt-0">
+            @if (loading)
+            {
+                <div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm" role="status"></div></div>
+            }
+            else
+            {
+                <div class="dashboard-summary">
+                    <button type="button" class="dashboard-indicator dashboard-services" @onclick="MostrarServiciosHoy">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Relación Servicios</span>
+                            <i class="oi oi-list-rich indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadServiciosHoy</div>
+                        <div class="indicator-detail mt-2">Programados para hoy · Ver detalle</div>
+                    </button>
+                    <button type="button" class="dashboard-indicator dashboard-inactive" @onclick="MostrarOperariosInactivos">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Operarios inactivos</span>
+                            <i class="oi oi-person indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadOperariosInactivos</div>
+                        <div class="indicator-detail mt-2">Ausentes o no disponibles hoy · Ver operarios</div>
+                    </button>
+                    <button type="button" class="dashboard-indicator dashboard-ovp" @onclick="MostrarOvpARetirar">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">OVP a retirar</span>
+                            <i class="oi oi-flag indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadOvpARetirar</div>
+                        <div class="indicator-detail mt-2">Licencias cuya fecha a sido programada para el aviso de retirada.</div>
+                    </button>
+                    <button type="button" class="dashboard-indicator dashboard-blocked" @onclick="MostrarClientesBloqueados">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Clientes bloqueados</span>
+                            <i class="oi oi-lock-locked indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadClientesBloqueados</div>
+                        <div class="indicator-detail mt-2">Obras agrupadas por cliente bloqueado</div>
+                    </button>
+                    @if (CantidadNotificacionesServicios > 0)
+                    {
+                    <button type="button" class="dashboard-indicator dashboard-notifications" @onclick="MostrarNotificacionesServicios">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Notificaciones de servicios</span>
+                            <i class="oi oi-bell indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadNotificacionesServicios</div>
+                        <div class="indicator-detail mt-2">Inicio fuera de tolerancia · Ver avisos</div>
+                    </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (vistaDashboard == VistaDashboard.Servicios)
+    {
     <!-- 7-State Dashboard Row -->
     <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
         <div class="card-header border-0 py-3 d-flex justify-content-between align-items-center">
@@ -160,17 +265,183 @@
             }
         </div>
     </div>
+    }
+    else if (vistaDashboard == VistaDashboard.OperariosInactivos)
+    {
+        <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header bg-danger text-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-white">Operarios inactivos hoy</h5>
+                <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
+            </div>
+            <div class="card-body p-0">
+                <DxGrid Data="@GetOperariosInactivos()" KeyFieldName="IdOperario" PageSize="20" ShowSearchBox="true" AllowSort="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="Nombre" Caption="Operario" />
+                        <DxGridDataColumn FieldName="Telefono" Caption="Teléfono" Width="150px" />
+                        <DxGridDataColumn FieldName="MotivoInactividad" Caption="Motivo" />
+                        <DxGridDataColumn FieldName="InactivoDesde" Caption="Desde" DisplayFormat="dd/MM/yyyy" Width="120px" />
+                        <DxGridDataColumn FieldName="InactivoHasta" Caption="Hasta" DisplayFormat="dd/MM/yyyy" Width="120px" />
+                    </Columns>
+                </DxGrid>
+            </div>
+        </div>
+    }
+    else if (vistaDashboard == VistaDashboard.OvpARetirar)
+    {
+        <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #f59f00; color: #fff;">
+                <div>
+                    <h5 class="fw-bold mb-0">Contenedores implicados en OVP a retirar</h5>
+                    <span class="small">Licencias OVP cuya fecha de fin es hoy</span>
+                </div>
+                <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
+            </div>
+            <div class="card-body p-0">
+                <DxGrid Data="@GetOvpARetirar()" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" AllowSort="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="CodigoEntrega" Caption="Contenedor entrega" />
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="260px" />
+                        <DxGridDataColumn FieldName="DireccionCliente" Caption="Ubicación OVP" />
+                        <DxGridDataColumn FieldName="NumLicenciaOVP" Caption="Licencia OVP" Width="150px" />
+                        <DxGridDataColumn FieldName="FechaFinOVP" Caption="Retirar el" DisplayFormat="dd/MM/yyyy" Width="125px" />
+                    </Columns>
+                </DxGrid>
+        </div>
+    </div>
+    }
+    else if (vistaDashboard == VistaDashboard.ClientesBloqueados)
+    {
+        <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #6f42c1; color: #fff;">
+                <div>
+                    <h5 class="fw-bold mb-0">Obras de clientes bloqueados</h5>
+                    <span class="small">Relación agrupada por cliente</span>
+                </div>
+                <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
+            </div>
+            <div class="card-body p-0">
+                <DxGrid Data="@GetObrasClientesBloqueados()" KeyFieldName="IdObra" PageSize="20" ShowSearchBox="true" AllowSort="true" ShowGroupPanel="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente bloqueado" GroupIndex="0" />
+                        <DxGridDataColumn FieldName="Codigo" Caption="Código obra" Width="120px" />
+                        <DxGridDataColumn FieldName="Descripcion" Caption="Obra" Width="280px" />
+                        <DxGridDataColumn FieldName="Ubicacion" Caption="Ubicación" />
+                        <DxGridDataColumn FieldName="Poblacion" Caption="Población" Width="160px" />
+                        <DxGridDataColumn FieldName="Encargado" Caption="Encargado" Width="180px" />
+                    </Columns>
+                </DxGrid>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #ffc107; color: #212529;">
+                <div>
+                    <h5 class="fw-bold mb-0">Notificaciones de servicios</h5>
+                    <span class="small">Tolerancia de inicio: @ToleranciaInicioServicioMinutos minuto(s)</span>
+                </div>
+                <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
+            </div>
+            <div class="card-body p-0">
+                <DxGrid Data="@GetNotificacionesServicios()" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" AllowSort="true">
+                    <Columns>
+                        <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="70px" />
+                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="130px" />
+                        <DxGridDataColumn FieldName="ConductorNombre" Caption="Operario" Width="180px" />
+                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="230px" />
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" />
+                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado actual" Width="190px" />
+                    </Columns>
+                </DxGrid>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
     private List<Solicitud>? solicitudes;
     private List<Operario>? operarios;
+    private List<ClienteSage50>? clientes;
+    private List<Obra>? obras;
+    private List<Parametro>? parametros;
     private bool loading = true;
     private string? errorMessage;
+    private bool notificacionesServiciosVisibles;
+    private List<Solicitud> notificacionesServiciosParaMostrar = [];
+    private readonly CancellationTokenSource cancelacionRefresco = new();
+    private Task? tareaRefrescoAutomatico;
     private int selectedConductorId = -1;
     private int selectedTareaId = -1;
     private int selectedEstadoId = -1;
     private int selectedPrioridadId = -1;
+    private VistaDashboard vistaDashboard = VistaDashboard.Servicios;
+
+    private int CantidadServiciosHoy => solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today) ?? 0;
+    private int CantidadOperariosInactivos => operarios?.Count(o =>
+        string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || o.Activo == false) ?? 0;
+    private int CantidadOvpARetirar => solicitudes?.Count(s => s.RequiereOVP && s.FechaFinOVP?.Date == DateTime.Today) ?? 0;
+    private int CantidadClientesBloqueados => GetClientesBloqueadosConObrasPendientes().Count();
+    private int ToleranciaInicioServicioMinutos => parametros?.FirstOrDefault()?.AvisoTiempoServicio ?? 0;
+    private int CantidadNotificacionesServicios => GetNotificacionesServicios().Count();
+
+    private enum VistaDashboard { Servicios, OperariosInactivos, OvpARetirar, ClientesBloqueados, NotificacionesServicios }
+
+    private void MostrarServiciosHoy() => vistaDashboard = VistaDashboard.Servicios;
+    private void MostrarOperariosInactivos() => vistaDashboard = VistaDashboard.OperariosInactivos;
+    private void MostrarOvpARetirar() => vistaDashboard = VistaDashboard.OvpARetirar;
+    private void MostrarClientesBloqueados() => vistaDashboard = VistaDashboard.ClientesBloqueados;
+    private void MostrarNotificacionesServicios()
+    {
+        notificacionesServiciosVisibles = false;
+        vistaDashboard = VistaDashboard.NotificacionesServicios;
+    }
+    private void CerrarNotificacionesServicios() => notificacionesServiciosVisibles = false;
+
+    private IEnumerable<Operario> GetOperariosInactivos() => operarios?.Where(o =>
+        string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || o.Activo == false)
+        ?? Enumerable.Empty<Operario>();
+
+    private IEnumerable<Solicitud> GetOvpARetirar() => solicitudes?.Where(s =>
+        s.RequiereOVP && s.FechaFinOVP?.Date == DateTime.Today)
+        ?? Enumerable.Empty<Solicitud>();
+
+    private IEnumerable<Obra> GetObrasClientesBloqueados()
+    {
+        if (obras is null || clientes is null) return Enumerable.Empty<Obra>();
+
+        var codigosBloqueados = GetClientesBloqueadosConObrasPendientes()
+            .Select(c => c.Codigo.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return obras.Where(o => o.Finalizada != true &&
+            !string.IsNullOrWhiteSpace(o.Cliente) &&
+            codigosBloqueados.Contains(o.Cliente.Trim()));
+    }
+
+    private IEnumerable<ClienteSage50> GetClientesBloqueadosConObrasPendientes()
+    {
+        if (clientes is null || obras is null) return Enumerable.Empty<ClienteSage50>();
+
+        var codigosConObrasPendientes = obras
+            .Where(o => o.Finalizada != true && !string.IsNullOrWhiteSpace(o.Cliente))
+            .Select(o => o.Cliente!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return clientes.Where(c => c.BloqCli && codigosConObrasPendientes.Contains(c.Codigo.Trim()));
+    }
+
+    private IEnumerable<Solicitud> GetNotificacionesServicios()
+    {
+        if (solicitudes is null) return Enumerable.Empty<Solicitud>();
+
+        var limite = DateTime.Now.AddMinutes(-ToleranciaInicioServicioMinutos);
+        return solicitudes
+            .Where(s => s.FechaHoraInicioPlanificada.HasValue &&
+                        s.FechaHoraInicioPlanificada.Value.Date == DateTime.Today &&
+                        s.FechaHoraInicioPlanificada.Value <= limite &&
+                        !s.NotificacionInicioVisualizada &&
+                        s.Estado is not 5 and not 6 and not 8)
+            .OrderBy(s => s.FechaHoraInicioPlanificada);
+    }
 
     private void ToggleEstadoFilter(int estado)
     {
@@ -216,7 +487,36 @@
     protected override async Task OnInitializedAsync()
     {
         await SetupHeadersAsync();
+        await Http.PostAsync("api/operarios/sincronizar-ausencias", null);
         await LoadDataAsync();
+        tareaRefrescoAutomatico = RefrescarInicioPeriodicamenteAsync(cancelacionRefresco.Token);
+    }
+
+    private async Task RefrescarInicioPeriodicamenteAsync(CancellationToken cancellationToken)
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadDataAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // El usuario ha abandonado la página.
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        cancelacionRefresco.Cancel();
+        cancelacionRefresco.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private async Task SetupHeadersAsync()
@@ -236,6 +536,9 @@
             loading = true;
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+            clientes = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
+            obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
 
@@ -256,6 +559,19 @@
                 }
             }
             errorMessage = null;
+            notificacionesServiciosParaMostrar = GetNotificacionesServicios().ToList();
+            notificacionesServiciosVisibles = notificacionesServiciosParaMostrar.Count > 0;
+            if (notificacionesServiciosVisibles)
+            {
+                var ids = notificacionesServiciosParaMostrar.Select(s => s.IdSolicitud).ToList();
+                var response = await Http.PostAsJsonAsync(
+                    "api/solicitudes/marcar-notificaciones-inicio-visualizadas", ids);
+                if (response.IsSuccessStatusCode)
+                {
+                    foreach (var solicitud in notificacionesServiciosParaMostrar)
+                        solicitud.NotificacionInicioVisualizada = true;
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -12,7 +12,7 @@ public partial class RemoveUnusedLocalObras : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropTable(name: "Obras");
+        migrationBuilder.Sql("DROP TABLE IF EXISTS [Obras];");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

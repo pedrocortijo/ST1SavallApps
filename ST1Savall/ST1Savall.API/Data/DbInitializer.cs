@@ -16,6 +16,39 @@ public static class DbInitializer
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
 
+        // Remove the retired shifts and employee-schedule schema from existing databases.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'HorariosOperarios', N'U') IS NOT NULL DROP TABLE HorariosOperarios;
+            IF OBJECT_ID(N'Turnos', N'U') IS NOT NULL DROP TABLE Turnos;
+
+            DECLARE @ColumnName sysname, @ConstraintName sysname, @Sql nvarchar(max);
+            DECLARE RemovedScheduleColumns CURSOR LOCAL FAST_FORWARD FOR
+                SELECT name FROM (VALUES
+                    (N'MinutosMaximosDiarios'), (N'MinutosMaximosSemanales'),
+                    (N'TrabajaSabados'), (N'TrabajaDomingos')) AS ColumnsToRemove(name)
+                WHERE COL_LENGTH(N'Operarios', name) IS NOT NULL;
+            OPEN RemovedScheduleColumns;
+            FETCH NEXT FROM RemovedScheduleColumns INTO @ColumnName;
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
+                SET @ConstraintName = NULL;
+                SELECT @ConstraintName = dc.name
+                FROM sys.default_constraints dc
+                INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+                WHERE dc.parent_object_id = OBJECT_ID(N'Operarios') AND c.name = @ColumnName;
+                IF @ConstraintName IS NOT NULL
+                BEGIN
+                    SET @Sql = N'ALTER TABLE Operarios DROP CONSTRAINT ' + QUOTENAME(@ConstraintName);
+                    EXEC sp_executesql @Sql;
+                END
+                SET @Sql = N'ALTER TABLE Operarios DROP COLUMN ' + QUOTENAME(@ColumnName);
+                EXEC sp_executesql @Sql;
+                FETCH NEXT FROM RemovedScheduleColumns INTO @ColumnName;
+            END
+            CLOSE RemovedScheduleColumns;
+            DEALLOCATE RemovedScheduleColumns;
+        ");
+
         // Ensure new Parametros columns exist in databases created before these fields were added.
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'Parametros', N'U') IS NOT NULL
@@ -41,18 +74,30 @@ public static class DbInitializer
                 IF COL_LENGTH('Operarios', 'MotivoInactividad') IS NULL ALTER TABLE Operarios ADD MotivoInactividad NVARCHAR(30) NULL;
                 IF COL_LENGTH('Operarios', 'InactivoDesde') IS NULL ALTER TABLE Operarios ADD InactivoDesde DATETIME2 NULL;
                 IF COL_LENGTH('Operarios', 'InactivoHasta') IS NULL ALTER TABLE Operarios ADD InactivoHasta DATETIME2 NULL;
-                IF COL_LENGTH('Operarios', 'HoraInicioJornada') IS NULL ALTER TABLE Operarios ADD HoraInicioJornada TIME NULL CONSTRAINT DF_Operarios_HoraInicioJornada DEFAULT ('08:00');
-                IF COL_LENGTH('Operarios', 'HoraFinJornada') IS NULL ALTER TABLE Operarios ADD HoraFinJornada TIME NULL CONSTRAINT DF_Operarios_HoraFinJornada DEFAULT ('17:00');
-                IF COL_LENGTH('Operarios', 'MinutosMaximosDiarios') IS NULL ALTER TABLE Operarios ADD MinutosMaximosDiarios INT NOT NULL CONSTRAINT DF_Operarios_MinutosMaximosDiarios DEFAULT (480);
-                IF COL_LENGTH('Operarios', 'MinutosMaximosSemanales') IS NULL ALTER TABLE Operarios ADD MinutosMaximosSemanales INT NOT NULL CONSTRAINT DF_Operarios_MinutosMaximosSemanales DEFAULT (2400);
-                IF COL_LENGTH('Operarios', 'TrabajaSabados') IS NULL ALTER TABLE Operarios ADD TrabajaSabados BIT NOT NULL CONSTRAINT DF_Operarios_TrabajaSabados DEFAULT (0);
-                IF COL_LENGTH('Operarios', 'TrabajaDomingos') IS NULL ALTER TABLE Operarios ADD TrabajaDomingos BIT NOT NULL CONSTRAINT DF_Operarios_TrabajaDomingos DEFAULT (0);
+                IF COL_LENGTH('Operarios', 'inicio_jornada') IS NULL ALTER TABLE Operarios ADD inicio_jornada TIME NOT NULL CONSTRAINT DF_Operarios_InicioJornada DEFAULT ('08:00');
+                IF COL_LENGTH('Operarios', 'fin_jornada') IS NULL ALTER TABLE Operarios ADD fin_jornada TIME NOT NULL CONSTRAINT DF_Operarios_FinJornada DEFAULT ('17:00');
+                IF COL_LENGTH('Operarios', 'inicio_descanso') IS NULL ALTER TABLE Operarios ADD inicio_descanso TIME NULL;
+                IF COL_LENGTH('Operarios', 'fin_descanso') IS NULL ALTER TABLE Operarios ADD fin_descanso TIME NULL;
+            END
+
+            IF OBJECT_ID(N'Ausencias', N'U') IS NULL
+            BEGIN
+                CREATE TABLE Ausencias (
+                    IdAusencia INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Ausencias PRIMARY KEY,
+                    IdConductor INT NOT NULL,
+                    FechaInicio DATE NOT NULL,
+                    FechaFin DATE NOT NULL,
+                    Tipo VARCHAR(150) NOT NULL,
+                    CONSTRAINT FK_Ausencias_Operarios_IdConductor FOREIGN KEY (IdConductor) REFERENCES Operarios(IdOperario) ON DELETE CASCADE
+                );
+                CREATE INDEX IX_Ausencias_IdConductor_FechaInicio ON Ausencias(IdConductor, FechaInicio);
             END
 
             IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL
             BEGIN
                 IF COL_LENGTH('Solicitudes', 'FechaHoraInicioPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraInicioPlanificada DATETIME2 NULL;
                 IF COL_LENGTH('Solicitudes', 'FechaHoraFinPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraFinPlanificada DATETIME2 NULL;
+                IF COL_LENGTH('Solicitudes', 'NotificacionInicioVisualizada') IS NULL ALTER TABLE Solicitudes ADD NotificacionInicioVisualizada BIT NOT NULL CONSTRAINT DF_Solicitudes_NotificacionInicioVisualizada DEFAULT (0);
                 IF COL_LENGTH('Solicitudes', 'DuracionPlanificadaMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionPlanificadaMinutos INT NULL;
                 IF COL_LENGTH('Solicitudes', 'DuracionViajeMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionViajeMinutos INT NULL;
                 IF COL_LENGTH('Solicitudes', 'DuracionOperacionMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionOperacionMinutos INT NULL;
@@ -115,17 +160,6 @@ public static class DbInitializer
                     CREATE INDEX IX_RutasCache_FechaExpiracionUtc ON RutasCache(FechaExpiracionUtc);
                 DELETE FROM RutasCache WHERE FechaExpiracionUtc <= SYSUTCDATETIME();
             END
-        ");
-
-        await context.Database.ExecuteSqlRawAsync(@"
-            IF OBJECT_ID(N'Turnos', N'U') IS NULL
-                CREATE TABLE Turnos (IdTurno INT IDENTITY(1,1) PRIMARY KEY, NombreTurno NVARCHAR(80) NOT NULL, HoraEntrada TIME NOT NULL, HoraSalida TIME NOT NULL, HoraInicioBreak TIME NULL, HoraFinBreak TIME NULL, TiempoAlmuerzoMinutos INT NOT NULL DEFAULT(0), ToleranciaEntradaMinutos INT NOT NULL DEFAULT(0));
-            IF COL_LENGTH(N'Turnos', N'HoraInicioBreak') IS NULL
-                ALTER TABLE Turnos ADD HoraInicioBreak TIME NULL;
-            IF COL_LENGTH(N'Turnos', N'HoraFinBreak') IS NULL
-                ALTER TABLE Turnos ADD HoraFinBreak TIME NULL;
-            IF OBJECT_ID(N'HorariosOperarios', N'U') IS NULL
-                CREATE TABLE HorariosOperarios (IdAsignacion INT IDENTITY(1,1) PRIMARY KEY, IdOperario INT NOT NULL, IdTurno INT NOT NULL, DiaSemana INT NOT NULL, FechaInicioVigencia DATE NOT NULL, FechaFinVigencia DATE NULL, CONSTRAINT FK_HorariosOperarios_Operarios FOREIGN KEY (IdOperario) REFERENCES Operarios(IdOperario) ON DELETE CASCADE, CONSTRAINT FK_HorariosOperarios_Turnos FOREIGN KEY (IdTurno) REFERENCES Turnos(IdTurno));
         ");
 
         // Ensure additional container fields exist in databases created before they were introduced.
@@ -598,7 +632,8 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
             new EstadoSolicitud { IdEstado = 4, Descripcion = "No seguir contenedor", BgColor = "#ffc000", TextColor = "#000000" },
             new EstadoSolicitud { IdEstado = 5, Descripcion = "Finalizado servicio", BgColor = "#8db4e2", TextColor = "#002060" },
             new EstadoSolicitud { IdEstado = 6, Descripcion = "Anulado / reprogramado", BgColor = "#ff0000", TextColor = "#ffffff" },
-            new EstadoSolicitud { IdEstado = 7, Descripcion = "Falta disponibilidad contenedor", BgColor = "#ffffff", TextColor = "#ff0000" }
+            new EstadoSolicitud { IdEstado = 7, Descripcion = "Falta disponibilidad contenedor", BgColor = "#ffffff", TextColor = "#ff0000" },
+            new EstadoSolicitud { IdEstado = 8, Descripcion = "Servicio iniciado", BgColor = "#198754", TextColor = "#ffffff" }
         };
 
         foreach (var estado in estados)

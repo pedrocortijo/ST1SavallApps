@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ST1Savall.API.Data;
+using ST1Savall.API.Services;
 using ST1Savall.Shared.Data;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -12,10 +13,12 @@ namespace ST1Savall.API.Controllers;
 public class OperariosController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly EstadoOperariosAusenciasService _estadoOperariosAusenciasService;
 
-    public OperariosController(ApplicationDbContext context)
+    public OperariosController(ApplicationDbContext context, EstadoOperariosAusenciasService estadoOperariosAusenciasService)
     {
         _context = context;
+        _estadoOperariosAusenciasService = estadoOperariosAusenciasService;
     }
 
     [HttpGet]
@@ -76,6 +79,13 @@ public class OperariosController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("sincronizar-ausencias")]
+    public async Task<IActionResult> SincronizarAusencias()
+    {
+        var actualizados = await _estadoOperariosAusenciasService.SincronizarAsync();
+        return Ok(new { actualizados });
+    }
+
     private bool OperarioExists(int id)
     {
         return _context.Operarios.Any(e => e.IdOperario == id);
@@ -117,11 +127,6 @@ public class OperariosController : ControllerBase
         {
             return "El estado laboral debe ser Activo o Inactivo.";
         }
-
-        if (operario.HoraInicioJornada >= operario.HoraFinJornada)
-            return "La hora de fin de jornada debe ser posterior a la de inicio.";
-        if (operario.MinutosMaximosDiarios <= 0 || operario.MinutosMaximosSemanales <= 0)
-            return "Los límites diario y semanal deben ser mayores que cero.";
 
         return null;
     }

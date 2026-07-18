@@ -24,6 +24,22 @@
         </div>
     }
 
+    <DxPopup @bind-Visible="conflictoAusenciaVisible"
+             HeaderText="Servicios asignados"
+             ShowFooter="true"
+             Width="560px"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <div class="py-3">@mensajeConflictoAusencia</div>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <div class="d-flex justify-content-end w-100">
+                <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => conflictoAusenciaVisible = false" />
+            </div>
+        </FooterContentTemplate>
+    </DxPopup>
+
     <div class="card shadow-sm">
         <div class="card-body p-0">
             @if (operarios == null || cargos == null || plantas == null)
@@ -45,12 +61,13 @@
                         DataItemDeleting="OnDataItemDeleting"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormHeaderText="Formulario - Operario"
-                        PopupEditFormCssClass="crud-popup"
+                        PopupEditFormCssClass="crud-popup operarios-popup"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
                         AllowSort="true"
                         ShowFilterRow="true"
-                        ShowSearchBox="true">
+                        ShowSearchBox="true"
+                        CustomizeElement="OnCustomizeElement">
                     <Columns>
                         <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
@@ -111,16 +128,20 @@
                         </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
                         <DxGridDataColumn FieldName="EstadoLaboral" Caption="Estado laboral" Width="120px" />
-                        <DxGridDataColumn FieldName="HoraInicioJornada" Caption="Inicio jornada" DisplayFormat="hh':'mm" Width="110px" />
-                        <DxGridDataColumn FieldName="HoraFinJornada" Caption="Fin jornada" DisplayFormat="hh':'mm" Width="110px" />
+                        <DxGridDataColumn FieldName="InicioJornada" Caption="Inicio jornada" DisplayFormat="hh':'mm" Width="110px" />
+                        <DxGridDataColumn FieldName="FinJornada" Caption="Fin jornada" DisplayFormat="hh':'mm" Width="110px" />
                         <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" Visible="false" />
                         <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" Visible="false" />
                     </Columns>
-                    <EditFormTemplate Context="EditFormContext">
+
+                    <EditFormTemplate Context="EditFormContext" >
                         @{
                             var oper = (Operario)EditFormContext.EditModel;
+                            RegistrarOperarioEnEdicion(oper);
                         }
-                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                        <DxTabs CssClass="w-100">
+                            <DxTabPage Text="Datos generales">
+                                <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
                             <DxFormLayoutItem Caption="Nombre Completo" ColSpanMd="6">
                                 <DxTextBox @bind-Text="@oper.Nombre" />
                             </DxFormLayoutItem>
@@ -139,44 +160,88 @@
                                             ValueFieldName="IdPlanta"
                                             @bind-Value="@oper.IdPlanta" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Estado laboral" ColSpanMd="4" BeginRow="true">
-                                <DxComboBox Data="@estadosLaborales"
-                                            TextFieldName="Text"
-                                            ValueFieldName="Value"
-                                            @bind-Value="@oper.EstadoLaboral" />
+                            <DxFormLayoutItem Caption="Inicio jornada" ColSpanMd="4" BeginRow="true">
+                                <DxTimeEdit @bind-Time="@oper.InicioJornada" 
+                                DisplayFormat="HH:mm" 
+                                Format="HH:mm"
+                                TimeSectionVisible="false" 
+                                CssClass="text-center" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Motivo" ColSpanMd="4" Enabled="@IsInactivo(oper)">
-                                <DxComboBox Data="@motivosInactividad"
-                                            TextFieldName="Text"
-                                            ValueFieldName="Value"
-                                            @bind-Value="@oper.MotivoInactividad"
-                                            ClearButtonVisible="true" />
+                            <DxFormLayoutItem Caption="Fin jornada" ColSpanMd="4">
+                                <DxTimeEdit @bind-Time="@oper.FinJornada" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="text-center" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Desde" ColSpanMd="2" Enabled="@IsInactivo(oper)">
-                                <DxDateEdit @bind-Date="@oper.InactivoDesde" />
+                            <DxFormLayoutItem Caption="Total (minutos)" ColSpanMd="4">
+                                <div class="form-control bg-body-secondary text-center">@CalcularMinutosJornada(oper)</div>
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Hasta" ColSpanMd="2" Enabled="@IsInactivo(oper)">
-                                <DxDateEdit @bind-Date="@oper.InactivoHasta" />
+                            <DxFormLayoutItem Caption="Inicio almuerzo" ColSpanMd="4" BeginRow="true">
+                                <DxTimeEdit @bind-Time="@oper.InicioDescanso" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Inicio jornada" ColSpanMd="3" BeginRow="true">
-                                <DxTimeEdit @bind-Time="@oper.HoraInicioJornada" />
+                            <DxFormLayoutItem Caption="Fin almuerzo" ColSpanMd="4">
+                                <DxTimeEdit @bind-Time="@oper.FinDescanso" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Fin jornada" ColSpanMd="3">
-                                <DxTimeEdit @bind-Time="@oper.HoraFinJornada" />
+                            <DxFormLayoutItem Caption="Total (horas)" ColSpanMd="4">
+                                <div class="form-control bg-body-secondary text-center">@CalcularHorasJornada(oper)</div>
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Máximo diario (minutos)" ColSpanMd="3">
-                                <DxSpinEdit @bind-Value="@oper.MinutosMaximosDiarios" MinValue="1" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Máximo semanal (minutos)" ColSpanMd="3">
-                                <DxSpinEdit @bind-Value="@oper.MinutosMaximosSemanales" MinValue="1" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="3" BeginRow="true">
-                                <DxCheckBox @bind-Checked="@oper.TrabajaSabados" LabelPosition="LabelPosition.Right">Trabaja sábados</DxCheckBox>
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="3">
-                                <DxCheckBox @bind-Checked="@oper.TrabajaDomingos" LabelPosition="LabelPosition.Right">Trabaja domingos</DxCheckBox>
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Permisos Especiales" ColSpanMd="12" BeginRow="true" CssClass="border-top pt-2 mt-2 fw-bold text-muted small text-uppercase">
+                            <DxFormLayoutItem Caption="Estado laboral" ColSpanMd="3" BeginRow="true" CssClass="@ClaseEstadoInactivo(oper)">
+                                        <DxComboBox Data="@estadosLaborales" @bind-Value="@oper.EstadoLaboral" />
+                                    </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Motivo" ColSpanMd="3" CssClass="@ClaseEstadoInactivo(oper)">
+                                        <DxTextBox @bind-Text="@oper.MotivoInactividad" />
+                                    </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Desde" ColSpanMd="3" CssClass="@ClaseEstadoInactivo(oper)">
+                                        <DxDateEdit @bind-Date="@oper.InactivoDesde" />
+                                    </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Hasta" ColSpanMd="3" CssClass="@ClaseEstadoInactivo(oper)">
+                                        <DxDateEdit @bind-Date="@oper.InactivoHasta" />
+                                    </DxFormLayoutItem>
+
+                                </DxFormLayout>
+                            </DxTabPage>
+                            <DxTabPage Text="Ausencias">
+                                <div class="p-3">
+                            @if (EsOperarioExistente(oper.IdOperario))
+                            {
+                                    <DxGrid @ref="ausenciasGrid" Data="@GetAusencias(oper.IdOperario)" KeyFieldName="IdAusencia"
+                                            EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnAusenciaSaving"
+                                            DataItemDeleting="OnAusenciaDeleting" PageSize="5" ShowPager="true">
+                                        <Columns>
+                                            <DxGridCommandColumn Width="96px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                                <HeaderTemplate Context="ausenciasHeader">
+                                                    <button type="button" class="btn btn-sm btn-primary w-100" @onclick="() => NuevaAusencia(oper.IdOperario)">Nueva</button>
+                                                </HeaderTemplate>
+                                                <CellDisplayTemplate Context="ausenciaCell">
+                                                    @{ var ausencia = (Ausencia)ausenciaCell.DataItem; }
+                                                    <div class="d-flex flex-nowrap justify-content-center gap-1">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary p-0" style="width:32px;height:32px" title="Editar" @onclick="() => ausenciasGrid?.StartEditDataItemAsync(ausencia)"><i class="oi oi-pencil"></i></button>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger p-0" style="width:32px;height:32px" title="Eliminar" @onclick="() => ausenciasGrid?.ShowDataItemDeleteConfirmation(ausencia)"><i class="oi oi-trash"></i></button>
+                                                    </div>
+                                                </CellDisplayTemplate>
+                                            </DxGridCommandColumn>
+                                            <DxGridDataColumn FieldName="FechaInicio" Caption="Desde" DisplayFormat="d" SortIndex="0" SortOrder="GridColumnSortOrder.Descending" />
+                                            <DxGridDataColumn FieldName="FechaFin" Caption="Hasta" DisplayFormat="d" />
+                                            <DxGridDataColumn FieldName="Tipo" Caption="Tipo" />
+                                        </Columns>
+                                        <EditFormTemplate Context="AusenciaEditContext">
+                                            @{ var ausencia = (Ausencia)AusenciaEditContext.EditModel; }
+                                            <DxFormLayout CssClass="p-3" CaptionPosition="CaptionPosition.Vertical">
+                                                <DxFormLayoutItem Caption="Desde" ColSpanMd="6"><DxDateEdit @bind-Date="ausencia.FechaInicio" /></DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Hasta" ColSpanMd="6"><DxDateEdit @bind-Date="ausencia.FechaFin" /></DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="Tipo" ColSpanMd="12"><DxComboBox Data="@tiposAusencia" @bind-Value="ausencia.Tipo" /></DxFormLayoutItem>
+                                            </DxFormLayout>
+                                        </EditFormTemplate>
+                                    </DxGrid>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Guarde el operario antes de registrar sus ausencias.</span>
+                            }
+
+                                </div>
+                            </DxTabPage>
+                        </DxTabs>
+
+
+@*                             <DxFormLayoutItem Caption="Permisos Especiales" ColSpanMd="12" BeginRow="true" CssClass="border-top pt-2 mt-2 fw-bold text-muted small text-uppercase">
                             </DxFormLayoutItem>
                             <DxFormLayoutItem ColSpanMd="4" BeginRow="true">
                                 <DxCheckBox @bind-Checked="@oper.Obras" LabelPosition="LabelPosition.Right">Acceso Obras</DxCheckBox>
@@ -187,7 +252,8 @@
                             <DxFormLayoutItem ColSpanMd="4">
                                 <DxCheckBox @bind-Checked="@oper.Tierras" LabelPosition="LabelPosition.Right">Gestión Tierras</DxCheckBox>
                             </DxFormLayoutItem>
-                        </DxFormLayout>
+
+ *@
                     </EditFormTemplate>
                 </DxGrid>
             }
@@ -197,34 +263,23 @@
 
 @code {
     private IGrid? grid;
+    private IGrid? ausenciasGrid;
     private List<Operario>? operarios;
     private List<Cargo>? cargos;
     private List<Planta>? plantas;
     private string? errorMessage;
+    private bool conflictoAusenciaVisible;
+    private string? mensajeConflictoAusencia;
+    private List<Ausencia> ausencias = [];
+    private int conductorAusenciaActual;
+    private Operario? operarioEnEdicion;
+    private readonly List<string> tiposAusencia = ["Asuntos Propios", "Baja Médica", "Vacaciones"];
+    private readonly List<string> estadosLaborales = ["Activo", "Inactivo"];
 
-    private sealed class TextValue
+    private sealed class MensajeApi
     {
-        public string Text { get; init; } = string.Empty;
-        public string Value { get; init; } = string.Empty;
+        public string? Message { get; set; }
     }
-
-    private readonly List<TextValue> estadosLaborales =
-    [
-        new() { Text = "Activo", Value = "Activo" },
-        new() { Text = "Inactivo", Value = "Inactivo" }
-    ];
-
-    private readonly List<TextValue> motivosInactividad =
-    [
-        new() { Text = "Baja", Value = "Baja" },
-        new() { Text = "Descanso", Value = "Descanso" },
-        new() { Text = "Vacaciones", Value = "Vacaciones" },
-        new() { Text = "Trámites", Value = "Trámites" },
-        new() { Text = "Otros", Value = "Otros" }
-    ];
-
-    private static bool IsInactivo(Operario operario) =>
-        string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
@@ -249,6 +304,7 @@
             cargos = await Http.GetFromJsonAsync<List<Cargo>>("api/cargos") ?? new List<Cargo>();
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? new List<Planta>();
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? new List<Operario>();
+            ausencias = await Http.GetFromJsonAsync<List<Ausencia>>("api/ausencias") ?? [];
             errorMessage = null;
         }
         catch (Exception ex)
@@ -257,6 +313,7 @@
             cargos ??= new List<Cargo>();
             plantas ??= new List<Planta>();
             operarios ??= new List<Operario>();
+            ausencias ??= [];
         }
     }
 
@@ -310,5 +367,105 @@
         {
             errorMessage = $"Error al borrar: {ex.Message}";
         }
+    }
+
+    private IEnumerable<Ausencia> GetAusencias(int idOperario) => ausencias.Where(a => a.IdConductor == idOperario);
+
+    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
+    {
+        if (e.ElementType != GridElementType.DataRow && e.ElementType != GridElementType.DataCell)
+            return;
+
+        if (e.Grid.GetDataItem(e.VisibleIndex) is Operario operario &&
+            (string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || operario.Activo == false))
+        {
+            e.Style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important;";
+        }
+    }
+
+    private bool EsOperarioExistente(int idOperario) => operarios?.Any(o => o.IdOperario == idOperario) == true;
+
+    private void RegistrarOperarioEnEdicion(Operario operario) => operarioEnEdicion = operario;
+
+    private async Task ActualizarEstadoOperarioAsync(int idOperario)
+    {
+        var actualizado = await Http.GetFromJsonAsync<Operario>($"api/operarios/{idOperario}");
+        if (actualizado is null) return;
+
+        var indice = operarios?.FindIndex(o => o.IdOperario == idOperario) ?? -1;
+        if (indice >= 0) operarios![indice] = actualizado;
+
+        if (operarioEnEdicion?.IdOperario == idOperario)
+        {
+            operarioEnEdicion.Activo = actualizado.Activo;
+            operarioEnEdicion.EstadoLaboral = actualizado.EstadoLaboral;
+            operarioEnEdicion.MotivoInactividad = actualizado.MotivoInactividad;
+            operarioEnEdicion.InactivoDesde = actualizado.InactivoDesde;
+            operarioEnEdicion.InactivoHasta = actualizado.InactivoHasta;
+        }
+    }
+
+    private static string ClaseEstadoInactivo(Operario operario) =>
+        string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase)
+            ? "operario-inactivo"
+            : string.Empty;
+
+    private static int CalcularMinutosJornada(Operario operario)
+    {
+        var jornada = operario.FinJornada - operario.InicioJornada;
+        if (jornada < TimeSpan.Zero) jornada += TimeSpan.FromDays(1);
+
+        if (operario.InicioDescanso is not { } inicioDescanso || operario.FinDescanso is not { } finDescanso)
+            return Math.Max(0, (int)jornada.TotalMinutes);
+
+        var descanso = finDescanso - inicioDescanso;
+        if (descanso < TimeSpan.Zero) descanso += TimeSpan.FromDays(1);
+        return Math.Max(0, (int)(jornada - descanso).TotalMinutes);
+    }
+
+    private static string CalcularHorasJornada(Operario operario) =>
+        (CalcularMinutosJornada(operario) / 60m).ToString("0.00");
+
+    private async Task NuevaAusencia(int idOperario)
+    {
+        conductorAusenciaActual = idOperario;
+        await ausenciasGrid!.StartEditNewRowAsync();
+    }
+
+    private async Task OnAusenciaSaving(GridEditModelSavingEventArgs e)
+    {
+        var ausencia = (Ausencia)e.EditModel;
+        if (e.IsNew) ausencia.IdConductor = conductorAusenciaActual;
+        var response = e.IsNew
+            ? await Http.PostAsJsonAsync("api/ausencias", ausencia)
+            : await Http.PutAsJsonAsync($"api/ausencias/{ausencia.IdAusencia}", ausencia);
+        if (!response.IsSuccessStatusCode)
+        {
+            var mensaje = await response.Content.ReadFromJsonAsync<MensajeApi>();
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                mensajeConflictoAusencia = mensaje?.Message ?? "El operario tiene servicios asignados durante el periodo de ausencia.";
+                conflictoAusenciaVisible = true;
+                e.Cancel = true;
+                return;
+            }
+            errorMessage = $"Error al guardar la ausencia: {mensaje?.Message ?? response.ReasonPhrase}";
+            return;
+        }
+        ausencias = await Http.GetFromJsonAsync<List<Ausencia>>("api/ausencias") ?? [];
+        await ActualizarEstadoOperarioAsync(ausencia.IdConductor);
+    }
+
+    private async Task OnAusenciaDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var ausencia = (Ausencia)e.DataItem;
+        var response = await Http.DeleteAsync($"api/ausencias/{ausencia.IdAusencia}");
+        if (!response.IsSuccessStatusCode)
+        {
+            errorMessage = $"Error al eliminar la ausencia: {response.ReasonPhrase}";
+            return;
+        }
+        ausencias = await Http.GetFromJsonAsync<List<Ausencia>>("api/ausencias") ?? [];
+        await ActualizarEstadoOperarioAsync(ausencia.IdConductor);
     }
 }

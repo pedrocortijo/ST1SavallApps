@@ -44,6 +44,8 @@
     private bool permitirNavegacion;
     private string? destinoNavegacionPendiente;
 
+    public void AllowNextNavigation() => permitirNavegacion = true;
+
     private Task ConfirmarNavegacionAsync(LocationChangingContext context)
     {
         if (permitirNavegacion)

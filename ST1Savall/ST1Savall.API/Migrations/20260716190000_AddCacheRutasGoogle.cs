@@ -12,6 +12,9 @@ public partial class AddCacheRutasGoogle : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        // La tabla y sus índices ya se desplegaron fuera del historial de EF.
+        return;
+#pragma warning disable CS0162
         migrationBuilder.CreateTable(
             name: "RutasCache",
             columns: table => new
@@ -44,6 +47,7 @@ public partial class AddCacheRutasGoogle : Migration
             name: "IX_RutasCache_FechaExpiracionUtc",
             table: "RutasCache",
             column: "FechaExpiracionUtc");
+#pragma warning restore CS0162
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

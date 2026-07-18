@@ -56,14 +56,6 @@ public class PlanificacionService
         if (EstaInactivo(operario, inicio, fin))
             return $"El conductor está inactivo{GetMotivo(operario)} durante el intervalo seleccionado.";
 
-        if (!TrabajaEseDia(operario, inicio.Date))
-            return "El conductor no trabaja el día seleccionado.";
-
-        var jornadaInicio = inicio.Date.Add(operario.HoraInicioJornada ?? new TimeSpan(8, 0, 0));
-        var jornadaFin = inicio.Date.Add(operario.HoraFinJornada ?? new TimeSpan(17, 0, 0));
-        if (inicio < jornadaInicio || fin > jornadaFin)
-            return $"El servicio debe estar dentro del horario {jornadaInicio:HH:mm}–{jornadaFin:HH:mm}.";
-
         var solape = await _context.Solicitudes.AsNoTracking().AnyAsync(s =>
             s.IdSolicitud != excluirSolicitudId &&
             s.IdConductor == idConductor &&
@@ -74,18 +66,6 @@ public class PlanificacionService
             s.FechaHoraFinPlanificada > inicio);
         if (solape)
             return "El conductor ya tiene otro servicio dentro de ese intervalo.";
-
-        var minutosServicio = (int)Math.Ceiling((fin - inicio).TotalMinutes);
-        var inicioDia = inicio.Date;
-        var finDia = inicioDia.AddDays(1);
-        var minutosDia = await SumarMinutosAsync(idConductor, inicioDia, finDia, excluirSolicitudId);
-        if (operario.MinutosMaximosDiarios > 0 && minutosDia + minutosServicio > operario.MinutosMaximosDiarios)
-            return $"Se superaría el máximo diario de {operario.MinutosMaximosDiarios / 60d:0.##} horas.";
-
-        var inicioSemana = inicio.Date.AddDays(-(((int)inicio.DayOfWeek + 6) % 7));
-        var minutosSemana = await SumarMinutosAsync(idConductor, inicioSemana, inicioSemana.AddDays(7), excluirSolicitudId);
-        if (operario.MinutosMaximosSemanales > 0 && minutosSemana + minutosServicio > operario.MinutosMaximosSemanales)
-            return $"Se superaría el máximo semanal de {operario.MinutosMaximosSemanales / 60d:0.##} horas.";
 
         return null;
     }
@@ -102,57 +82,38 @@ public class PlanificacionService
             !string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
             return new PlanificacionHueco { Mensaje = "El conductor está desactivado." };
 
-        for (var offset = 0; offset < 90; offset++)
+        var candidato = RedondearAlCuartoDeHora(desde);
+        var limite = desde.AddDays(90);
+        while (candidato < limite)
         {
-            var fecha = desde.Date.AddDays(offset);
-            if (!TrabajaEseDia(operario, fecha))
-                continue;
-
-            var jornadaInicio = fecha.Add(operario.HoraInicioJornada ?? new TimeSpan(8, 0, 0));
-            var jornadaFin = fecha.Add(operario.HoraFinJornada ?? new TimeSpan(17, 0, 0));
-            var candidato = offset == 0 && desde > jornadaInicio ? RedondearAlCuartoDeHora(desde) : jornadaInicio;
-
-            var ocupados = await _context.Solicitudes.AsNoTracking()
-                .Where(s => s.IdSolicitud != excluirSolicitudId && s.IdConductor == idConductor && s.Estado != EstadoAnulado &&
-                            s.FechaHoraInicioPlanificada >= fecha && s.FechaHoraInicioPlanificada < fecha.AddDays(1) &&
-                            s.FechaHoraFinPlanificada.HasValue)
-                .OrderBy(s => s.FechaHoraInicioPlanificada)
-                .Select(s => new { Inicio = s.FechaHoraInicioPlanificada!.Value, Fin = s.FechaHoraFinPlanificada!.Value })
-                .ToListAsync();
-
-            foreach (var ocupado in ocupados)
+            if (string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) &&
+                operario.InactivoHasta.HasValue && candidato <= operario.InactivoHasta.Value)
             {
-                if (candidato.AddMinutes(duracionMinutos) <= ocupado.Inicio)
-                    break;
-                if (candidato < ocupado.Fin)
-                    candidato = RedondearAlCuartoDeHora(ocupado.Fin);
+                candidato = RedondearAlCuartoDeHora(operario.InactivoHasta.Value.AddTicks(1));
+                continue;
             }
 
             var fin = candidato.AddMinutes(duracionMinutos);
-            if (fin > jornadaFin || EstaInactivo(operario, candidato, fin))
+            var ocupado = await _context.Solicitudes.AsNoTracking()
+                .Where(s => s.IdSolicitud != excluirSolicitudId && s.IdConductor == idConductor && s.Estado != EstadoAnulado &&
+                            s.FechaHoraInicioPlanificada < fin && s.FechaHoraFinPlanificada > candidato)
+                .OrderBy(s => s.FechaHoraInicioPlanificada)
+                .Select(s => new { Inicio = s.FechaHoraInicioPlanificada!.Value, Fin = s.FechaHoraFinPlanificada!.Value })
+                .FirstOrDefaultAsync();
+            if (ocupado != null)
+            {
+                candidato = RedondearAlCuartoDeHora(ocupado.Fin);
                 continue;
+            }
 
             var error = await ValidarDisponibilidadAsync(idConductor, candidato, fin, excluirSolicitudId);
             if (error == null)
                 return new PlanificacionHueco { Disponible = true, Inicio = candidato, Fin = fin };
+
+            candidato = candidato.AddMinutes(15);
         }
 
         return new PlanificacionHueco { Mensaje = "No se encontró un hueco disponible en los próximos 90 días." };
-    }
-
-    private async Task<int> SumarMinutosAsync(int idConductor, DateTime desde, DateTime hasta, int excluirSolicitudId)
-    {
-        var servicios = await _context.Solicitudes.AsNoTracking()
-            .Where(s => s.IdSolicitud != excluirSolicitudId && s.IdConductor == idConductor && s.Estado != EstadoAnulado &&
-                        s.FechaHoraInicioPlanificada >= desde && s.FechaHoraInicioPlanificada < hasta)
-            .Select(s => new { s.DuracionPlanificadaMinutos, s.FechaHoraInicioPlanificada, s.FechaHoraFinPlanificada })
-            .ToListAsync();
-
-        return servicios.Sum(s => s.DuracionPlanificadaMinutos.GetValueOrDefault() > 0
-            ? s.DuracionPlanificadaMinutos!.Value
-            : s.FechaHoraInicioPlanificada.HasValue && s.FechaHoraFinPlanificada.HasValue
-                ? (int)Math.Ceiling((s.FechaHoraFinPlanificada.Value - s.FechaHoraInicioPlanificada.Value).TotalMinutes)
-                : 0);
     }
 
     private static bool EstaInactivo(Operario operario, DateTime inicio, DateTime fin)
@@ -164,13 +125,6 @@ public class PlanificacionService
         var hasta = operario.InactivoHasta ?? DateTime.MaxValue;
         return inicio < hasta && fin > desde;
     }
-
-    private static bool TrabajaEseDia(Operario operario, DateTime fecha) => fecha.DayOfWeek switch
-    {
-        DayOfWeek.Saturday => operario.TrabajaSabados,
-        DayOfWeek.Sunday => operario.TrabajaDomingos,
-        _ => true
-    };
 
     private static string GetMotivo(Operario operario) => string.IsNullOrWhiteSpace(operario.MotivoInactividad)
         ? string.Empty

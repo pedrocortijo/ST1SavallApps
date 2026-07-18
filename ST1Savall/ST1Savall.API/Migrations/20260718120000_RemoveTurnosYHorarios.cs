@@ -1,4 +1,3 @@
-using System;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using ST1Savall.API.Data;
@@ -8,16 +7,44 @@ using ST1Savall.API.Data;
 namespace ST1Savall.API.Migrations;
 
 [DbContext(typeof(ApplicationDbContext))]
-[Migration("20260717130000_AddTurnosYHorariosOperarios")]
-public partial class AddTurnosYHorariosOperarios : Migration
+[Migration("20260718120000_RemoveTurnosYHorarios")]
+public partial class RemoveTurnosYHorarios : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        // Las tablas y claves ya existen; solo faltaban estos índices.
-        migrationBuilder.Sql("IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_HorariosOperarios_IdOperario' AND object_id = OBJECT_ID('HorariosOperarios')) CREATE INDEX [IX_HorariosOperarios_IdOperario] ON [HorariosOperarios] ([IdOperario]);");
-        migrationBuilder.Sql("IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_HorariosOperarios_IdTurno' AND object_id = OBJECT_ID('HorariosOperarios')) CREATE INDEX [IX_HorariosOperarios_IdTurno] ON [HorariosOperarios] ([IdTurno]);");
-        return;
-#pragma warning disable CS0162
+        migrationBuilder.Sql("IF OBJECT_ID(N'HorariosOperarios', N'U') IS NOT NULL DROP TABLE [HorariosOperarios];");
+        migrationBuilder.Sql("IF OBJECT_ID(N'Turnos', N'U') IS NOT NULL DROP TABLE [Turnos];");
+
+        foreach (var column in new[]
+        {
+            "HoraInicioJornada", "HoraFinJornada", "MinutosMaximosDiarios",
+            "MinutosMaximosSemanales", "TrabajaSabados", "TrabajaDomingos"
+        })
+        {
+            migrationBuilder.Sql($"""
+                IF COL_LENGTH(N'Operarios', N'{column}') IS NOT NULL
+                BEGIN
+                    DECLARE @constraintName sysname;
+                    SELECT @constraintName = dc.name
+                    FROM sys.default_constraints dc
+                    INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+                    WHERE dc.parent_object_id = OBJECT_ID(N'Operarios') AND c.name = N'{column}';
+                    IF @constraintName IS NOT NULL EXEC(N'ALTER TABLE [Operarios] DROP CONSTRAINT [' + @constraintName + N']');
+                    ALTER TABLE [Operarios] DROP COLUMN [{column}];
+                END
+                """);
+        }
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.AddColumn<TimeSpan>(name: "HoraInicioJornada", table: "Operarios", type: "time", nullable: true);
+        migrationBuilder.AddColumn<TimeSpan>(name: "HoraFinJornada", table: "Operarios", type: "time", nullable: true);
+        migrationBuilder.AddColumn<int>(name: "MinutosMaximosDiarios", table: "Operarios", type: "int", nullable: false, defaultValue: 480);
+        migrationBuilder.AddColumn<int>(name: "MinutosMaximosSemanales", table: "Operarios", type: "int", nullable: false, defaultValue: 2400);
+        migrationBuilder.AddColumn<bool>(name: "TrabajaSabados", table: "Operarios", type: "bit", nullable: false, defaultValue: false);
+        migrationBuilder.AddColumn<bool>(name: "TrabajaDomingos", table: "Operarios", type: "bit", nullable: false, defaultValue: false);
+
         migrationBuilder.CreateTable(
             name: "Turnos",
             columns: table => new
@@ -26,6 +53,8 @@ public partial class AddTurnosYHorariosOperarios : Migration
                 NombreTurno = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: false),
                 HoraEntrada = table.Column<TimeSpan>(type: "time", nullable: false),
                 HoraSalida = table.Column<TimeSpan>(type: "time", nullable: false),
+                HoraInicioBreak = table.Column<TimeSpan>(type: "time", nullable: true),
+                HoraFinBreak = table.Column<TimeSpan>(type: "time", nullable: true),
                 TiempoAlmuerzoMinutos = table.Column<int>(type: "int", nullable: false),
                 ToleranciaEntradaMinutos = table.Column<int>(type: "int", nullable: false)
             },
@@ -51,12 +80,5 @@ public partial class AddTurnosYHorariosOperarios : Migration
 
         migrationBuilder.CreateIndex(name: "IX_HorariosOperarios_IdOperario", table: "HorariosOperarios", column: "IdOperario");
         migrationBuilder.CreateIndex(name: "IX_HorariosOperarios_IdTurno", table: "HorariosOperarios", column: "IdTurno");
-#pragma warning restore CS0162
-    }
-
-    protected override void Down(MigrationBuilder migrationBuilder)
-    {
-        migrationBuilder.DropTable(name: "HorariosOperarios");
-        migrationBuilder.DropTable(name: "Turnos");
     }
 }

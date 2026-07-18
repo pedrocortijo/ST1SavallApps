@@ -320,6 +320,17 @@ html.theme-fluent-dark ::deep .menu-button {
     max-width: 90vw !important;
 }
 
+.operarios-popup {
+    width: 680px !important;
+}
+
+.operario-inactivo,
+.operario-inactivo input,
+.operario-inactivo .dxbl-text-edit-input,
+.operario-inactivo .dxbl-fl-caption {
+    color: #dc3545 !important;
+}
+
 /* Popup de ubicación de contenedor en Leaflet */
 .map-marker-popup-container .leaflet-popup-content-wrapper {
     border-radius: 14px;

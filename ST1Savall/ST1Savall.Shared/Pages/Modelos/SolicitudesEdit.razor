@@ -8,7 +8,7 @@
 
 <PageTitle>@(Id.HasValue ? "Editar - Solicitud de Servicio" : "Nueva - Solicitud de Servicio")</PageTitle>
 
-<UnsavedChangesGuard HasUnsavedChanges="@HayCambiosPendientes" />
+<UnsavedChangesGuard @ref="unsavedChangesGuard" HasUnsavedChanges="@HayCambiosPendientes" />
 
 <DxPopup @bind-Visible="confirmacionCambioTareaVisible"
          HeaderText="Contenedores afectados"
@@ -667,6 +667,7 @@
             if (response.IsSuccessStatusCode)
             {
                 solicitudInicial = SerializarSolicitud();
+                unsavedChangesGuard?.AllowNextNavigation();
                 GoBack();
             }
             else
@@ -685,6 +686,8 @@
     {
         NavigationManager.NavigateTo("/modelos/solicitudes");
     }
+
+    private UnsavedChangesGuard? unsavedChangesGuard;
 
     private bool HayCambiosPendientes =>
         solicitud != null

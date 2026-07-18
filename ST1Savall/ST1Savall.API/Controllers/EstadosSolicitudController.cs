@@ -11,6 +11,7 @@ namespace ST1Savall.API.Controllers;
 [Route("api/[controller]")]
 public class EstadosSolicitudController : ControllerBase
 {
+    private static readonly HashSet<int> EstadosExclusivosApp = [5, 8];
     private readonly ApplicationDbContext _context;
 
     public EstadosSolicitudController(ApplicationDbContext context)
@@ -36,6 +37,8 @@ public class EstadosSolicitudController : ControllerBase
     public async Task<IActionResult> PutEstado(int id, EstadoSolicitud estado)
     {
         if (id != estado.IdEstado) return BadRequest();
+        if (EstadosExclusivosApp.Contains(id))
+            return BadRequest(new { message = "El estado Servicio iniciado o Finalizado servicio es exclusivo de la aplicación y no se puede modificar." });
         _context.Entry(estado).State = EntityState.Modified;
         try
         {
@@ -60,6 +63,8 @@ public class EstadosSolicitudController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteEstado(int id)
     {
+        if (EstadosExclusivosApp.Contains(id))
+            return BadRequest(new { message = "El estado Servicio iniciado o Finalizado servicio es exclusivo de la aplicación y no se puede eliminar." });
         var estado = await _context.EstadosSolicitud.FindAsync(id);
         if (estado == null) return NotFound();
         _context.EstadosSolicitud.Remove(estado);

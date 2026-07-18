@@ -66,20 +66,31 @@
                                 @{
                                     var cargo = (EstadoSolicitud)context.DataItem;
                                     <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
-                                                style="width: 32px; height: 32px;"
-                                                @onclick="() => grid?.StartEditDataItemAsync(cargo)"
-                                                @onclick:stopPropagation
-                                                title="Editar">
-                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm"
-                                                style="width: 32px; height: 32px;"
-                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(cargo)"
-                                                @onclick:stopPropagation
-                                                title="Eliminar">
-                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
-                                        </button>
+                                        @if (EsEstadoExclusivoApp(cargo))
+                                        {
+                                            <span class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center"
+                                                  style="width: 32px; height: 32px;"
+                                                  title="Estado exclusivo de la aplicación">
+                                                <i class="oi oi-lock-locked" style="font-size: 0.9rem;"></i>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
+                                                    style="width: 32px; height: 32px;"
+                                                    @onclick="() => grid?.StartEditDataItemAsync(cargo)"
+                                                    @onclick:stopPropagation
+                                                    title="Editar">
+                                                <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm"
+                                                    style="width: 32px; height: 32px;"
+                                                    @onclick="() => grid?.ShowDataItemDeleteConfirmation(cargo)"
+                                                    @onclick:stopPropagation
+                                                    title="Eliminar">
+                                                <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                        }
                                     </div>
                                 }
                             </CellDisplayTemplate>
@@ -153,6 +164,8 @@
     private List<EstadoSolicitud>? estados;
     private string? errorMessage;
 
+    private static bool EsEstadoExclusivoApp(EstadoSolicitud estado) => estado.IdEstado is 5 or 8;
+
     protected override async Task OnInitializedAsync()
     {
         await SetupHeadersAsync();
@@ -185,6 +198,12 @@
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
     {
         var editModel = (EstadoSolicitud)e.EditModel;
+        if (!e.IsNew && EsEstadoExclusivoApp(editModel))
+        {
+            errorMessage = "El estado Servicio iniciado o Finalizado servicio es exclusivo de la aplicación y no se puede modificar.";
+            e.Cancel = true;
+            return;
+        }
         try
         {
             await SetupHeadersAsync();
@@ -217,6 +236,12 @@
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
     {
         var dataItem = (EstadoSolicitud)e.DataItem;
+        if (EsEstadoExclusivoApp(dataItem))
+        {
+            errorMessage = "El estado Servicio iniciado o Finalizado servicio es exclusivo de la aplicación y no se puede eliminar.";
+            e.Cancel = true;
+            return;
+        }
         try
         {
             await SetupHeadersAsync();

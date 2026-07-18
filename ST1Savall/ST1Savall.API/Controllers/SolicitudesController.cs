@@ -91,6 +91,7 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
+        solicitud.NotificacionInicioVisualizada = false;
         var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
         if (errorRuta != null) return errorRuta;
 
@@ -114,6 +115,9 @@ public class SolicitudesController : ControllerBase
             .FirstOrDefaultAsync(s => s.IdSolicitud == id);
         if (solicitudAnterior == null) return NotFound();
 
+        if (solicitudAnterior.FechaHoraInicioPlanificada != solicitud.FechaHoraInicioPlanificada)
+            solicitud.NotificacionInicioVisualizada = false;
+
         var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
         if (errorRuta != null) return errorRuta;
 
@@ -133,6 +137,21 @@ public class SolicitudesController : ControllerBase
             if (!SolicitudExists(id)) return NotFound();
             throw;
         }
+        return NoContent();
+    }
+
+    [HttpPost("marcar-notificaciones-inicio-visualizadas")]
+    public async Task<IActionResult> MarcarNotificacionesInicioVisualizadas([FromBody] List<int> idsSolicitudes)
+    {
+        if (idsSolicitudes.Count == 0) return NoContent();
+
+        var solicitudes = await _context.Solicitudes
+            .Where(s => idsSolicitudes.Contains(s.IdSolicitud))
+            .ToListAsync();
+        foreach (var solicitud in solicitudes)
+            solicitud.NotificacionInicioVisualizada = true;
+
+        await _context.SaveChangesAsync();
         return NoContent();
     }
 

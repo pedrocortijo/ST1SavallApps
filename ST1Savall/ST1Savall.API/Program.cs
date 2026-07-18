@@ -14,6 +14,7 @@ var connectionString = builder.Configuration.GetConnectionString("SavallAppsConn
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<PlanificacionService>();
+builder.Services.AddScoped<EstadoOperariosAusenciasService>();
 builder.Services.Configure<MapboxDirectionsOptions>(
     builder.Configuration.GetSection(MapboxDirectionsOptions.SectionName));
 builder.Services.AddHttpClient<MapboxDirectionsService>((services, client) =>

@@ -10,7 +10,7 @@
 
 <PageTitle>@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</PageTitle>
 
-<UnsavedChangesGuard HasUnsavedChanges="@HayCambiosPendientes" />
+<UnsavedChangesGuard @ref="unsavedChangesGuard" HasUnsavedChanges="@HayCambiosPendientes" />
 
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -263,6 +263,7 @@
     [SupplyParameterFromQuery] public bool Duplicate { get; set; }
 
     private ObraComunSage50? obra;
+    private UnsavedChangesGuard? unsavedChangesGuard;
     private List<ClienteSage50>? clientesList;
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
@@ -556,6 +557,7 @@
             }
 
             obraInicial = SerializarObra();
+            unsavedChangesGuard?.AllowNextNavigation();
             NavigationManager.NavigateTo("/modelos/obrasmnto");
         }
         catch (Exception ex)
