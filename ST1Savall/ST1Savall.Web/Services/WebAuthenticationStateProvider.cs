@@ -17,6 +17,11 @@ namespace ST1Savall.Web.Services
 
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
+            if (_currentUser.Identity?.IsAuthenticated == true && _currentUser.HasClaim(c => c.Type == "token"))
+            {
+                return new AuthenticationState(_currentUser);
+            }
+
             try
             {
                 var emailResult = await _localStorage.GetAsync<string>("auth_email");
@@ -32,7 +37,7 @@ namespace ST1Savall.Web.Services
                     var identity = new ClaimsIdentity(claims, "Bearer");
                     _currentUser = new ClaimsPrincipal(identity);
                 }
-                else
+                else if (_currentUser.Identity?.IsAuthenticated != true)
                 {
                     _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
                 }
@@ -40,7 +45,10 @@ namespace ST1Savall.Web.Services
             catch
             {
                 // ProtectedLocalStorage may throw during prerendering or if JS Interop is not yet ready.
-                _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
+                if (_currentUser.Identity?.IsAuthenticated != true)
+                {
+                    _currentUser = new ClaimsPrincipal(new ClaimsIdentity());
+                }
             }
 
             return new AuthenticationState(_currentUser);

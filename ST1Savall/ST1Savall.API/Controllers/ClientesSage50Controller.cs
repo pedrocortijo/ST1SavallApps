@@ -12,10 +12,17 @@ namespace ST1Savall.API.Controllers;
 public class ClientesSage50Controller : ControllerBase
 {
     private readonly SageGestionDbContext _context;
+    private readonly SageComunDbContext _comunContext;
+    private readonly ApplicationDbContext _applicationContext;
 
-    public ClientesSage50Controller(SageGestionDbContext context)
+    public ClientesSage50Controller(
+        SageGestionDbContext context,
+        SageComunDbContext comunContext,
+        ApplicationDbContext applicationContext)
     {
         _context = context;
+        _comunContext = comunContext;
+        _applicationContext = applicationContext;
     }
 
     [HttpGet]
@@ -126,6 +133,7 @@ public class ClientesSage50Controller : ControllerBase
         try
         {
             await _context.SaveChangesAsync();
+            await ActualizarBloqueoObrasYSolicitudesAsync(cliente.Codigo, cliente.BloqCli);
         }
         catch (DbUpdateException)
         {
@@ -149,10 +157,20 @@ public class ClientesSage50Controller : ControllerBase
         {
             cliente.Provinerp = cliente.Codigo.Length >= 2 ? cliente.Codigo.Substring(0, 2) : cliente.Codigo;
         }
+        var clienteExiste = await _context.Clientes
+            .AsNoTracking()
+            .AnyAsync(c => c.Codigo.Trim() == targetCodigo && c.Clienteerp.Trim() == targetErp);
+
+        if (!clienteExiste) return NotFound();
+
         _context.Entry(cliente).State = EntityState.Modified;
         try
         {
             await _context.SaveChangesAsync();
+
+            // Sincronizar siempre para corregir también obras que pudieran haber
+            // quedado desincronizadas por datos antiguos o códigos con espacios.
+            await ActualizarBloqueoObrasYSolicitudesAsync(cliente.Codigo, cliente.BloqCli);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -160,6 +178,58 @@ public class ClientesSage50Controller : ControllerBase
             throw;
         }
         return NoContent();
+    }
+
+    private async Task ActualizarBloqueoObrasYSolicitudesAsync(string codigoCliente, bool bloqueado)
+    {
+        var codigo = codigoCliente.Trim();
+        var obrasEnProceso = await _comunContext.Obras
+            .Where(o => o.Cliente.Trim() == codigo && o.Terminada != true)
+            .ToListAsync();
+
+        // Ejecutar la actualización directamente sobre la tabla Sage para
+        // garantizar que el campo POSICION se modifica (1 = Bloqueada, 0 = Desbloqueada)
+        // aunque el contexto tenga entidades previamente cacheadas.
+        await _comunContext.Database.ExecuteSqlInterpolatedAsync($@"
+            UPDATE obra
+            SET POSICION = {(bloqueado ? 1 : 0)}
+            WHERE LTRIM(RTRIM(CLIENTE)) = {codigo}
+              AND (TERMINADA = 0 OR TERMINADA IS NULL)");
+
+        var idsObras = obrasEnProceso
+            .Select(o => ParseCodigoToInt(o.Codigo))
+            .Distinct()
+            .ToList();
+
+        if (idsObras.Count == 0) return;
+
+        var solicitudes = await _applicationContext.Solicitudes
+            .Where(s => idsObras.Contains(s.IdCliente) && s.Estado != 5 && s.Estado != 6)
+            .ToListAsync();
+
+        foreach (var solicitud in solicitudes)
+        {
+            solicitud.Bloqueado = bloqueado;
+        }
+
+        await _applicationContext.SaveChangesAsync();
+    }
+
+    private static int ParseCodigoToInt(string codigo)
+    {
+        var cleaned = codigo?.Trim() ?? string.Empty;
+        if (int.TryParse(cleaned, out var value)) return value;
+
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (var character in cleaned)
+            {
+                hash ^= character;
+                hash *= 16777619;
+            }
+            return Math.Abs((int)hash);
+        }
     }
 
     [HttpDelete("{codigo}/{clienteerp?}")]

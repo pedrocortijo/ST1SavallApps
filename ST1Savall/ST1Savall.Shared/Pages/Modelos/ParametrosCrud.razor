@@ -86,41 +86,102 @@
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{ var parametro = (Parametro)EditFormContext.EditModel; }
-                        <DxFormLayout CssClass="w-100 p-3">
-                            <DxFormLayoutItem Caption="Empresa *" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.Empresa" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Email receptor *" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.ReceiverEmail" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Email remitente *" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.SenderEmail" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Servidor SMTP *" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.SmtpServer" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Puerto SMTP *" ColSpanMd="12">
-                                <DxSpinEdit @bind-Value="parametro.SmtpPort" MinValue="1" MaxValue="65535" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Usuario SMTP" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.SmtpUser" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Contraseña SMTP" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.SmtpPassword" Password="true" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.SslSmtpType" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Tolerancia para inicio servicio (minu.)" ColSpanMd="12" BeginRow="true">
-                                <DxSpinEdit @bind-Value="parametro.AvisoTiempoServicio" MinValue="0" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Aviso días antelación contenedor OVP" ColSpanMd="12">
-                                <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">
-                                <DxTextBox @bind-Text="parametro.PathImagenes" />
-                            </DxFormLayoutItem>
-                        </DxFormLayout>
+                        <DxTabs CssClass="w-100">
+                            <DxTabPage Text="Datos generales">
+                                <DxFormLayout CssClass="w-100 p-3">
+                                    <DxFormLayoutItem Caption="Empresa *" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.Empresa" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Email receptor *" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.ReceiverEmail" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Email remitente *" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.SenderEmail" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Servidor SMTP *" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.SmtpServer" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Puerto SMTP *" ColSpanMd="12">
+                                        <DxSpinEdit @bind-Value="parametro.SmtpPort" MinValue="1" MaxValue="65535" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Usuario SMTP" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.SmtpUser" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Contraseña SMTP" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.SmtpPassword" Password="true" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.SslSmtpType" />
+                                    </DxFormLayoutItem>
+                                </DxFormLayout>
+                            </DxTabPage>
+                            <DxTabPage Text="Estados/otros">
+                                <DxFormLayout CssClass="w-100 p-3">
+                                    <DxFormLayoutItem Caption="Tolerancia para inicio servicio (minu.)" ColSpanMd="12">
+                                        <DxSpinEdit @bind-Value="parametro.AvisoTiempoServicio" MinValue="0" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Aviso días antelación contenedor OVP" ColSpanMd="12">
+                                        <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.PathImagenes" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Estado al reprogramar" ColSpanMd="12">
+                                        <DxComboBox Data="@estadosList"
+                                                    TData="EstadoSolicitud"
+                                                    TValue="int?"
+                                                    TextFieldName="Descripcion"
+                                                    ValueFieldName="IdEstado"
+                                                    @bind-Value="parametro.EstadoReprogramacion"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccione estado al reprogramar..." />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Estado iniciado" ColSpanMd="12">
+                                        <DxComboBox Data="@estadosList"
+                                                    TData="EstadoSolicitud"
+                                                    TValue="int?"
+                                                    TextFieldName="Descripcion"
+                                                    ValueFieldName="IdEstado"
+                                                    @bind-Value="parametro.EstadoIniciado"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccione estado iniciado..." />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Estado finalizado" ColSpanMd="12">
+                                        <DxComboBox Data="@estadosList"
+                                                    TData="EstadoSolicitud"
+                                                    TValue="int?"
+                                                    TextFieldName="Descripcion"
+                                                    ValueFieldName="IdEstado"
+                                                    @bind-Value="parametro.EstadoFinalizado"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccione estado finalizado..." />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Estado adjudicado" ColSpanMd="12">
+                                        <DxComboBox Data="@estadosList"
+                                                    TData="EstadoSolicitud"
+                                                    TValue="int?"
+                                                    TextFieldName="Descripcion"
+                                                    ValueFieldName="IdEstado"
+                                                    @bind-Value="parametro.EstadoAdjudicado"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccione estado adjudicado..." />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Estado pendiente" ColSpanMd="12">
+                                        <DxComboBox Data="@estadosList"
+                                                    TData="EstadoSolicitud"
+                                                    TValue="int?"
+                                                    TextFieldName="Descripcion"
+                                                    ValueFieldName="IdEstado"
+                                                    @bind-Value="parametro.EstadoPendiente"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccione estado pendiente..." />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Contraseña administración estados" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.AdminPassword" Password="true" NullText="Introduce la contraseña de administración..." />
+                                    </DxFormLayoutItem>
+                                </DxFormLayout>
+                            </DxTabPage>
+                        </DxTabs>
                     </EditFormTemplate>
                 </DxGrid>
             }
@@ -131,6 +192,7 @@
 @code {
     private IGrid? grid;
     private List<Parametro>? parametros;
+    private List<EstadoSolicitud>? estadosList;
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -155,6 +217,7 @@
         try
         {
             parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros") ?? [];
+            estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
             errorMessage = null;
         }
         catch (Exception ex)

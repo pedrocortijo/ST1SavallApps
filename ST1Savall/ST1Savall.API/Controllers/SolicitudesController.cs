@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ST1Savall.API.Data;
@@ -91,6 +92,10 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
+        if (!solicitud.Prioridad.HasValue || solicitud.Prioridad == 0)
+        {
+            solicitud.Prioridad = 3; // Baja por defecto
+        }
         solicitud.NotificacionInicioVisualizada = false;
         var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
         if (errorRuta != null) return errorRuta;
@@ -99,12 +104,21 @@ public class SolicitudesController : ControllerBase
         if (errorPlanificacion != null)
             return Conflict(new { message = errorPlanificacion });
 
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var validEstadoIds = (await _context.EstadosSolicitud.Select(e => e.IdEstado).ToListAsync()).ToHashSet();
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds);
+        if (validEstadoIds.Count > 0 && !validEstadoIds.Contains(solicitud.Estado))
+        {
+            solicitud.Estado = validEstadoIds.First();
+        }
+
         _context.Solicitudes.Add(solicitud);
         await ActualizarEstadosContenedores(solicitud);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetSolicitud), new { id = solicitud.IdSolicitud }, solicitud);
     }
 
+    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
@@ -115,6 +129,23 @@ public class SolicitudesController : ControllerBase
             .FirstOrDefaultAsync(s => s.IdSolicitud == id);
         if (solicitudAnterior == null) return NotFound();
 
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var idFinalizado = parametro?.EstadoFinalizado ?? 5;
+        if (solicitudAnterior.Estado == idFinalizado)
+        {
+            if (!Request.Headers.TryGetValue("X-Finalized-Service-Password", out var password)
+                || string.IsNullOrWhiteSpace(password))
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = "La solicitud está finalizada. Debe confirmar su contraseña para modificarla." });
+
+            var adminPassword = parametro?.AdminPassword;
+            var isAdminPassValid = !string.IsNullOrEmpty(adminPassword) && password == adminPassword;
+
+            if (!isAdminPassValid)
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = "La contraseña indicada no es correcta." });
+        }
+
         if (solicitudAnterior.FechaHoraInicioPlanificada != solicitud.FechaHoraInicioPlanificada)
             solicitud.NotificacionInicioVisualizada = false;
 
@@ -124,6 +155,24 @@ public class SolicitudesController : ControllerBase
         var errorPlanificacion = await _planificacionService.PrepararYValidarAsync(solicitud);
         if (errorPlanificacion != null)
             return Conflict(new { message = errorPlanificacion });
+
+        var validEstadoIds = (await _context.EstadosSolicitud.Select(e => e.IdEstado).ToListAsync()).ToHashSet();
+        var idAdjudicado = parametro?.EstadoAdjudicado ?? 9;
+        int idNoSeguir = 4;
+
+        if (solicitudAnterior.Estado == idAdjudicado && solicitud.Estado != idAdjudicado && solicitud.Estado != idNoSeguir)
+        {
+            solicitud.FechaPrevista = null;
+            solicitud.FechaTarea = null;
+            solicitud.FechaHoraInicioPlanificada = null;
+            solicitud.FechaHoraFinPlanificada = null;
+        }
+
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds);
+        if (validEstadoIds.Count > 0 && !validEstadoIds.Contains(solicitud.Estado))
+        {
+            solicitud.Estado = validEstadoIds.First();
+        }
 
         _context.Entry(solicitud).State = EntityState.Modified;
         await RestaurarEstadosContenedoresEliminados(solicitudAnterior, solicitud);

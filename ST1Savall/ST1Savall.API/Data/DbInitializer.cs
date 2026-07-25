@@ -63,7 +63,67 @@ public static class DbInitializer
 
                 IF COL_LENGTH('Parametros', 'PathImagenes') IS NULL
                     ALTER TABLE Parametros ADD PathImagenes VARCHAR(255) NULL;
+
+                IF COL_LENGTH('Parametros', 'EstadoReprogramacion') IS NULL
+                    ALTER TABLE Parametros ADD EstadoReprogramacion INT NULL;
+
+                IF COL_LENGTH('Parametros', 'EstadoIniciado') IS NULL
+                    ALTER TABLE Parametros ADD EstadoIniciado INT NULL;
+
+                IF COL_LENGTH('Parametros', 'EstadoFinalizado') IS NULL
+                    ALTER TABLE Parametros ADD EstadoFinalizado INT NULL;
+
+                IF COL_LENGTH('Parametros', 'EstadoAdjudicado') IS NULL
+                    ALTER TABLE Parametros ADD EstadoAdjudicado INT NULL;
+
+                IF COL_LENGTH('Parametros', 'EstadoPendiente') IS NULL
+                    ALTER TABLE Parametros ADD EstadoPendiente INT NULL;
+
+                IF COL_LENGTH('Parametros', 'AdminPassword') IS NULL
+                    ALTER TABLE Parametros ADD AdminPassword NVARCHAR(100) NULL;
             END
+
+            IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = 'Solicitudes' AND COLUMN_NAME = 'IdOperario' AND (CHARACTER_MAXIMUM_LENGTH < 100 OR CHARACTER_MAXIMUM_LENGTH IS NULL)
+                )
+                BEGIN
+                    ALTER TABLE Solicitudes ALTER COLUMN IdOperario NVARCHAR(100) NULL;
+                END
+
+                IF COL_LENGTH('Solicitudes', 'ComentariosOficina') IS NULL
+                    ALTER TABLE Solicitudes ADD ComentariosOficina NVARCHAR(MAX) NULL;
+            END
+
+            IF OBJECT_ID(N'Motivos', N'U') IS NULL
+            BEGIN
+                CREATE TABLE Motivos (
+                    IdMotivo INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Motivos PRIMARY KEY,
+                    Motivo VARCHAR(255) NOT NULL
+                );
+            END
+
+            SET IDENTITY_INSERT Motivos ON;
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 23) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (23, N'Agenda llena');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 25) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (25, N'Camión roto');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 16) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (16, N'Cliente anula servicio');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 13) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (13, N'Cliente no contesta al teléfono');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 11) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (11, N'Cliente nos pide otro día');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 24) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (24, N'Conductor indica para otro día');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 19) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (19, N'Conductor indica que ya se hizo');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 22) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (22, N'Conductor no disponible');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 4)  INSERT INTO Motivos (IdMotivo, Motivo) VALUES (4, N'Conductor no le da tiempo');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 14) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (14, N'Conductor se le pasa');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 18) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (18, N'Exceso de vertido');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 26) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (26, N'Nadie en obra');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 20) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (20, N'No estan llenos');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 17) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (17, N'No hay contendor disponible');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 21) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (21, N'No se puede acceder a él');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 15) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (15, N'Oficina no pasamos bien orden');
+            IF NOT EXISTS (SELECT 1 FROM Motivos WHERE IdMotivo = 27) INSERT INTO Motivos (IdMotivo, Motivo) VALUES (27, N'OVP No vigente');
+            SET IDENTITY_INSERT Motivos OFF;
         ");
 
         // Ensure service planning columns exist in databases created before planning was introduced.
@@ -98,6 +158,7 @@ public static class DbInitializer
                 IF COL_LENGTH('Solicitudes', 'FechaHoraInicioPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraInicioPlanificada DATETIME2 NULL;
                 IF COL_LENGTH('Solicitudes', 'FechaHoraFinPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraFinPlanificada DATETIME2 NULL;
                 IF COL_LENGTH('Solicitudes', 'NotificacionInicioVisualizada') IS NULL ALTER TABLE Solicitudes ADD NotificacionInicioVisualizada BIT NOT NULL CONSTRAINT DF_Solicitudes_NotificacionInicioVisualizada DEFAULT (0);
+                IF COL_LENGTH('Solicitudes', 'Bloqueado') IS NULL ALTER TABLE Solicitudes ADD Bloqueado BIT NOT NULL CONSTRAINT DF_Solicitudes_Bloqueado DEFAULT (0);
                 IF COL_LENGTH('Solicitudes', 'DuracionPlanificadaMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionPlanificadaMinutos INT NULL;
                 IF COL_LENGTH('Solicitudes', 'DuracionViajeMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionViajeMinutos INT NULL;
                 IF COL_LENGTH('Solicitudes', 'DuracionOperacionMinutos') IS NULL ALTER TABLE Solicitudes ADD DuracionOperacionMinutos INT NULL;
@@ -166,6 +227,12 @@ public static class DbInitializer
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL
             BEGIN
+                IF COL_LENGTH('Solicitudes', 'AlbaranPlanta') IS NULL
+                    ALTER TABLE Solicitudes ADD AlbaranPlanta VARCHAR(20) NULL;
+                IF COL_LENGTH('Solicitudes', 'AlbaranSerieSage') IS NULL
+                    ALTER TABLE Solicitudes ADD AlbaranSerieSage VARCHAR(2) NULL;
+                IF COL_LENGTH('Solicitudes', 'AlbaranNumeroSage') IS NULL
+                    ALTER TABLE Solicitudes ADD AlbaranNumeroSage VARCHAR(10) NULL;
                 IF COL_LENGTH('Solicitudes', 'CodigoAmbosEntrega') IS NULL
                     ALTER TABLE Solicitudes ADD CodigoAmbosEntrega NVARCHAR(20) NULL;
                 IF COL_LENGTH('Solicitudes', 'CodigoAmbosRecogida') IS NULL
@@ -626,14 +693,15 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
         // Seed or update EstadosSolicitud
         var estados = new List<EstadoSolicitud>
         {
-            new EstadoSolicitud { IdEstado = 1, Descripcion = "Introducido no enviado", BgColor = "#ffffff", TextColor = "#002060" },
+            new EstadoSolicitud { IdEstado = 1, Descripcion = "Introducido no enviado", BgColor = "#ffffff", TextColor = "#002060", Filtrar = true },
             new EstadoSolicitud { IdEstado = 2, Descripcion = "Whatsapp enviado", BgColor = "#38b449", TextColor = "#ffffff" },
-            new EstadoSolicitud { IdEstado = 3, Descripcion = "Leer observaciones", BgColor = "#dbe5f1", TextColor = "#002060" },
+            new EstadoSolicitud { IdEstado = 3, Descripcion = "Leer observaciones", BgColor = "#dbe5f1", TextColor = "#002060", Filtrar = true },
             new EstadoSolicitud { IdEstado = 4, Descripcion = "No seguir contenedor", BgColor = "#ffc000", TextColor = "#000000" },
             new EstadoSolicitud { IdEstado = 5, Descripcion = "Finalizado servicio", BgColor = "#8db4e2", TextColor = "#002060" },
-            new EstadoSolicitud { IdEstado = 6, Descripcion = "Anulado / reprogramado", BgColor = "#ff0000", TextColor = "#ffffff" },
+            new EstadoSolicitud { IdEstado = 6, Descripcion = "Anulado / reprogramado", BgColor = "#ff0000", TextColor = "#ffffff", Filtrar = true },
             new EstadoSolicitud { IdEstado = 7, Descripcion = "Falta disponibilidad contenedor", BgColor = "#ffffff", TextColor = "#ff0000" },
-            new EstadoSolicitud { IdEstado = 8, Descripcion = "Servicio iniciado", BgColor = "#198754", TextColor = "#ffffff" }
+            new EstadoSolicitud { IdEstado = 8, Descripcion = "Servicio iniciado", BgColor = "#198754", TextColor = "#ffffff", Filtrar = true },
+            new EstadoSolicitud { IdEstado = 9, Descripcion = "Adjudicado", BgColor = "#0d6efd", TextColor = "#ffffff", Filtrar = true }
         };
 
         foreach (var estado in estados)
@@ -660,6 +728,46 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
             }
         }
         await context.SaveChangesAsync();
+
+        var parametroDb = await context.Parametros.FirstOrDefaultAsync();
+        if (parametroDb != null)
+        {
+            var validEstados = await context.EstadosSolicitud.Select(e => e.IdEstado).ToListAsync();
+            bool modified = false;
+
+            if (validEstados.Count > 0)
+            {
+                int defaultId = validEstados.First();
+
+                if (!parametroDb.EstadoPendiente.HasValue || !validEstados.Contains(parametroDb.EstadoPendiente.Value))
+                {
+                    parametroDb.EstadoPendiente = validEstados.Contains(1) ? 1 : defaultId;
+                    modified = true;
+                }
+                if (!parametroDb.EstadoAdjudicado.HasValue || !validEstados.Contains(parametroDb.EstadoAdjudicado.Value))
+                {
+                    parametroDb.EstadoAdjudicado = validEstados.Contains(2) ? 2 : (validEstados.Contains(9) ? 9 : defaultId);
+                    modified = true;
+                }
+                if (!parametroDb.EstadoIniciado.HasValue || !validEstados.Contains(parametroDb.EstadoIniciado.Value))
+                {
+                    parametroDb.EstadoIniciado = validEstados.Contains(3) ? 3 : (validEstados.Contains(8) ? 8 : defaultId);
+                    modified = true;
+                }
+                if (!parametroDb.EstadoFinalizado.HasValue || !validEstados.Contains(parametroDb.EstadoFinalizado.Value))
+                {
+                    parametroDb.EstadoFinalizado = validEstados.Contains(4) ? 4 : (validEstados.Contains(5) ? 5 : defaultId);
+                    modified = true;
+                }
+                if (!parametroDb.EstadoReprogramacion.HasValue || !validEstados.Contains(parametroDb.EstadoReprogramacion.Value))
+                {
+                    parametroDb.EstadoReprogramacion = validEstados.Contains(5) ? 5 : (validEstados.Contains(6) ? 6 : defaultId);
+                    modified = true;
+                }
+            }
+
+            if (modified) await context.SaveChangesAsync();
+        }
 
         // Seed some sample operarios if empty
         if (!await context.Operarios.AnyAsync())

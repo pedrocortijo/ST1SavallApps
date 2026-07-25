@@ -6,6 +6,7 @@
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Panel de Control - Gestión de Contenedores</PageTitle>
 
@@ -21,10 +22,28 @@
     .dashboard-indicator .indicator-label { font-size: 1rem; font-weight: 600; }
     .dashboard-indicator .indicator-detail { font-size: .8rem; opacity: .88; }
     .dashboard-services { background: linear-gradient(135deg, #0d6efd, #084298); }
-    .dashboard-inactive { background: linear-gradient(135deg, #dc3545, #9d1625); }
-    .dashboard-ovp { background: linear-gradient(135deg, #f59f00, #b86f00); }
+    .dashboard-solicitudes-bloqueadas { background: linear-gradient(135deg, #dc3545, #842029); }
+    .solicitudes-grid {
+        font-size: 0.8rem !important;
+    }
+    .solicitudes-grid th,
+    .solicitudes-grid td {
+        font-size: 0.8rem !important;
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
+    }
+    .dashboard-inactive { background: linear-gradient(135deg, #e67e22, #a85208); }
+    .dashboard-ovp { background: linear-gradient(135deg, #c2185b, #880e4f); }
     .dashboard-blocked { background: linear-gradient(135deg, #6f42c1, #43257c); }
     .dashboard-notifications { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+    .solicitud-bloqueada-row,
+    .solicitud-bloqueada-row td,
+    .solicitud-bloqueada-row span,
+    .solicitud-bloqueada-row strong {
+        background-color: #fde7e9 !important;
+        color: #b42318 !important;
+        font-weight: 700 !important;
+    }
     @@media (max-width: 900px) { .dashboard-summary { grid-template-columns: 1fr; } }
 </style>
 
@@ -51,17 +70,30 @@
     <DxPopup @bind-Visible="notificacionesServiciosVisibles"
              HeaderText="Notificaciones de servicios"
              ShowFooter="true"
-             Width="680px"
+             Width="960px"
              HorizontalAlignment="HorizontalAlignment.Center"
              VerticalAlignment="VerticalAlignment.Center">
         <BodyContentTemplate>
             <p class="mb-3">Servicios que han superado la tolerancia de inicio y aún no están marcados como iniciados:</p>
-            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true">
+            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
                 <Columns>
-                    <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="70px" />
-                    <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="125px" />
-                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" />
-                    <DxGridDataColumn FieldName="NombreObra" Caption="Obra" />
+                    <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="60px" />
+                    <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="110px" />
+                    <DxGridDataColumn FieldName="ConductorNombre" Caption="Operario" Width="130px" />
+                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="220px" />
+                    <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
+                    <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado actual" Width="140px" />
+                    <DxGridDataColumn Caption="Acciones" Width="105px" AllowSort="false">
+                        <CellDisplayTemplate Context="celdaNotificacionPopup">
+                            @{
+                                var solicitud = (Solicitud)celdaNotificacionPopup.DataItem;
+                                <button type="button" class="btn btn-sm btn-outline-primary" title="Editar servicio"
+                                        @onclick="() => EditarSolicitud(solicitud.IdSolicitud)">
+                                    <i class="oi oi-pencil me-1"></i> Editar
+                                </button>
+                            }
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
                 </Columns>
             </DxGrid>
         </BodyContentTemplate>
@@ -89,7 +121,7 @@
             else
             {
                 <div class="dashboard-summary">
-                    <button type="button" class="dashboard-indicator dashboard-services" @onclick="MostrarServiciosHoy">
+                    <button type="button" class="dashboard-indicator dashboard-services" @onclick="MostrarServiciosHoyAsync">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="indicator-label">Relación Servicios</span>
                             <i class="oi oi-list-rich indicator-icon"></i>
@@ -97,7 +129,15 @@
                         <div class="indicator-value mt-3">@CantidadServiciosHoy</div>
                         <div class="indicator-detail mt-2">Programados para hoy · Ver detalle</div>
                     </button>
-                    <button type="button" class="dashboard-indicator dashboard-inactive" @onclick="MostrarOperariosInactivos">
+                    <button type="button" class="dashboard-indicator dashboard-solicitudes-bloqueadas" @onclick="MostrarSolicitudesBloqueadasAsync">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Servicios bloqueadas</span>
+                            <i class="oi oi-lock-locked indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadSolicitudesBloqueadas</div>
+                        <div class="indicator-detail mt-2">Servicios sin finalizar bloqueados · Ver detalle</div>
+                    </button>
+                    <button type="button" class="dashboard-indicator dashboard-inactive" @onclick="MostrarOperariosInactivosAsync">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="indicator-label">Operarios inactivos</span>
                             <i class="oi oi-person indicator-icon"></i>
@@ -105,7 +145,7 @@
                         <div class="indicator-value mt-3">@CantidadOperariosInactivos</div>
                         <div class="indicator-detail mt-2">Ausentes o no disponibles hoy · Ver operarios</div>
                     </button>
-                    <button type="button" class="dashboard-indicator dashboard-ovp" @onclick="MostrarOvpARetirar">
+                    <button type="button" class="dashboard-indicator dashboard-ovp" @onclick="MostrarOvpARetirarAsync">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="indicator-label">OVP a retirar</span>
                             <i class="oi oi-flag indicator-icon"></i>
@@ -113,7 +153,7 @@
                         <div class="indicator-value mt-3">@CantidadOvpARetirar</div>
                         <div class="indicator-detail mt-2">Licencias cuya fecha a sido programada para el aviso de retirada.</div>
                     </button>
-                    <button type="button" class="dashboard-indicator dashboard-blocked" @onclick="MostrarClientesBloqueados">
+                    <button type="button" class="dashboard-indicator dashboard-blocked" @onclick="MostrarClientesBloqueadosAsync">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="indicator-label">Clientes bloqueados</span>
                             <i class="oi oi-lock-locked indicator-icon"></i>
@@ -121,9 +161,7 @@
                         <div class="indicator-value mt-3">@CantidadClientesBloqueados</div>
                         <div class="indicator-detail mt-2">Obras agrupadas por cliente bloqueado</div>
                     </button>
-                    @if (CantidadNotificacionesServicios > 0)
-                    {
-                    <button type="button" class="dashboard-indicator dashboard-notifications" @onclick="MostrarNotificacionesServicios">
+                    <button type="button" class="dashboard-indicator dashboard-notifications" @onclick="MostrarNotificacionesServiciosAsync">
                         <div class="d-flex justify-content-between align-items-start">
                             <span class="indicator-label">Notificaciones de servicios</span>
                             <i class="oi oi-bell indicator-icon"></i>
@@ -131,11 +169,12 @@
                         <div class="indicator-value mt-3">@CantidadNotificacionesServicios</div>
                         <div class="indicator-detail mt-2">Inicio fuera de tolerancia · Ver avisos</div>
                     </button>
-                    }
                 </div>
             }
         </div>
     </div>
+
+    <div id="seccion-grid-dashboard">
 
     @if (vistaDashboard == VistaDashboard.Servicios)
     {
@@ -202,7 +241,8 @@
                     @* <span class="text-muted small">Prioridad:</span> *@
                     <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
                 </div>
-                <DxGrid Data="@GetFilteredSolicitudes()"
+                <DxGrid CssClass="solicitudes-grid"
+                        Data="@GetFilteredSolicitudes()"
                         KeyFieldName="IdSolicitud"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
@@ -226,9 +266,9 @@
                                 @{
                                     var sol = (Solicitud)context.DataItem;
                                     <div>
-                                        <strong>@sol.NombreCliente</strong><br />
-                                        <span style="font-size: 0.8rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
-                                        <span class="text-muted" style="font-size: 0.75rem;"><i class="oi oi-phone" style="font-size: 0.7rem;"></i> @sol.TelefonoCliente</span>
+                                        <strong style="font-size: 0.82rem;">@sol.NombreCliente</strong><br />
+                                        <span style="font-size: 0.74rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
+                                        <span style="font-size: 0.7rem; opacity: 0.85; color: inherit;"><i class="oi oi-phone" style="font-size: 0.65rem; color: inherit;"></i> @sol.TelefonoCliente</span>
                                     </div>
                                 }
                             </CellDisplayTemplate>
@@ -241,8 +281,8 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" />
-                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Tarea" DisplayFormat="dd/MM/yyyy" />
+                        <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" Visible="false" />
+                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="130px" />
                         <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="180px">
                             <CellDisplayTemplate>
                                 @{
@@ -266,10 +306,123 @@
         </div>
     </div>
     }
-    else if (vistaDashboard == VistaDashboard.OperariosInactivos)
+    else if (vistaDashboard == VistaDashboard.SolicitudesBloqueadas)
     {
         <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
             <div class="card-header bg-danger text-white py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold mb-0 text-white">Solicitudes bloqueadas</h5>
+                    <span class="small text-white-50">Relación de servicios en estado bloqueado</span>
+                </div>
+                <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
+            </div>
+            <div class="card-body p-0">
+                @if (loading || solicitudes == null || operarios == null)
+                {
+                    <div class="p-5 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted mb-0">Cargando solicitudes...</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="grid-filter-bar d-flex flex-wrap align-items-center gap-2 p-2">
+                        <span class="text-muted fw-semibold small">Filtrar por:</span>
+                        <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="@selectedConductorId" Width="190px" />
+                        <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" @bind-Value="@selectedTareaId" Width="190px" />
+                        <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" @bind-Value="@selectedEstadoId" Width="190px" />
+                        <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
+                    </div>
+                    <DxGrid Data="@GetFilteredSolicitudesBloqueadas()"
+                            KeyFieldName="IdSolicitud"
+                            PagerPosition="GridPagerPosition.Bottom"
+                            PageSize="20"
+                            AllowSort="true"
+                            ShowFilterRow="true"
+                            ShowSearchBox="true"
+                            ColumnResizeMode="GridColumnResizeMode.ColumnsContainer"
+                            CustomizeElement="@OnCustomizeElement">
+                        <Columns>
+                            <DxGridCommandColumn Width="115px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var sol = (Solicitud)context.DataItem;
+                                        <div class="d-flex align-items-center gap-1">
+                                            <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                    style="width: 32px; height: 32px;"
+                                                    @onclick="() => EditarSolicitud(sol.IdSolicitud)" 
+                                                    @onclick:stopPropagation
+                                                    title="Editar">
+                                                <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                            </button>
+                                            @if (sol.Bloqueado)
+                                            {
+                                                <i class="oi oi-lock-locked text-danger ms-1" style="font-size: 1.1rem;" title="Solicitud bloqueada"></i>
+                                            }
+                                        </div>
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridCommandColumn>
+                            <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var sol = (Solicitud)context.DataItem;
+                                        var cond = operarios.FirstOrDefault(x => x.IdOperario == sol.IdConductor);
+                                        @cond?.Nombre
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="250px">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var sol = (Solicitud)context.DataItem;
+                                        <div>
+                                            <strong style="font-size: 0.82rem;">@sol.NombreCliente</strong><br />
+                                            <span style="font-size: 0.74rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
+                                            <span style="font-size: 0.7rem; opacity: 0.85; color: inherit;"><i class="oi oi-phone" style="font-size: 0.65rem; color: inherit;"></i> @sol.TelefonoCliente</span>
+                                        </div>
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tipo Tarea">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var sol = (Solicitud)context.DataItem;
+                                        @sol.TipoTareaDescripcion
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" Visible="false" />
+                            <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="130px" />
+                            <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="180px">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var sol = (Solicitud)context.DataItem;
+                                        var est = estadosList?.FirstOrDefault(x => x.IdEstado == sol.Estado);
+                                        @est?.Descripcion
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn FieldName="PrioridadDescripcion" Caption="Prioridad">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var sol = (Solicitud)context.DataItem;
+                                        @(sol.Prioridad == 1 ? "Alta" : sol.Prioridad == 2 ? "Media" : "Baja")
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                        </Columns>
+                    </DxGrid>
+                }
+            </div>
+        </div>
+    }
+    else if (vistaDashboard == VistaDashboard.OperariosInactivos)
+    {
+        <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #e67e22; color: #fff;">
                 <h5 class="fw-bold mb-0 text-white">Operarios inactivos hoy</h5>
                 <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
             </div>
@@ -289,10 +442,10 @@
     else if (vistaDashboard == VistaDashboard.OvpARetirar)
     {
         <div class="card shadow-sm mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #f59f00; color: #fff;">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #c2185b; color: #fff;">
                 <div>
                     <h5 class="fw-bold mb-0">Contenedores implicados en OVP a retirar</h5>
-                    <span class="small">Licencias OVP cuya fecha de fin es hoy</span>
+                    <span class="small">Licencias OVP en periodo de aviso (@AvisoTiempoContenedorDias días) o fecha de fin sin retirar</span>
                 </div>
                 <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
             </div>
@@ -344,19 +497,31 @@
                 <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
             </div>
             <div class="card-body p-0">
-                <DxGrid Data="@GetNotificacionesServicios()" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" AllowSort="true">
+                <DxGrid Data="@GetNotificacionesServicios()" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
                     <Columns>
-                        <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="70px" />
-                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="130px" />
-                        <DxGridDataColumn FieldName="ConductorNombre" Caption="Operario" Width="180px" />
-                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="230px" />
-                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" />
-                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado actual" Width="190px" />
+                        <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="60px" />
+                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="110px" />
+                        <DxGridDataColumn FieldName="ConductorNombre" Caption="Operario" Width="130px" />
+                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="220px" />
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
+                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado actual" Width="140px" />
+                        <DxGridDataColumn Caption="Acciones" Width="105px" AllowSort="false">
+                            <CellDisplayTemplate>
+                                @{
+                                    var solicitud = (Solicitud)context.DataItem;
+                                    <button type="button" class="btn btn-sm btn-outline-primary" title="Editar servicio"
+                                            @onclick="() => EditarSolicitud(solicitud.IdSolicitud)">
+                                        <i class="oi oi-pencil me-1"></i> Editar
+                                    </button>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
                     </Columns>
                 </DxGrid>
             </div>
         </div>
     }
+    </div>
 </div>
 
 @code {
@@ -377,34 +542,101 @@
     private int selectedPrioridadId = -1;
     private VistaDashboard vistaDashboard = VistaDashboard.Servicios;
 
-    private int CantidadServiciosHoy => solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today) ?? 0;
+    private int CantidadServiciosHoy => solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today && s.Estado != 4) ?? 0;
+    private int CantidadSolicitudesBloqueadas => GetSolicitudesBloqueadas().Count();
     private int CantidadOperariosInactivos => operarios?.Count(o =>
         string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || o.Activo == false) ?? 0;
-    private int CantidadOvpARetirar => solicitudes?.Count(s => s.RequiereOVP && s.FechaFinOVP?.Date == DateTime.Today) ?? 0;
+    private int CantidadOvpARetirar => GetOvpARetirar().Count();
     private int CantidadClientesBloqueados => GetClientesBloqueadosConObrasPendientes().Count();
     private int ToleranciaInicioServicioMinutos => parametros?.FirstOrDefault()?.AvisoTiempoServicio ?? 0;
     private int CantidadNotificacionesServicios => GetNotificacionesServicios().Count();
 
-    private enum VistaDashboard { Servicios, OperariosInactivos, OvpARetirar, ClientesBloqueados, NotificacionesServicios }
+    private enum VistaDashboard { Servicios, SolicitudesBloqueadas, OperariosInactivos, OvpARetirar, ClientesBloqueados, NotificacionesServicios }
 
-    private void MostrarServiciosHoy() => vistaDashboard = VistaDashboard.Servicios;
-    private void MostrarOperariosInactivos() => vistaDashboard = VistaDashboard.OperariosInactivos;
-    private void MostrarOvpARetirar() => vistaDashboard = VistaDashboard.OvpARetirar;
-    private void MostrarClientesBloqueados() => vistaDashboard = VistaDashboard.ClientesBloqueados;
-    private void MostrarNotificacionesServicios()
+    private async Task MostrarServiciosHoyAsync()
+    {
+        vistaDashboard = VistaDashboard.Servicios;
+        await DesplazarAGridAsync();
+    }
+    private async Task MostrarServiciosHoy() => await MostrarServiciosHoyAsync();
+    private void EditarSolicitud(int idSolicitud) =>
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{idSolicitud}");
+    private async Task MostrarSolicitudesBloqueadasAsync()
+    {
+        vistaDashboard = VistaDashboard.SolicitudesBloqueadas;
+        await DesplazarAGridAsync();
+    }
+    private async Task MostrarSolicitudesBloqueadas() => await MostrarSolicitudesBloqueadasAsync();
+    private async Task MostrarOperariosInactivosAsync()
+    {
+        vistaDashboard = VistaDashboard.OperariosInactivos;
+        await DesplazarAGridAsync();
+    }
+    private async Task MostrarOperariosInactivos() => await MostrarOperariosInactivosAsync();
+    private async Task MostrarOvpARetirarAsync()
+    {
+        vistaDashboard = VistaDashboard.OvpARetirar;
+        await DesplazarAGridAsync();
+    }
+    private async Task MostrarOvpARetirar() => await MostrarOvpARetirarAsync();
+    private async Task MostrarClientesBloqueadosAsync()
+    {
+        vistaDashboard = VistaDashboard.ClientesBloqueados;
+        await DesplazarAGridAsync();
+    }
+    private async Task MostrarClientesBloqueados() => await MostrarClientesBloqueadosAsync();
+    private async Task MostrarNotificacionesServiciosAsync()
     {
         notificacionesServiciosVisibles = false;
         vistaDashboard = VistaDashboard.NotificacionesServicios;
+        await DesplazarAGridAsync();
+    }
+    private async Task MostrarNotificacionesServicios()
+    {
+        notificacionesServiciosVisibles = false;
+        vistaDashboard = VistaDashboard.NotificacionesServicios;
+        await DesplazarAGridAsync();
     }
     private void CerrarNotificacionesServicios() => notificacionesServiciosVisibles = false;
+
+    private async Task DesplazarAGridAsync()
+    {
+        StateHasChanged();
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                setTimeout(() => {
+                    const el = document.getElementById('seccion-grid-dashboard');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 60);
+            ");
+        }
+        catch { }
+    }
+
+    private IEnumerable<Solicitud> GetSolicitudesBloqueadas() => solicitudes?.Where(s => s.Bloqueado) ?? Enumerable.Empty<Solicitud>();
 
     private IEnumerable<Operario> GetOperariosInactivos() => operarios?.Where(o =>
         string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || o.Activo == false)
         ?? Enumerable.Empty<Operario>();
 
-    private IEnumerable<Solicitud> GetOvpARetirar() => solicitudes?.Where(s =>
-        s.RequiereOVP && s.FechaFinOVP?.Date == DateTime.Today)
-        ?? Enumerable.Empty<Solicitud>();
+    private int AvisoTiempoContenedorDias => parametros?.FirstOrDefault()?.AvisoTiempoContenedor ?? 0;
+
+    private IEnumerable<Solicitud> GetOvpARetirar()
+    {
+        if (solicitudes is null) return Enumerable.Empty<Solicitud>();
+
+        int diasAviso = AvisoTiempoContenedorDias;
+
+        return solicitudes.Where(s =>
+            s.RequiereOVP &&
+            s.FechaFinOVP.HasValue &&
+            s.Estado != 5 && s.Estado != 6 &&
+            (DateTime.Today >= s.FechaFinOVP.Value.Date.AddDays(-diasAviso) && DateTime.Today <= s.FechaFinOVP.Value.Date)
+        );
+    }
 
     private IEnumerable<Obra> GetObrasClientesBloqueados()
     {
@@ -438,10 +670,12 @@
             .Where(s => s.FechaHoraInicioPlanificada.HasValue &&
                         s.FechaHoraInicioPlanificada.Value.Date == DateTime.Today &&
                         s.FechaHoraInicioPlanificada.Value <= limite &&
-                        !s.NotificacionInicioVisualizada &&
                         s.Estado is not 5 and not 6 and not 8)
             .OrderBy(s => s.FechaHoraInicioPlanificada);
     }
+
+    private IEnumerable<Solicitud> GetNotificacionesServiciosNoVisualizadas() =>
+        GetNotificacionesServicios().Where(s => !s.NotificacionInicioVisualizada);
 
     private void ToggleEstadoFilter(int estado)
     {
@@ -454,13 +688,26 @@
     {
         if (solicitudes == null) return Array.Empty<Solicitud>();
 
-        var filteredSolicitudes = solicitudes.Where(s => s.FechaTarea?.Date == DateTime.Today);
+        var filteredSolicitudes = solicitudes.Where(s => s.FechaTarea?.Date == DateTime.Today && s.Estado != 4);
 
         if (selectedConductorId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdConductor == selectedConductorId);
         if (selectedTareaId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdTipoTarea == selectedTareaId);
         if (selectedEstadoId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
         if (selectedPrioridadId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Prioridad == selectedPrioridadId);
         return filteredSolicitudes;
+    }
+
+    private IEnumerable<Solicitud> GetFilteredSolicitudesBloqueadas()
+    {
+        if (solicitudes == null) return Array.Empty<Solicitud>();
+
+        var filtered = solicitudes.Where(s => s.Bloqueado);
+
+        if (selectedConductorId >= 0) filtered = filtered.Where(s => s.IdConductor == selectedConductorId);
+        if (selectedTareaId >= 0) filtered = filtered.Where(s => s.IdTipoTarea == selectedTareaId);
+        if (selectedEstadoId >= 0) filtered = filtered.Where(s => s.Estado == selectedEstadoId);
+        if (selectedPrioridadId >= 0) filtered = filtered.Where(s => s.Prioridad == selectedPrioridadId);
+        return filtered;
     }
 
     private class KeyName
@@ -543,7 +790,14 @@
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
 
             comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
-            if (operarios != null) comboOperarios.AddRange(operarios);
+            if (operarios != null)
+            {
+                var operariosDisponibles = operarios.Where(o =>
+                    (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+                    || (solicitudes != null && solicitudes.Any(s => s.IdConductor == o.IdOperario))
+                ).OrderBy(o => o.Nombre);
+                comboOperarios.AddRange(operariosDisponibles);
+            }
             comboTareas = new List<Tarea> { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
             if (tareasList != null) comboTareas.AddRange(tareasList);
             comboEstados = new List<EstadoSolicitud> { new EstadoSolicitud { IdEstado = -1, Descripcion = "Todos los estados" } };
@@ -559,7 +813,7 @@
                 }
             }
             errorMessage = null;
-            notificacionesServiciosParaMostrar = GetNotificacionesServicios().ToList();
+            notificacionesServiciosParaMostrar = GetNotificacionesServiciosNoVisualizadas().ToList();
             notificacionesServiciosVisibles = notificacionesServiciosParaMostrar.Count > 0;
             if (notificacionesServiciosVisibles)
             {
@@ -591,19 +845,31 @@
             var dataItem = e.Grid.GetDataItem(e.VisibleIndex);
             if (dataItem is Solicitud solicitud)
             {
+                if (solicitud.Bloqueado)
+                {
+                    e.CssClass = "solicitud-bloqueada-row";
+                    string style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important; ";
+                    if (e.ElementType == GridElementType.DataCell)
+                    {
+                        style += "text-align: left !important; ";
+                    }
+                    e.Style = style.Trim();
+                    return;
+                }
+
                 var (bgColor, textColor) = GetEstadoStyle(solicitud.Estado);
-                string style = "";
+                string styleStr = "";
                 if (!string.IsNullOrEmpty(bgColor))
                 {
-                    style += $"background-color: {bgColor} !important; color: {textColor} !important; ";
+                    styleStr += $"background-color: {bgColor} !important; color: {textColor} !important; ";
                 }
                 if (e.ElementType == GridElementType.DataCell)
                 {
-                    style += "text-align: left !important; ";
+                    styleStr += "text-align: left !important; ";
                 }
-                if (!string.IsNullOrEmpty(style))
+                if (!string.IsNullOrEmpty(styleStr))
                 {
-                    e.Style = style.Trim();
+                    e.Style = styleStr.Trim();
                 }
             }
         }
@@ -643,12 +909,12 @@
 
     private IEnumerable<EstadoSolicitud> GetFilterableEstados()
     {
-        return estadosList?.Where(e => e.Filtrar).OrderBy(e => e.IdEstado)
-            ?? Enumerable.Empty<EstadoSolicitud>();
+        if (estadosList == null) return Enumerable.Empty<EstadoSolicitud>();
+        return estadosList.OrderBy(e => e.IdEstado);
     }
 
-    private static string GetCardLabel(EstadoSolicitud estado)
+    private string GetCardLabel(EstadoSolicitud estado)
     {
-        return estado.Descripcion ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(estado.Descripcion) ? estado.Descripcion : $"Estado {estado.IdEstado}";
     }
 }

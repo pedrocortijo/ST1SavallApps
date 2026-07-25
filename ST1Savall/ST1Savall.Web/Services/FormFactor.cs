@@ -20,5 +20,11 @@ namespace ST1Savall.Web.Services
         {
             return Task.CompletedTask;
         }
+
+        public Task<DeviceLocation?> GetCurrentLocationAsync()
+        {
+            // En web la ubicación se solicita desde el navegador mediante JS interop.
+            return Task.FromResult<DeviceLocation?>(null);
+        }
     }
 }

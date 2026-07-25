@@ -24,6 +24,18 @@ public class Obra
 
     public bool? Finalizada { get; set; }
     public bool? Visible { get; set; }
+    public int? Posicion { get; set; }
+
+    [NotMapped]
+    public bool Bloqueada
+    {
+        get => Posicion == 1 || Visible == false;
+        set
+        {
+            Posicion = value ? 1 : 0;
+            Visible = !value;
+        }
+    }
     public int? Contador { get; set; }
     public int? IdEmpresa { get; set; }
     public int? Anyo { get; set; }

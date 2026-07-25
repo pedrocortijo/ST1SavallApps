@@ -83,8 +83,11 @@ public sealed class CalculoRutaSolicitudService
         solicitud.DistanciaTotalMetros = tramoOrigenObra.DistanciaMetros + tramoObraDescarga.DistanciaMetros + tramoDescargaRegreso.DistanciaMetros;
         solicitud.DuracionViajeMinutos = solicitud.MinutosOrigenObra + solicitud.MinutosObraDescarga + solicitud.MinutosDescargaRegreso;
 
-        if (!solicitud.DuracionModificadaManualmente || solicitud.DuracionPlanificadaMinutos.GetValueOrDefault() <= 0)
+        if (forzarActualizacion || !solicitud.DuracionModificadaManualmente || solicitud.DuracionPlanificadaMinutos.GetValueOrDefault() <= 0)
+        {
+            solicitud.DuracionModificadaManualmente = false;
             solicitud.DuracionPlanificadaMinutos = solicitud.DuracionViajeMinutos + solicitud.DuracionOperacionMinutos.GetValueOrDefault();
+        }
 
         if (solicitud.FechaHoraInicioPlanificada.HasValue && solicitud.DuracionPlanificadaMinutos > 0)
             solicitud.FechaHoraFinPlanificada = solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(solicitud.DuracionPlanificadaMinutos.Value);

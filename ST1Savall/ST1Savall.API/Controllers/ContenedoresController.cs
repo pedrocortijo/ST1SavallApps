@@ -35,6 +35,10 @@ public class ContenedoresController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Contenedor>> PostContenedor(Contenedor contenedor)
     {
+        contenedor.NumSerie = contenedor.NumSerie?.Trim() ?? string.Empty;
+        if (await _context.Contenedores.AnyAsync(c => c.NumSerie == contenedor.NumSerie))
+            return Conflict(new { message = $"El número de serie '{contenedor.NumSerie}' ya está registrado." });
+
         _context.Contenedores.Add(contenedor);
         try
         {
@@ -44,7 +48,7 @@ public class ContenedoresController : ControllerBase
         {
             if (ContenedorNumSerieExists(contenedor.NumSerie))
             {
-                return Conflict("El número de serie ya está registrado.");
+                return Conflict(new { message = $"El número de serie '{contenedor.NumSerie}' ya está registrado." });
             }
             throw;
         }
@@ -55,6 +59,10 @@ public class ContenedoresController : ControllerBase
     public async Task<IActionResult> PutContenedor(int id, Contenedor contenedor)
     {
         if (id != contenedor.IdContenedor) return BadRequest();
+        contenedor.NumSerie = contenedor.NumSerie?.Trim() ?? string.Empty;
+        if (await _context.Contenedores.AnyAsync(c => c.IdContenedor != id && c.NumSerie == contenedor.NumSerie))
+            return Conflict(new { message = $"El número de serie '{contenedor.NumSerie}' ya pertenece a otro contenedor." });
+
         _context.Entry(contenedor).State = EntityState.Modified;
         try
         {
@@ -64,6 +72,10 @@ public class ContenedoresController : ControllerBase
         {
             if (!ContenedorExists(id)) return NotFound();
             throw;
+        }
+        catch (DbUpdateException) when (ContenedorNumSerieExistsForOther(id, contenedor.NumSerie))
+        {
+            return Conflict(new { message = $"El número de serie '{contenedor.NumSerie}' ya pertenece a otro contenedor." });
         }
         return NoContent();
     }
@@ -131,5 +143,10 @@ public class ContenedoresController : ControllerBase
     private bool ContenedorNumSerieExists(string numSerie)
     {
         return _context.Contenedores.Any(e => e.NumSerie == numSerie);
+    }
+
+    private bool ContenedorNumSerieExistsForOther(int id, string numSerie)
+    {
+        return _context.Contenedores.Any(e => e.IdContenedor != id && e.NumSerie == numSerie);
     }
 }

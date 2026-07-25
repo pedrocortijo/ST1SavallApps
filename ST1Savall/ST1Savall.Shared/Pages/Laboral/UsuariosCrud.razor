@@ -1,0 +1,558 @@
+@page "/laboral/usuarios"
+@page "/modelos/usuarios"
+@using ST1Savall.Shared.Data
+@using DevExpress.Blazor
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Gestión de Usuarios - Laboral</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Usuarios (AspNet Users)</h2>
+            <p class="text-muted mb-0">Gestión de usuarios, fichas de personal, asignaciones y cambio de contraseñas</p>
+        </div>
+        <div>
+            <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> Inicio
+            </NavLink>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (loading)
+    {
+        <div class="p-5 text-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Cargando usuarios...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Total Registrados</div>
+                        <div class="fs-3 fw-bold text-primary">@usuarios.Count</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Usuarios Activos</div>
+                        <div class="fs-3 fw-bold text-success">@usuarios.Count(u => !u.IsLocked)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Usuarios Bloqueados</div>
+                        <div class="fs-3 fw-bold text-danger">@usuarios.Count(u => u.IsLocked)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
+            <div class="card-body p-0">
+                <DxGrid Data="@usuarios"
+                        KeyFieldName="Id"
+                        PageSize="15"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true"
+                        SearchBoxNullText="Buscar por email, usuario, técnico...">
+                    <Columns>
+                        <DxGridDataColumn Caption="Acciones" Width="145px">
+                            <HeaderCaptionTemplate>
+                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
+                                        @onclick="AbrirFormularioNuevoUsuario"
+                                        title="Nuevo Usuario">
+                                    <i class="oi oi-plus me-1"></i> Nuevo Usuario
+                                </button>
+                            </HeaderCaptionTemplate>
+                            <CellDisplayTemplate>
+                                @{
+                                    var user = (ApplicationUserDto)context.DataItem;
+                                }
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            @onclick="() => AbrirFichaUsuario(user)"
+                                            title="Ver / Editar Ficha">
+                                        <i class="oi oi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning"
+                                            @onclick="() => AbrirCambioPassword(user)"
+                                            title="Cambiar Contraseña">
+                                        <i class="oi oi-key"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            @onclick="() => ConfirmarEliminarUsuario(user)"
+                                            title="Eliminar Usuario">
+                                        <i class="oi oi-trash"></i>
+                                    </button>
+                                </div>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+
+                        <DxGridDataColumn FieldName="Email" Caption="Correo Electrónico" />
+                        <DxGridDataColumn FieldName="UserName" Caption="Usuario" />
+                        <DxGridDataColumn FieldName="PhoneNumber" Caption="Teléfono" />
+                        <DxGridDataColumn FieldName="Tecnico" Caption="Técnico" />
+                        @* 
+                        <DxGridDataColumn Caption="Cliente Asignado" Width="200px">
+                           <CellDisplayTemplate>
+                                @{
+                                    var user = (ApplicationUserDto)context.DataItem;
+                                    var cliente = clientes?.FirstOrDefault(c => c.Codigo == user.ClienteId?.ToString() || c.Nombre == user.ClienteId?.ToString());
+                                }
+                                <span>@(user.ClienteId.HasValue ? (cliente != null ? $"{cliente.Codigo} - {cliente.Nombre}" : $"ID: {user.ClienteId}") : "-")</span>
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        *@
+                        <DxGridDataColumn Caption="Estado" Width="120px">
+                            <CellDisplayTemplate>
+                                @{
+                                    var user = (ApplicationUserDto)context.DataItem;
+                                }
+                                @if (user.IsLocked)
+                                {
+                                    <span class="badge bg-danger">Bloqueado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">Activo</span>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                    </Columns>
+                </DxGrid>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal: Ficha / Formulario de Usuario -->
+<DxPopup @bind-Visible="popupFichaVisible"
+         HeaderText="@(esNuevoUsuario ? "Nuevo Usuario" : "Ficha de Usuario")"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            @if (!string.IsNullOrWhiteSpace(popupError))
+            {
+                <div class="alert alert-danger small py-2 mb-3">@popupError</div>
+            }
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Correo Electrónico *</label>
+                <DxTextBox @bind-Text="@editUserEmail" NullText="ejemplo@savall.com" CssClass="w-100" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Nombre de Usuario</label>
+                <DxTextBox @bind-Text="@editUserName" NullText="Opcional (se usará el email si se deja en blanco)" CssClass="w-100" />
+            </div>
+
+            @if (esNuevoUsuario)
+            {
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Contraseña *</label>
+                    <DxTextBox @bind-Text="@editPassword" Password="true" NullText="Mínimo 6 caracteres" CssClass="w-100" />
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Teléfono</label>
+                <DxTextBox @bind-Text="@editPhone" NullText="Teléfono de contacto" CssClass="w-100" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Técnico / Puesto</label>
+                <DxTextBox @bind-Text="@editTecnico" NullText="Ej. Técnico de servicio, Conductor, Oficina" CssClass="w-100" />
+            </div>
+            @*  
+            <div class="mb-3">
+               
+                <label class="form-label fw-semibold small">Cliente Asignado</label>
+                <DxComboBox Data="@clientes"
+                            TData="ClienteSage50"
+                            TValue="string"
+                            TextFieldName="Nombre"
+                            ValueFieldName="Codigo"
+                            @bind-Value="@editClienteCodigo"
+                            ClearButtonVisible="true"
+                            SearchMode="ListSearchMode.AutoSearch"
+                            SearchFilterCondition="ListSearchFilterCondition.Contains"
+                            NullText="Sin cliente asignado...">
+                    <ItemTemplate Context="cli">
+                        <span style="font-size: 0.9rem;"><strong>@cli.Codigo</strong> - @cli.Nombre</span>
+                    </ItemTemplate>
+                </DxComboBox>
+
+             </div>
+*@
+            @if (!esNuevoUsuario)
+            {
+                <div class="mb-3">
+                    <DxCheckBox @bind-Checked="@editLockout" LabelPosition="LabelPosition.Right">
+                        Usuario Bloqueado / Acceso Deshabilitado
+                    </DxCheckBox>
+                </div>
+            }
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => popupFichaVisible = false" />
+            <DxButton Text="Guardar Ficha" RenderStyle="ButtonRenderStyle.Primary" Click="GuardarFichaUsuarioAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<!-- Modal: Cambio de Contraseña -->
+<DxPopup @bind-Visible="popupPasswordVisible"
+         HeaderText="Cambio de Contraseña"
+         ShowFooter="true"
+         Width="460px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p class="text-muted small mb-3">
+                Cambiando contraseña para el usuario <strong>@selectedUser?.Email</strong>.
+            </p>
+
+            @if (!string.IsNullOrWhiteSpace(popupPasswordError))
+            {
+                <div class="alert alert-danger small py-2 mb-3">@popupPasswordError</div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Nueva Contraseña *</label>
+                <DxTextBox @bind-Text="@newPassword" Password="true" NullText="Introduzca la nueva contraseña" CssClass="w-100" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold small">Confirmar Nueva Contraseña *</label>
+                <DxTextBox @bind-Text="@confirmPassword" Password="true" NullText="Repita la nueva contraseña" CssClass="w-100" />
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => popupPasswordVisible = false" />
+            <DxButton Text="Cambiar Contraseña" RenderStyle="ButtonRenderStyle.Primary" Click="GuardarCambioPasswordAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<!-- Modal: Confirmar Eliminar Usuario -->
+<DxPopup @bind-Visible="popupEliminarVisible"
+         HeaderText="Eliminar Usuario"
+         ShowFooter="true"
+         Width="440px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p class="mb-0 text-danger fw-semibold">¿Está seguro de que desea eliminar este usuario?</p>
+            <p class="text-muted small mt-2 mb-0">
+                Usuario: <strong>@selectedUser?.Email</strong> (@selectedUser?.UserName)
+            </p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => popupEliminarVisible = false" />
+            <DxButton Text="Eliminar" RenderStyle="ButtonRenderStyle.Danger" Click="EliminarUsuarioAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+@code {
+    private List<ApplicationUserDto> usuarios = new();
+    private List<ClienteSage50> clientes = new();
+    private bool loading = true;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // State for Ficha / User Form
+    private bool popupFichaVisible;
+    private bool esNuevoUsuario;
+    private ApplicationUserDto? selectedUser;
+    private string editUserEmail = string.Empty;
+    private string editUserName = string.Empty;
+    private string editPassword = string.Empty;
+    private string editPhone = string.Empty;
+    private string editTecnico = string.Empty;
+    private int? editClienteId;
+    private string? editClienteCodigo
+    {
+        get => editClienteId?.ToString();
+        set => editClienteId = int.TryParse(value, out var parsed) ? parsed : null;
+    }
+    private bool editLockout;
+    private string? popupError;
+
+    // State for Change Password
+    private bool popupPasswordVisible;
+    private string newPassword = string.Empty;
+    private string confirmPassword = string.Empty;
+    private string? popupPasswordError;
+
+    // State for Delete User
+    private bool popupEliminarVisible;
+
+    public class ClienteHelper
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = null;
+
+            usuarios = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? new();
+            var clientesList = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/ClientesSage50") ?? new();
+            clientes = clientesList.OrderBy(c => c.Nombre).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar los usuarios: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void AbrirFormularioNuevoUsuario()
+    {
+        esNuevoUsuario = true;
+        selectedUser = null;
+        editUserEmail = string.Empty;
+        editUserName = string.Empty;
+        editPassword = string.Empty;
+        editPhone = string.Empty;
+        editTecnico = string.Empty;
+        editClienteId = null;
+        editLockout = false;
+        popupError = null;
+        popupFichaVisible = true;
+    }
+
+    private void AbrirFichaUsuario(ApplicationUserDto user)
+    {
+        esNuevoUsuario = false;
+        selectedUser = user;
+        editUserEmail = user.Email ?? string.Empty;
+        editUserName = user.UserName ?? string.Empty;
+        editPassword = string.Empty;
+        editPhone = user.PhoneNumber ?? string.Empty;
+        editTecnico = user.Tecnico ?? string.Empty;
+        editClienteId = user.ClienteId;
+        editLockout = user.IsLocked;
+        popupError = null;
+        popupFichaVisible = true;
+    }
+
+    private async Task GuardarFichaUsuarioAsync()
+    {
+        popupError = null;
+        if (string.IsNullOrWhiteSpace(editUserEmail))
+        {
+            popupError = "El correo electrónico es obligatorio.";
+            return;
+        }
+
+        if (esNuevoUsuario && string.IsNullOrWhiteSpace(editPassword))
+        {
+            popupError = "La contraseña es obligatoria para nuevos usuarios.";
+            return;
+        }
+
+        try
+        {
+            await SetupHeadersAsync();
+            if (esNuevoUsuario)
+            {
+                var dto = new CreateUserDto
+                {
+                    Email = editUserEmail,
+                    UserName = string.IsNullOrWhiteSpace(editUserName) ? editUserEmail : editUserName,
+                    Password = editPassword,
+                    PhoneNumber = editPhone,
+                    Tecnico = editTecnico,
+                    ClienteId = editClienteId
+                };
+
+                var response = await Http.PostAsJsonAsync("api/users", dto);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var err = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+                    popupError = err?.Message ?? "Error al crear el usuario.";
+                    return;
+                }
+
+                successMessage = "Usuario creado correctamente.";
+            }
+            else if (selectedUser != null)
+            {
+                var dto = new UpdateUserDto
+                {
+                    Id = selectedUser.Id,
+                    Email = editUserEmail,
+                    UserName = string.IsNullOrWhiteSpace(editUserName) ? editUserEmail : editUserName,
+                    PhoneNumber = editPhone,
+                    Tecnico = editTecnico,
+                    ClienteId = editClienteId,
+                    Lockout = editLockout
+                };
+
+                var response = await Http.PutAsJsonAsync($"api/users/{selectedUser.Id}", dto);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var err = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+                    popupError = err?.Message ?? "Error al actualizar la ficha del usuario.";
+                    return;
+                }
+
+                successMessage = "Ficha de usuario actualizada correctamente.";
+            }
+
+            popupFichaVisible = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            popupError = $"Error en la operación: {ex.Message}";
+        }
+    }
+
+    private void AbrirCambioPassword(ApplicationUserDto user)
+    {
+        selectedUser = user;
+        newPassword = string.Empty;
+        confirmPassword = string.Empty;
+        popupPasswordError = null;
+        popupPasswordVisible = true;
+    }
+
+    private async Task GuardarCambioPasswordAsync()
+    {
+        popupPasswordError = null;
+        if (string.IsNullOrWhiteSpace(newPassword))
+        {
+            popupPasswordError = "Introduzca la nueva contraseña.";
+            return;
+        }
+
+        if (newPassword != confirmPassword)
+        {
+            popupPasswordError = "Las contraseñas no coinciden.";
+            return;
+        }
+
+        if (selectedUser == null) return;
+
+        try
+        {
+            await SetupHeadersAsync();
+            var dto = new ChangePasswordDto
+            {
+                UserId = selectedUser.Id,
+                NewPassword = newPassword,
+                ConfirmPassword = confirmPassword
+            };
+
+            var response = await Http.PostAsJsonAsync("api/users/change-password", dto);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+                popupPasswordError = err?.Message ?? "No se pudo cambiar la contraseña.";
+                return;
+            }
+
+            successMessage = $"Contraseña actualizada correctamente para {selectedUser.Email}.";
+            popupPasswordVisible = false;
+        }
+        catch (Exception ex)
+        {
+            popupPasswordError = $"Error al cambiar contraseña: {ex.Message}";
+        }
+    }
+
+    private void ConfirmarEliminarUsuario(ApplicationUserDto user)
+    {
+        selectedUser = user;
+        popupEliminarVisible = true;
+    }
+
+    private async Task EliminarUsuarioAsync()
+    {
+        if (selectedUser == null) return;
+
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/users/{selectedUser.Id}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se pudo eliminar el usuario.";
+                return;
+            }
+
+            successMessage = $"Usuario {selectedUser.Email} eliminado correctamente.";
+            popupEliminarVisible = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al eliminar usuario: {ex.Message}";
+        }
+    }
+
+    private class ApiErrorResponse
+    {
+        public string? Message { get; set; }
+    }
+}

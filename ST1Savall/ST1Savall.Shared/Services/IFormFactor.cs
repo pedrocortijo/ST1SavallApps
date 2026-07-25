@@ -7,5 +7,8 @@ namespace ST1Savall.Shared.Services
         public string GetFormFactor();
         public string GetPlatform();
         public Task OpenUrlAsync(string url);
+        public Task<DeviceLocation?> GetCurrentLocationAsync();
     }
+
+    public sealed record DeviceLocation(double Latitude, double Longitude);
 }

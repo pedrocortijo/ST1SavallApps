@@ -24,6 +24,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Parametro> Parametros { get; set; } = null!;
     public DbSet<RutaCache> RutasCache { get; set; } = null!;
     public DbSet<Ausencia> Ausencias { get; set; } = null!;
+    public DbSet<Motivo> Motivos { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -80,6 +81,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Solicitud>()
             .Property(s => s.Longitud)
             .HasPrecision(9, 6);
+
+        foreach (var propertyName in new[]
+        {
+            nameof(Solicitud.AlbaranPlanta), nameof(Solicitud.AlbaranSerieSage), nameof(Solicitud.AlbaranNumeroSage)
+        })
+        {
+            builder.Entity<Solicitud>().Property<string?>(propertyName).IsUnicode(false);
+        }
 
         foreach (var propertyName in new[]
         {

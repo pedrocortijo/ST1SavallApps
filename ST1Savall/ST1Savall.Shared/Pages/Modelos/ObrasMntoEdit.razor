@@ -50,14 +50,24 @@
                         <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
                             Datos Generales
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Código" ColSpanMd="3" BeginRow="true" Enabled="IsNew">
-                            <DxTextBox @bind-Text="@obra.Codigo" MaxLength="30" />
+
+                        <DxFormLayoutItem Caption="Código" ColSpanMd="2" BeginRow="true">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="flex-grow-1">
+                                    <DxTextBox Text="@obra.Codigo" TextChanged="@((string valor) => obra.Codigo = LimitarTexto(valor, 5))" TextExpression="@(() => obra.Codigo)" BindValueMode="BindValueMode.OnInput" MaxLength="5" ReadOnly="@(!IsNew)" />
+                                </div>
+                                <button type="button" class="btn btn-outline-success btn-sm" style="height: 30px; padding-top: 0; padding-bottom: 0;"
+                                        title="Generar código" disabled="@(!string.IsNullOrWhiteSpace(obra.Codigo))"
+                                        @onclick="GenerarCodigoObraAsync" @onclick:stopPropagation="true">
+                                    <i class="oi oi-random"></i>
+                                </button>
+                            </div>
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Nombre" ColSpanMd="9">
-                            <DxTextBox @bind-Text="@obra.Nombre" />
+                            <DxTextBox Text="@obra.Nombre" TextChanged="@((string valor) => obra.Nombre = LimitarTexto(valor, 50))" TextExpression="@(() => obra.Nombre)" BindValueMode="BindValueMode.OnInput" MaxLength="50" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
-                            <DxTextBox @bind-Text="@obra.Direccion" />
+                            <DxTextBox Text="@obra.Direccion" TextChanged="@((string valor) => obra.Direccion = LimitarTexto(valor, 50))" TextExpression="@(() => obra.Direccion)" BindValueMode="BindValueMode.OnInput" MaxLength="50" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Población" ColSpanMd="4">
                             <div class="d-flex align-items-center gap-1 w-100">
@@ -118,19 +128,19 @@
                             </div>
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Provincia" ColSpanMd="5" BeginRow="true">
-                            <DxTextBox @bind-Text="@obra.Provincia" ReadOnly="true" />
+                            <DxTextBox @bind-Text="@obra.Provincia" MaxLength="30" ReadOnly="true" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="7">
-                            <DxTextBox @bind-Text="@obra.Libre3" />
+                            <DxTextBox Text="@obra.Libre3" TextChanged="@((string valor) => obra.Libre3 = LimitarTexto(valor, 30))" TextExpression="@(() => obra.Libre3)" BindValueMode="BindValueMode.OnInput" MaxLength="30" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Encargado" ColSpanMd="4" BeginRow="true">
-                            <DxTextBox @bind-Text="@obra.Encargado" />
+                            <DxTextBox Text="@obra.Encargado" TextChanged="@((string valor) => obra.Encargado = LimitarTexto(valor, 30))" TextExpression="@(() => obra.Encargado)" BindValueMode="BindValueMode.OnInput" MaxLength="30" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Teléfono" ColSpanMd="4">
-                            <DxTextBox @bind-Text="@obra.Telefono" />
+                            <DxTextBox Text="@obra.Telefono" TextChanged="@((string valor) => obra.Telefono = LimitarTexto(valor, 15))" TextExpression="@(() => obra.Telefono)" BindValueMode="BindValueMode.OnInput" MaxLength="15" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Móvil" ColSpanMd="4">
-                            <DxTextBox @bind-Text="@obra.Movil" />
+                            <DxTextBox Text="@obra.Movil" TextChanged="@((string valor) => obra.Movil = LimitarTexto(valor, 15))" TextExpression="@(() => obra.Movil)" BindValueMode="BindValueMode.OnInput" MaxLength="15" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Contacto Alter." ColSpanMd="4" BeginRow="true">
                             <DxTextBox @bind-Text="@obra.Libre1" MaxLength="10" />
@@ -139,21 +149,21 @@
                             <DxTextBox @bind-Text="@obra.Libre2" MaxLength="10" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-center">
-                            <DxCheckBox @bind-Checked="@obra.Vista" LabelPosition="LabelPosition.Right">Visible</DxCheckBox>
+                            <DxCheckBox @bind-Checked="@obra.Bloqueada" LabelPosition="LabelPosition.Right">Bloqueada</DxCheckBox>
                         </DxFormLayoutItem>
                         <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-center">
                             <DxCheckBox @bind-Checked="@obra.Terminada" LabelPosition="LabelPosition.Right">Finalizada</DxCheckBox>
                         </DxFormLayoutItem>
                         
-                        <DxFormLayoutItem ColSpanMd="6" BeginRow="true" CssClass="d-flex align-items-end pb-1">
-                            <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="async () => await ObtenerUbicacionActualAsync()" style="height: 38px;">
-                                <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
-                            </button>
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem ColSpanMd="6" CssClass="d-flex align-items-end pb-1">
-                            <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="async () => await AbrirMapaAsync()" style="height: 38px;" title="Ver en Google Maps">
-                                <i class="oi oi-eye me-1"></i> Ver en Maps
-                            </button>
+                        <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="pb-1">
+                            <div class="d-flex justify-content-end align-items-center gap-2 w-100 flex-wrap">
+                                <button type="button" class="btn btn-outline-primary btn-sm px-4" @onclick="ObtenerUbicacionConGuardadoAsync" style="height: 38px; min-width: 290px;">
+                                    <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm px-4" @onclick="AbrirMapaConGuardadoAsync" style="height: 38px; min-width: 180px;" title="Ver en Google Maps">
+                                    <i class="oi oi-eye me-1"></i> Ver en Maps
+                                </button>
+                            </div>
                         </DxFormLayoutItem>
 
                         <!-- Grupo 2: Datos del Cliente -->
@@ -171,12 +181,17 @@
                                         ListRenderMode="ListRenderMode.Virtual"
                                         SearchMode="ListSearchMode.AutoSearch"
                                         SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                        Enabled="@(!clienteBloqueadoPorServicios)"
                                         ValueChanged="@((string val) => OnClienteChangedAsync(val))"
                                         ValueExpression="@(() => obra.Cliente)">
                                 <ItemTemplate Context="cli">
                                     <span style="font-size: 0.9rem;"><strong>@cli.Codigo</strong> - @cli.Nombre</span>
                                 </ItemTemplate>
                             </DxComboBox>
+                            @if (clienteBloqueadoPorServicios)
+                            {
+                                <div class="form-text text-warning">El cliente no puede cambiarse porque la obra tiene servicios asignados.</div>
+                            }
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Teléfono Cliente" ColSpanMd="5">
                             <DxTextBox Text="@GetClientTelefono(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
@@ -224,10 +239,10 @@
                         <DxTextBox @bind-Text="@newPoblacion.Codigo" MaxLength="10" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Población" ColSpanMd="12">
-                        <DxTextBox @bind-Text="@newPoblacion.Poblacion" MaxLength="50" />
+                        <DxTextBox @bind-Text="@newPoblacion.Poblacion" MaxLength="30" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Provincia" ColSpanMd="12">
-                        <DxTextBox @bind-Text="@newPoblacion.Provincia" MaxLength="50" />
+                        <DxTextBox @bind-Text="@newPoblacion.Provincia" MaxLength="30" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Latitud" ColSpanMd="6">
                         <DxTextBox @bind-Text="@newPoblacion.Lati" MaxLength="30" />
@@ -265,6 +280,7 @@
     private ObraComunSage50? obra;
     private UnsavedChangesGuard? unsavedChangesGuard;
     private List<ClienteSage50>? clientesList;
+    private List<ClienteSage50>? todosLosClientes;
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
     
@@ -284,6 +300,7 @@
     private bool newPoblacionVisible = true;
     private string? popupErrorMessage;
     private string? obraInicial;
+    private bool clienteBloqueadoPorServicios;
 
     protected override async Task OnInitializedAsync()
     {
@@ -306,10 +323,10 @@
     {
         try
         {
-            clientesList = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
-            if (clientesList != null)
+            todosLosClientes = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
+            if (todosLosClientes != null)
             {
-                foreach (var c in clientesList)
+                foreach (var c in todosLosClientes)
                 {
                     c.Codigo = c.Codigo?.Trim() ?? "";
                     c.Nombre = c.Nombre?.Trim() ?? "";
@@ -318,7 +335,8 @@
                     c.Poblacion = c.Poblacion?.Trim() ?? "";
                     c.Codpost = c.Codpost?.Trim() ?? "";
                 }
-                clientesList = clientesList.OrderBy(c => c.Codigo).ToList();
+                todosLosClientes = todosLosClientes.OrderBy(c => c.Codigo).ToList();
+                AplicarFiltroClientes();
             }
 
             var freshList = await Http.GetFromJsonAsync<List<CodPosSage50>>("api/codpossage50");
@@ -367,6 +385,13 @@
                     obra.Movil = obra.Movil?.Trim() ?? "";
                     obra.Encargado = obra.Encargado?.Trim() ?? "";
                     obra.Libre3 = obra.Libre3?.Trim() ?? "";
+                    AplicarFiltroClientes();
+
+                    if (!Duplicate)
+                    {
+                        clienteBloqueadoPorServicios = await Http.GetFromJsonAsync<bool>(
+                            $"api/obrascomunsage50/servicios-asignados/{Uri.EscapeDataString(obra.Codigo)}");
+                    }
 
                     if (Duplicate)
                     {
@@ -390,6 +415,7 @@
                     Created = DateTime.Now,
                     Modified = DateTime.Now,
                     Vista = true,
+                    Posicion = 0,
                     Terminada = false
                 };
             }
@@ -403,6 +429,20 @@
             obraInicial = SerializarObra();
             isLoading = false;
         }
+    }
+
+    private void AplicarFiltroClientes()
+    {
+        if (todosLosClientes == null)
+        {
+            clientesList = null;
+            return;
+        }
+
+        var codigoSeleccionado = obra?.Cliente?.Trim();
+        clientesList = todosLosClientes
+            .Where(c => !c.BloqCli || c.Codigo == codigoSeleccionado)
+            .ToList();
     }
 
     private string GetClientName(string? clientCode)
@@ -442,7 +482,7 @@
 
     private async Task OnClienteChangedAsync(string newCode)
     {
-        if (obra == null) return;
+        if (obra == null || clienteBloqueadoPorServicios) return;
         obra.Cliente = newCode;
         if (!string.IsNullOrEmpty(newCode) && clientesList != null)
         {
@@ -473,7 +513,7 @@
     private void OnCodpostChanged(string val)
     {
         if (obra == null) return;
-        obra.Codpost = val?.Trim() ?? "";
+        obra.Codpost = LimitarTexto(val?.Trim(), 13);
         var p = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == val?.Trim());
         if (p != null)
         {
@@ -485,7 +525,7 @@
     private void OnPoblacionChanged(string val)
     {
         if (obra == null) return;
-        obra.Poblacion = val?.Trim() ?? "";
+        obra.Poblacion = LimitarTexto(val?.Trim(), 30);
         var p = poblaciones?.FirstOrDefault(x => x.Poblacion?.Trim().ToLower() == val?.Trim().ToLower());
         if (p != null)
         {
@@ -494,9 +534,58 @@
         }
     }
 
-    private async Task GuardarAsync()
+    private static string LimitarTexto(string? valor, int longitudMaxima) =>
+        valor is null ? string.Empty : valor[..Math.Min(valor.Length, longitudMaxima)];
+
+    private async Task GenerarCodigoObraAsync()
     {
-        if (obra == null) return;
+        if (obra == null || !string.IsNullOrWhiteSpace(obra.Codigo))
+            return;
+
+        try
+        {
+            errorMessage = null;
+            await SetupHeadersAsync();
+            var obrasExistentes = await Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50") ?? [];
+            var codigosExistentes = obrasExistentes
+                .Select(o => o.Codigo?.Trim())
+                .Where(codigo => !string.IsNullOrEmpty(codigo))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            for (var intento = 0; intento < 100; intento++)
+            {
+                var candidato = System.Security.Cryptography.RandomNumberGenerator
+                    .GetInt32(10000, 100000)
+                    .ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                if (!codigosExistentes.Contains(candidato))
+                {
+                    obra.Codigo = candidato;
+                    await InvokeAsync(StateHasChanged);
+                    return;
+                }
+            }
+
+            errorMessage = "No se ha podido generar un codigo de obra libre. Vuelva a intentarlo.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido generar el codigo de obra: {ex.Message}";
+        }
+    }
+
+    private Task GuardarAsync() => GuardarInternoAsync(navegarTrasGuardar: true);
+
+    private async Task<bool> GuardarCambiosPendientesAsync()
+    {
+        if (!HayCambiosPendientes)
+            return true;
+
+        return await GuardarInternoAsync(navegarTrasGuardar: false);
+    }
+
+    private async Task<bool> GuardarInternoAsync(bool navegarTrasGuardar)
+    {
+        if (obra == null) return false;
         try
         {
             await SetupHeadersAsync();
@@ -541,8 +630,8 @@
                 var response = await Http.PostAsJsonAsync("api/obrascomunsage50", obra);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al crear obra: {response.ReasonPhrase}";
-                    return;
+                    errorMessage = $"Error al crear obra: {await ObtenerDetalleErrorAsync(response)}";
+                    return false;
                 }
             }
             else
@@ -551,24 +640,55 @@
                 var response = await Http.PutAsJsonAsync($"api/obrascomunsage50/{Uri.EscapeDataString(obra.Codigo)}", obra);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al actualizar obra: {response.ReasonPhrase}";
-                    return;
+                    errorMessage = $"Error al actualizar obra: {await ObtenerDetalleErrorAsync(response)}";
+                    return false;
                 }
             }
 
             obraInicial = SerializarObra();
-            unsavedChangesGuard?.AllowNextNavigation();
-            NavigationManager.NavigateTo("/modelos/obrasmnto");
+            if (navegarTrasGuardar)
+            {
+                unsavedChangesGuard?.AllowNextNavigation();
+                NavigationManager.NavigateTo("/modelos/obrasmnto");
+            }
+            return true;
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al guardar: {ex.Message}";
+            return false;
         }
     }
 
     private void Volver()
     {
         NavigationManager.NavigateTo("/modelos/obrasmnto");
+    }
+
+    private sealed class ErrorApi
+    {
+        public string? Message { get; set; }
+        public string? Detail { get; set; }
+        public string? Title { get; set; }
+        public Dictionary<string, string[]>? Errors { get; set; }
+    }
+
+    private static async Task<string> ObtenerDetalleErrorAsync(HttpResponseMessage response)
+    {
+        var contenido = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var error = System.Text.Json.JsonSerializer.Deserialize<ErrorApi>(contenido,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (error?.Errors?.Any() == true)
+                return string.Join(" ", error.Errors.SelectMany(x => x.Value));
+
+            return error?.Message ?? error?.Detail ?? error?.Title ?? contenido;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return string.IsNullOrWhiteSpace(contenido) ? response.ReasonPhrase ?? "Error desconocido." : contenido;
+        }
     }
 
     private bool HayCambiosPendientes =>
@@ -581,11 +701,44 @@
         : System.Text.Json.JsonSerializer.Serialize(obra);
 
     // Geolocalización
+    private async Task ObtenerUbicacionConGuardadoAsync()
+    {
+        if (await GuardarCambiosPendientesAsync())
+            await ObtenerUbicacionActualAsync();
+    }
+
+    private async Task AbrirMapaConGuardadoAsync()
+    {
+        if (!await GuardarCambiosPendientesAsync())
+            return;
+
+        // La navegación a Maps sucede antes del siguiente renderizado; el guardia aún
+        // puede conservar el estado anterior de cambios pendientes. Esta autorización
+        // se consume exclusivamente por esta navegación, después de guardar con éxito.
+        unsavedChangesGuard?.AllowNextNavigation();
+        await AbrirMapaAsync();
+    }
+
     private async Task ObtenerUbicacionActualAsync()
     {
         if (obra == null) return;
         try
         {
+            if (!string.Equals(FormFactor.GetFormFactor(), "Web", StringComparison.OrdinalIgnoreCase))
+            {
+                var location = await FormFactor.GetCurrentLocationAsync();
+                if (location == null)
+                {
+                    errorMessage = "El dispositivo no ha podido determinar la ubicación actual.";
+                    return;
+                }
+
+                pendingLocationUpdate = await ObtenerDireccionDesdeCoordenadasAsync(location.Latitude, location.Longitude);
+                showConfirmPopup = true;
+                StateHasChanged();
+                return;
+            }
+
             var result = await JSRuntime.InvokeAsync<GeocodeResult>("eval", @"
                 new Promise((resolve, reject) => {
                     if (!navigator.geolocation) {
@@ -637,6 +790,36 @@
         {
             errorMessage = $"No se pudo obtener la ubicación: {ex.Message}";
         }
+    }
+
+    private async Task<GeocodeResult> ObtenerDireccionDesdeCoordenadasAsync(double latitude, double longitude)
+    {
+        var lat = latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var lon = longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return await JSRuntime.InvokeAsync<GeocodeResult>("eval", $@"
+            new Promise(async (resolve) => {{
+                const lat = {lat};
+                const lon = {lon};
+                try {{
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${{lat}}&lon=${{lon}}&zoom=18&addressdetails=1`);
+                    if (!res.ok) {{
+                        resolve({{ latitud: lat, longitud: lon }});
+                        return;
+                    }}
+                    const data = await res.json();
+                    const addr = data.address || {{}};
+                    resolve({{
+                        latitud: lat,
+                        longitud: lon,
+                        road: addr.road || addr.pedestrian || addr.path || '',
+                        houseNumber: addr.house_number || '',
+                        city: addr.city || addr.town || addr.village || addr.suburb || addr.county || '',
+                        postcode: addr.postcode || ''
+                    }});
+                }} catch (e) {{
+                    resolve({{ latitud: lat, longitud: lon }});
+                }}
+            }})");
     }
 
     private async Task ObtenerUbicacionActualAsync(CodPosSage50 poblacion)

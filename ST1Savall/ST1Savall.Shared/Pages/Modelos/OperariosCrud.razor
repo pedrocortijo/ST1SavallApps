@@ -59,6 +59,7 @@
                         EditMode="GridEditMode.PopupEditForm"
                         EditModelSaving="OnEditModelSaving"
                         DataItemDeleting="OnDataItemDeleting"
+                        CustomizeEditModel="Grid_CustomizeEditModel"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormHeaderText="Formulario - Operario"
                         PopupEditFormCssClass="crud-popup operarios-popup"
@@ -69,10 +70,10 @@
                         ShowSearchBox="true"
                         CustomizeElement="OnCustomizeElement">
                     <Columns>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        @onclick="StartNewOperarioAsync"
                                         title="Nuevo Operario">
                                     <i class="oi oi-plus me-1"></i> Nuevo
                                 </button>
@@ -87,6 +88,13 @@
                                                 @onclick:stopPropagation
                                                 title="Editar">
                                             <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center shadow-sm"
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => DuplicateOperarioAsync(oper)"
+                                                @onclick:stopPropagation
+                                                title="Duplicar">
+                                            <i class="oi oi-document" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
@@ -114,7 +122,7 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="IdPlanta" Caption="Planta Asignada" TextAlignment="GridTextAlignment.Left">
+                        <DxGridDataColumn FieldName="IdPlanta" Caption="Planta / Centro" Width="200px" TextAlignment="GridTextAlignment.Left">
                             <CellDisplayTemplate>
                                 @{
                                     var oper = (Operario)context.DataItem;
@@ -127,9 +135,9 @@
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
-                        <DxGridDataColumn FieldName="EstadoLaboral" Caption="Estado laboral" Width="120px" />
-                        <DxGridDataColumn FieldName="InicioJornada" Caption="Inicio jornada" DisplayFormat="hh':'mm" Width="110px" />
-                        <DxGridDataColumn FieldName="FinJornada" Caption="Fin jornada" DisplayFormat="hh':'mm" Width="110px" />
+                        <DxGridDataColumn FieldName="EstadoLaboral" Caption="Estado laboral" Width="90px" Visible="false"/>
+                        <DxGridDataColumn FieldName="InicioJornada" Caption="Ini. jornada" DisplayFormat="hh':'mm" Width="90px" TextAlignment="GridTextAlignment.Center" />
+                        <DxGridDataColumn FieldName="FinJornada" Caption="Fin jornada" DisplayFormat="hh':'mm" Width="90px" TextAlignment="GridTextAlignment.Center" />
                         <DxGridDataColumn FieldName="Obras" Caption="Per. Obras" Width="110px" Visible="false" />
                         <DxGridDataColumn FieldName="Mensajes" Caption="Per. Mensajes" Width="120px" Visible="false" />
                     </Columns>
@@ -201,7 +209,7 @@
                                 <div class="p-3">
                             @if (EsOperarioExistente(oper.IdOperario))
                             {
-                                    <DxGrid @ref="ausenciasGrid" Data="@GetAusencias(oper.IdOperario)" KeyFieldName="IdAusencia"
+                                    <DxGrid @key="oper.IdOperario" @ref="ausenciasGrid" Data="@GetAusencias(oper.IdOperario)" KeyFieldName="IdAusencia"
                                             EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnAusenciaSaving"
                                             DataItemDeleting="OnAusenciaDeleting" PageSize="5" ShowPager="true">
                                         <Columns>
@@ -273,12 +281,61 @@
     private List<Ausencia> ausencias = [];
     private int conductorAusenciaActual;
     private Operario? operarioEnEdicion;
+    private Operario? operarioToDuplicate;
     private readonly List<string> tiposAusencia = ["Asuntos Propios", "Baja Médica", "Vacaciones"];
     private readonly List<string> estadosLaborales = ["Activo", "Inactivo"];
 
     private sealed class MensajeApi
     {
         public string? Message { get; set; }
+    }
+
+    private async Task StartNewOperarioAsync()
+    {
+        operarioToDuplicate = null;
+        if (grid is not null)
+        {
+            await grid.StartEditNewRowAsync();
+        }
+    }
+
+    private async Task DuplicateOperarioAsync(Operario operario)
+    {
+        operarioToDuplicate = operario;
+        if (grid is not null)
+        {
+            await grid.StartEditNewRowAsync();
+        }
+    }
+
+    private void Grid_CustomizeEditModel(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew || operarioToDuplicate is null)
+        {
+            return;
+        }
+
+        var newOperario = (Operario)e.EditModel;
+        newOperario.IdOperario = 0;
+        newOperario.Nombre = $"{operarioToDuplicate.Nombre} (Copia)";
+        newOperario.Telefono = operarioToDuplicate.Telefono;
+        newOperario.IdCargo = operarioToDuplicate.IdCargo;
+        newOperario.IdPlanta = operarioToDuplicate.IdPlanta;
+        newOperario.Activo = operarioToDuplicate.Activo;
+        newOperario.Obras = operarioToDuplicate.Obras;
+        newOperario.Mensajes = operarioToDuplicate.Mensajes;
+        newOperario.Tierras = operarioToDuplicate.Tierras;
+        newOperario.EstadoLaboral = operarioToDuplicate.EstadoLaboral;
+        newOperario.MotivoInactividad = operarioToDuplicate.MotivoInactividad;
+        newOperario.InactivoDesde = operarioToDuplicate.InactivoDesde;
+        newOperario.InactivoHasta = operarioToDuplicate.InactivoHasta;
+        newOperario.InicioJornada = operarioToDuplicate.InicioJornada;
+        newOperario.FinJornada = operarioToDuplicate.FinJornada;
+        newOperario.InicioDescanso = operarioToDuplicate.InicioDescanso;
+        newOperario.FinDescanso = operarioToDuplicate.FinDescanso;
+        newOperario.Cargo = null;
+        newOperario.Planta = null;
+        operarioToDuplicate = null;
     }
 
     protected override async Task OnInitializedAsync()

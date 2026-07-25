@@ -186,6 +186,7 @@
         }
 
         var newTipo = (ContenedorTipo)e.EditModel;
+        newTipo.IdTipo = 0;
         newTipo.Descripcion = $"{tipoToDuplicate.Descripcion} (Copia)";
         newTipo.CapacidadMetrosCubicos = tipoToDuplicate.CapacidadMetrosCubicos;
         newTipo.LargoCm = tipoToDuplicate.LargoCm;

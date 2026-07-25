@@ -19,6 +19,20 @@ public class PlanificacionService
         if (!solicitud.FechaHoraInicioPlanificada.HasValue)
             return null;
 
+        if (solicitud.FechaTarea.HasValue)
+        {
+            var targetDate = solicitud.FechaTarea.Value.Date;
+            solicitud.FechaHoraInicioPlanificada = targetDate + solicitud.FechaHoraInicioPlanificada.Value.TimeOfDay;
+            if (solicitud.FechaHoraFinPlanificada.HasValue)
+            {
+                solicitud.FechaHoraFinPlanificada = targetDate + solicitud.FechaHoraFinPlanificada.Value.TimeOfDay;
+            }
+        }
+        else
+        {
+            solicitud.FechaTarea = solicitud.FechaHoraInicioPlanificada.Value.Date;
+        }
+
         var duracion = solicitud.DuracionPlanificadaMinutos.GetValueOrDefault();
         if (duracion <= 0 && solicitud.FechaHoraFinPlanificada > solicitud.FechaHoraInicioPlanificada)
             duracion = (int)Math.Ceiling((solicitud.FechaHoraFinPlanificada.Value - solicitud.FechaHoraInicioPlanificada.Value).TotalMinutes);
@@ -27,7 +41,6 @@ public class PlanificacionService
 
         solicitud.DuracionPlanificadaMinutos = duracion;
         solicitud.FechaHoraFinPlanificada = solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(duracion);
-        solicitud.FechaTarea = solicitud.FechaHoraInicioPlanificada.Value.Date;
         solicitud.HoraLlegada = solicitud.FechaHoraInicioPlanificada;
 
         if (!solicitud.IdConductor.HasValue)
@@ -52,6 +65,14 @@ public class PlanificacionService
         if (operario.Activo == false &&
             !string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
             return "El conductor está desactivado.";
+
+        var inicioJornada = operario.InicioJornada == TimeSpan.Zero ? new TimeSpan(8, 0, 0) : operario.InicioJornada;
+        var finJornada = operario.FinJornada == TimeSpan.Zero ? new TimeSpan(17, 0, 0) : operario.FinJornada;
+
+        if (inicio.TimeOfDay < inicioJornada || fin.TimeOfDay > finJornada)
+        {
+            return $"El horario seleccionado ({inicio:HH:mm}–{fin:HH:mm}) está fuera de la jornada laboral del conductor ({inicioJornada:hh\\:mm}–{finJornada:hh\\:mm}).";
+        }
 
         if (EstaInactivo(operario, inicio, fin))
             return $"El conductor está inactivo{GetMotivo(operario)} durante el intervalo seleccionado.";
@@ -82,10 +103,39 @@ public class PlanificacionService
             !string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
             return new PlanificacionHueco { Mensaje = "El conductor está desactivado." };
 
+        var inicioJornada = operario.InicioJornada == TimeSpan.Zero ? new TimeSpan(8, 0, 0) : operario.InicioJornada;
+        var finJornada = operario.FinJornada == TimeSpan.Zero ? new TimeSpan(17, 0, 0) : operario.FinJornada;
+
         var candidato = RedondearAlCuartoDeHora(desde);
+        if (candidato.TimeOfDay < inicioJornada)
+        {
+            candidato = candidato.Date + inicioJornada;
+        }
+
         var limite = desde.AddDays(90);
         while (candidato < limite)
         {
+            if (candidato.TimeOfDay < inicioJornada)
+            {
+                candidato = candidato.Date + inicioJornada;
+            }
+
+            var fin = candidato.AddMinutes(duracionMinutos);
+            if (fin.TimeOfDay > finJornada || candidato.TimeOfDay >= finJornada)
+            {
+                candidato = candidato.Date.AddDays(1) + inicioJornada;
+                continue;
+            }
+
+            if (operario.InicioDescanso.HasValue && operario.FinDescanso.HasValue)
+            {
+                if (candidato.TimeOfDay < operario.FinDescanso.Value && fin.TimeOfDay > operario.InicioDescanso.Value)
+                {
+                    candidato = candidato.Date + operario.FinDescanso.Value;
+                    continue;
+                }
+            }
+
             if (string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) &&
                 operario.InactivoHasta.HasValue && candidato <= operario.InactivoHasta.Value)
             {
@@ -93,7 +143,6 @@ public class PlanificacionService
                 continue;
             }
 
-            var fin = candidato.AddMinutes(duracionMinutos);
             var ocupado = await _context.Solicitudes.AsNoTracking()
                 .Where(s => s.IdSolicitud != excluirSolicitudId && s.IdConductor == idConductor && s.Estado != EstadoAnulado &&
                             s.FechaHoraInicioPlanificada < fin && s.FechaHoraFinPlanificada > candidato)
@@ -113,7 +162,7 @@ public class PlanificacionService
             candidato = candidato.AddMinutes(15);
         }
 
-        return new PlanificacionHueco { Mensaje = "No se encontró un hueco disponible en los próximos 90 días." };
+        return new PlanificacionHueco { Mensaje = "No se encontró un hueco disponible dentro de la jornada laboral en los próximos 90 días." };
     }
 
     private static bool EstaInactivo(Operario operario, DateTime inicio, DateTime fin)

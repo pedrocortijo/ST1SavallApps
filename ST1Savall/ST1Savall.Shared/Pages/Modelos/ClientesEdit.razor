@@ -321,7 +321,9 @@
                                     NullText="Seleccione tipo de IVA..." />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
-                        <DxCheckBox @bind-Checked="@cliente.BloqCli" LabelPosition="LabelPosition.Right">Cliente Bloqueado</DxCheckBox>
+                        <DxCheckBox @bind-Checked:get="@cliente.BloqCli"
+                                    @bind-Checked:set="@OnBloqueoClienteChanged"
+                                    LabelPosition="LabelPosition.Right">Cliente Bloqueado</DxCheckBox>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
                         <DxCheckBox @bind-Checked="@cliente.Recargo" LabelPosition="LabelPosition.Right">Recargo de Equivalencia</DxCheckBox>
@@ -341,6 +343,12 @@
     }
     
     <DxMessageBox @bind-Visible="showConflictPopup" Text="@conflictMessage" Title="Incidencia" Type="MessageBoxType.Alert" RenderStyle="MessageBoxRenderStyle.Warning" Closed="OnConflictClosed" />
+    <DxMessageBox @bind-Visible="showBloqueoPopup"
+                  Text="@bloqueoPopupMessage"
+                  Title="Confirmar cambio de bloqueo"
+                  Type="MessageBoxType.Confirmation"
+                  RenderStyle="MessageBoxRenderStyle.Warning"
+                  Closed="OnBloqueoPopupClosed" />
 
     <DxPopup @bind-Visible="@poblacionPopupVisible"
              HeaderText="Gestión de Población"
@@ -390,6 +398,9 @@
     private List<TipoIvaSage50>? tiposIvaList;
     private bool showConflictPopup = false;
     private string? conflictMessage;
+    private bool showBloqueoPopup;
+    private string? bloqueoPopupMessage;
+    private bool? bloqueoPendiente;
     private bool loading = true;
     private string? errorMessage;
     private bool poblacionPopupVisible = false;
@@ -1037,6 +1048,26 @@
         {
             errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
         }
+    }
+
+    private async Task OnBloqueoClienteChanged(bool bloqueado)
+    {
+        if (cliente == null || cliente.BloqCli == bloqueado) return;
+
+        bloqueoPendiente = bloqueado;
+        bloqueoPopupMessage = bloqueado 
+            ? "Se van a bloquear todas las obras en proceso en este momento. ¿Desea continuar?" 
+            : "Se van a desbloquear todas las obras en proceso en este momento. ¿Desea continuar?";
+        showBloqueoPopup = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnBloqueoPopupClosed(bool confirmado)
+    {
+        showBloqueoPopup = false;
+        if (confirmado && cliente != null && bloqueoPendiente.HasValue)
+            cliente.BloqCli = bloqueoPendiente.Value;
+        bloqueoPendiente = null;
     }
 
     private void GoBack()

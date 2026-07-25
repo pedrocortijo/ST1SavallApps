@@ -41,4 +41,17 @@ public class Parametro
     [MaxLength(255)]
     [Column(TypeName = "varchar(255)")]
     public string? PathImagenes { get; set; }
+
+    public int? EstadoReprogramacion { get; set; }
+
+    public int? EstadoIniciado { get; set; }
+
+    public int? EstadoFinalizado { get; set; }
+
+    public int? EstadoAdjudicado { get; set; }
+
+    public int? EstadoPendiente { get; set; }
+
+    [MaxLength(100)]
+    public string? AdminPassword { get; set; }
 }

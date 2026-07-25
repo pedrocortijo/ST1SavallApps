@@ -649,6 +649,24 @@ namespace ST1Savall.API.Migrations
 
             modelBuilder.Entity("ST1Savall.Shared.Data.Solicitud", b =>
                 {
+                    b.Property<bool>("Bloqueado")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("AlbaranNumeroSage")
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("AlbaranPlanta")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("AlbaranSerieSage")
+                        .HasMaxLength(2)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(2)");
+
                     b.Property<int>("IdSolicitud")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");

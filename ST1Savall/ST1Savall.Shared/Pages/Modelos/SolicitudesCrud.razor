@@ -11,6 +11,23 @@
     .grid-filter-bar { background-color: rgba(0, 0, 0, 0.03); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
     html.theme-blazing-dark .grid-filter-bar,
     html.theme-fluent-dark .grid-filter-bar { background-color: rgba(255, 255, 255, 0.03) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+    .solicitud-bloqueada-row,
+    .solicitud-bloqueada-row td,
+    .solicitud-bloqueada-row span,
+    .solicitud-bloqueada-row strong {
+        background-color: #fde7e9 !important;
+        color: #b42318 !important;
+        font-weight: 700 !important;
+    }
+    .solicitudes-grid {
+        font-size: 0.8rem !important;
+    }
+    .solicitudes-grid th,
+    .solicitudes-grid td {
+        font-size: 0.8rem !important;
+        padding-top: 0.3rem !important;
+        padding-bottom: 0.3rem !important;
+    }
 </style>
 
 <div class="container-fluid py-0">
@@ -20,6 +37,9 @@
             <p class="text-muted mb-0">Gestión de solicitudes.</p>
         </div>
         <div class="d-flex gap-2">
+            <NavLink href="/servicios/asignacion-secuencial" class="btn btn-warning text-dark btn-sm fw-bold">
+                <i class="oi oi-bolt me-1"></i> Asignación Secuencial
+            </NavLink>
             <NavLink href="/servicios/planificacion" class="btn btn-primary btn-sm">
                 <i class="oi oi-calendar me-1"></i> Planificación
             </NavLink>
@@ -29,13 +49,28 @@
         </div>
     </div>
 
-    @if (errorMessage != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+<DxPopup Visible="@(!string.IsNullOrWhiteSpace(errorMessage))"
+         VisibleChanged="@((bool visible) => { if (!visible) errorMessage = null; })"
+         HeaderText="Error"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-circle-x text-danger fs-3"></i>
+            <div>
+                <p class="mb-0">@errorMessage</p>
+            </div>
         </div>
-    }
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => errorMessage = null" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 
     <div class="card shadow-sm">
         <div class="card-body p-0">
@@ -87,17 +122,18 @@
                     <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
                 </div>
 
-                <DxGrid Data="@GetFilteredSolicitudes()"
+                <DxGrid CssClass="solicitudes-grid"
+                        Data="@GetFilteredSolicitudes()"
                         KeyFieldName="IdSolicitud"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
                         AllowSort="true"
                         ShowFilterRow="true"
                         ShowSearchBox="true"
-                        ColumnResizeMode="GridColumnResizeMode.ColumnsContainer"
+                        ColumnResizeMode="GridColumnResizeMode.NextColumn"
                         CustomizeElement="@OnCustomizeElement">
                     <Columns>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <DxGridCommandColumn Width="115px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="NavigateToCreate"
@@ -109,7 +145,7 @@
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
-                                    <div class="d-flex gap-1">
+                                    <div class="d-flex align-items-center gap-1">
                                         <button class="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px; @GetEditButtonStyle(sol)"
                                                 @onclick="() => NavigateToEdit(sol.IdSolicitud)" 
@@ -118,12 +154,23 @@
                                             <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <button class="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px; @GetEditButtonStyle(sol)"
+                                                @onclick="() => NavigateToDuplicate(sol.IdSolicitud)" 
+                                                @onclick:stopPropagation
+                                                title="Duplicar">
+                                            <i class="oi oi-document" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px; @GetDeleteButtonStyle(sol)"
                                                 @onclick="() => ConfirmDelete(sol)" 
                                                 @onclick:stopPropagation
                                                 title="Eliminar">
                                             <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
                                         </button>
+                                        @if (sol.Bloqueado)
+                                        {
+                                            <i class="oi oi-lock-locked text-danger ms-1" style="font-size: 1.1rem;" title="Solicitud bloqueada"></i>
+                                        }
                                     </div>
                                 }
                             </CellDisplayTemplate>
@@ -143,9 +190,9 @@
                                 @{
                                     var sol = (Solicitud)context.DataItem;
                                     <div>
-                                        <strong>@sol.NombreCliente</strong><br />
-                                        <span style="font-size: 0.8rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
-                                        <span class="text-muted" style="font-size: 0.75rem;"><i class="oi oi-phone" style="font-size: 0.7rem;"></i> @sol.TelefonoCliente</span>
+                                        <strong style="font-size: 0.82rem;">@sol.NombreCliente</strong><br />
+                                        <span style="font-size: 0.74rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
+                                        <span style="font-size: 0.7rem; opacity: 0.85; color: inherit;"><i class="oi oi-phone" style="font-size: 0.65rem; color: inherit;"></i> @sol.TelefonoCliente</span>
                                     </div>
                                 }
                             </CellDisplayTemplate>
@@ -158,10 +205,10 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" />
-                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Tarea" DisplayFormat="dd/MM/yyyy" />
-                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio planificado" DisplayFormat="dd/MM/yyyy HH:mm" Width="150px" />
-                        <DxGridDataColumn FieldName="DuracionPlanificadaMinutos" Caption="Duración (min)" Width="110px" />
+                        <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" Visible="false" />
+                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="130px" />
+                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio" DisplayFormat="HH:mm" Width="90px" />
+                        <DxGridDataColumn FieldName="DuracionPlanificadaMinutos" Caption="Duración (min)" Width="110px" Visible="false" />
                         <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="180px">
                             <CellDisplayTemplate>
                                 @{
@@ -196,6 +243,7 @@
     private int selectedPrioridadId = -1;
 
     private List<EstadoSolicitud>? estadosList;
+    private List<Parametro>? parametrosList;
     private List<Tarea>? tareasList;
     private List<Operario> comboOperarios = new() { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
     private List<Tarea> comboTareas = new() { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
@@ -241,13 +289,13 @@
 
     private IEnumerable<EstadoSolicitud> GetFilterableEstados()
     {
-        return estadosList?.Where(e => e.Filtrar).OrderBy(e => e.IdEstado)
-            ?? Enumerable.Empty<EstadoSolicitud>();
+        if (estadosList == null) return Enumerable.Empty<EstadoSolicitud>();
+        return estadosList.OrderBy(e => e.IdEstado);
     }
 
-    private static string GetCardLabel(EstadoSolicitud estado)
+    private string GetCardLabel(EstadoSolicitud estado)
     {
-        return estado.Descripcion ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(estado.Descripcion) ? estado.Descripcion : $"Estado {estado.IdEstado}";
     }
 
     private string GetCardStyle(int estado)
@@ -311,6 +359,11 @@
         NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}");
     }
 
+    private void NavigateToDuplicate(int id)
+    {
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}?duplicate=true");
+    }
+
     private async Task ConfirmDelete(Solicitud sol)
     {
         bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de que desea eliminar la solicitud de {sol.NombreCliente}?");
@@ -341,19 +394,31 @@
             var dataItem = e.Grid.GetDataItem(e.VisibleIndex);
             if (dataItem is Solicitud solicitud)
             {
+                if (solicitud.Bloqueado)
+                {
+                    e.CssClass = "solicitud-bloqueada-row";
+                    string style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important; ";
+                    if (e.ElementType == GridElementType.DataCell)
+                    {
+                        style += "text-align: left !important; ";
+                    }
+                    e.Style = style.Trim();
+                    return;
+                }
+
                 var (bgColor, textColor) = GetEstadoStyle(solicitud.Estado);
-                string style = "";
+                string styleStr = "";
                 if (!string.IsNullOrEmpty(bgColor))
                 {
-                    style += $"background-color: {bgColor} !important; color: {textColor} !important; ";
+                    styleStr += $"background-color: {bgColor} !important; color: {textColor} !important; ";
                 }
                 if (e.ElementType == GridElementType.DataCell)
                 {
-                    style += "text-align: left !important; ";
+                    styleStr += "text-align: left !important; ";
                 }
-                if (!string.IsNullOrEmpty(style))
+                if (!string.IsNullOrEmpty(styleStr))
                 {
-                    e.Style = style.Trim();
+                    e.Style = styleStr.Trim();
                 }
             }
         }
@@ -392,10 +457,18 @@
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            parametrosList = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
 
             comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
-            if (operarios != null) comboOperarios.AddRange(operarios);
+            if (operarios != null)
+            {
+                var operariosDisponibles = operarios.Where(o =>
+                    (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+                    || (solicitudes != null && solicitudes.Any(s => s.IdConductor == o.IdOperario))
+                ).OrderBy(o => o.Nombre);
+                comboOperarios.AddRange(operariosDisponibles);
+            }
             comboTareas = new List<Tarea> { new Tarea { IdTarea = -1, NombreTarea = "Todos los tipos de tarea" } };
             if (tareasList != null) comboTareas.AddRange(tareasList);
             comboEstados = new List<EstadoSolicitud> { new EstadoSolicitud { IdEstado = -1, Descripcion = "Todos los estados" } };

@@ -58,7 +58,7 @@
                         <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        @onclick="StartNewTareaAsync"
                                         title="Nueva Tarea">
                                     <i class="oi oi-plus me-1"></i> Nueva
                                 </button>
@@ -148,6 +148,7 @@
     private IGrid? grid;
     private List<Tarea>? tareas;
     private string? errorMessage;
+    private Tarea? tareaToDuplicate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -210,23 +211,21 @@
         }
     }
 
+    private async Task StartNewTareaAsync()
+    {
+        tareaToDuplicate = null;
+        if (grid is not null)
+        {
+            await grid.StartEditNewRowAsync();
+        }
+    }
+
     private async Task DuplicarTareaAsync(Tarea tarea)
     {
-        try
+        tareaToDuplicate = tarea;
+        if (grid is not null)
         {
-            await SetupHeadersAsync();
-            var response = await Http.PostAsync($"api/tareas/{tarea.IdTarea}/duplicar", null);
-            if (!response.IsSuccessStatusCode)
-            {
-                errorMessage = $"Error al duplicar tarea: {response.ReasonPhrase}";
-                return;
-            }
-
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al duplicar tarea: {ex.Message}";
+            await grid.StartEditNewRowAsync();
         }
     }
 
@@ -237,7 +236,15 @@
 
         var nuevaTarea = (Tarea)e.EditModel;
         nuevaTarea.IdTarea = 0;
+        if (tareaToDuplicate is null)
+            return;
 
+        nuevaTarea.NombreTarea = $"{tareaToDuplicate.NombreTarea} (Copia)";
+        nuevaTarea.Entrega1 = tareaToDuplicate.Entrega1;
+        nuevaTarea.Entrega2 = tareaToDuplicate.Entrega2;
+        nuevaTarea.Recoger1 = tareaToDuplicate.Recoger1;
+        nuevaTarea.Recoger2 = tareaToDuplicate.Recoger2;
+        tareaToDuplicate = null;
     }
 
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)

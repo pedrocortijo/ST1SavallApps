@@ -6,76 +6,98 @@
 
 <PageTitle>Gestión de Estados de Solicitud</PageTitle>
 
-<div class="container-fluid py-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-primary mb-1">Estados de Solicitud</h2>
-            <p class="text-muted mb-0">Administración de estados</p>
-        </div>
-        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
-        </NavLink>
-    </div>
-
-    @if (errorMessage != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
-        </div>
-    }
-
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            @if (estados == null)
+<DxPopup Visible="@passwordModalVisible"
+         HeaderText="Acceso a Estados de Solicitud"
+         ShowCloseButton="false"
+         CloseOnOutsideClick="false"
+         ShowFooter="true"
+         Width="450px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p class="mb-3">Para acceder al menú de estados de solicitudes, introduzca la contraseña de administración.</p>
+            <DxTextBox @bind-Text="@inputPassword"
+                       Password="true"
+                       NullText="Contraseña"
+                       CssClass="w-100"
+                       Attributes="@(new Dictionary<string, object> { { "autocomplete", "new-password" } })" />
+            @if (!string.IsNullOrWhiteSpace(passwordError))
             {
-                <div class="p-5 text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Cargando...</span>
-                    </div>
-                    <p class="mt-2 text-muted mb-0">Cargando estados...</p>
-                </div>
+                <div class="text-danger small mt-2">@passwordError</div>
             }
-            else
-            {
-                <DxGrid @ref="grid"
-                        Data="@estados"
-                        KeyFieldName="IdEstado"
-                        EditMode="GridEditMode.PopupEditForm"
-                        EditModelSaving="OnEditModelSaving"
-                        DataItemDeleting="OnDataItemDeleting"
-                        PopupEditFormHeaderCssClass="bg-primary text-white"
-                        PopupEditFormHeaderText="Formulario - Estado de Solicitud"
-                        PopupEditFormCssClass="crud-popup"
-                        PagerPosition="GridPagerPosition.Bottom"
-                        PageSize="20"
-                        AllowSort="true"
-                        ShowFilterRow="true"
-                        ShowSearchBox="true"
-                        SearchBoxNullText="Buscar estado...">
-                    <Columns>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
-                            <HeaderTemplate>
-                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="() => grid?.StartEditNewRowAsync()"
-                                        title="Nuevo Estado">
-                                    <i class="oi oi-plus me-1"></i> Nuevo
-                                </button>
-                            </HeaderTemplate>
-                            <CellDisplayTemplate>
-                                @{
-                                    var cargo = (EstadoSolicitud)context.DataItem;
-                                    <div class="d-flex gap-1">
-                                        @if (EsEstadoExclusivoApp(cargo))
-                                        {
-                                            <span class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center"
-                                                  style="width: 32px; height: 32px;"
-                                                  title="Estado exclusivo de la aplicación">
-                                                <i class="oi oi-lock-locked" style="font-size: 0.9rem;"></i>
-                                            </span>
-                                        }
-                                        else
-                                        {
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarPasswordPrompt" />
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="ValidarPasswordAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+@if (isAuthorized)
+{
+    <div class="container-fluid py-0">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-primary mb-1">Estados de Solicitud</h2>
+                <p class="text-muted mb-0">Administración de estados</p>
+            </div>
+            <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+                <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
+            </NavLink>
+        </div>
+
+        @if (errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+            </div>
+        }
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                @if (estados == null)
+                {
+                    <div class="p-5 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted mb-0">Cargando estados...</p>
+                    </div>
+                }
+                else
+                {
+                    <DxGrid @ref="grid"
+                            Data="@estados"
+                            KeyFieldName="IdEstado"
+                            EditMode="GridEditMode.PopupEditForm"
+                            EditModelSaving="OnEditModelSaving"
+                            DataItemDeleting="OnDataItemDeleting"
+                            PopupEditFormHeaderCssClass="bg-primary text-white"
+                            PopupEditFormHeaderText="Formulario - Estado de Solicitud"
+                            PopupEditFormCssClass="crud-popup"
+                            PagerPosition="GridPagerPosition.Bottom"
+                            PageSize="20"
+                            AllowSort="true"
+                            ShowFilterRow="true"
+                            ShowSearchBox="true"
+                            SearchBoxNullText="Buscar estado...">
+                        <Columns>
+                            <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                <HeaderTemplate>
+                                    <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
+                                            @onclick="() => grid?.StartEditNewRowAsync()"
+                                            title="Nuevo Estado">
+                                        <i class="oi oi-plus me-1"></i> Nuevo
+                                    </button>
+                                </HeaderTemplate>
+                                <CellDisplayTemplate>
+                                    @{
+                                        var cargo = (EstadoSolicitud)context.DataItem;
+                                        <div class="d-flex gap-1">
                                             <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
                                                     style="width: 32px; height: 32px;"
                                                     @onclick="() => grid?.StartEditDataItemAsync(cargo)"
@@ -90,86 +112,170 @@
                                                     title="Eliminar">
                                                 <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
                                             </button>
-                                        }
+                                        </div>
+                                    }
+                                </CellDisplayTemplate>
+                            </DxGridCommandColumn>
+                            <DxGridDataColumn FieldName="IdEstado" Caption="Código" ReadOnly="true" Width="80px" />
+                            <DxGridDataColumn FieldName="Descripcion" Caption="Descripción del Estado" />
+                            <DxGridDataColumn FieldName="Filtrar" Caption="Filtrar" Width="100px" />
+                            <DxGridDataColumn FieldName="BgColor" Caption="Color Fondo" Width="140px">
+                                <CellDisplayTemplate>
+                                    <div class="d-flex align-items-center">
+                                        <div class="border me-2" style="width: 20px; height: 20px; background-color: @context.Value; border-radius: 4px;"></div>
+                                        <span>@context.Value</span>
                                     </div>
-                                }
-                            </CellDisplayTemplate>
-                        </DxGridCommandColumn>
-                        <DxGridDataColumn FieldName="IdEstado" Caption="Código" ReadOnly="true" Width="80px" />
-                        <DxGridDataColumn FieldName="Descripcion" Caption="Descripción del Estado" />
-                        <DxGridDataColumn FieldName="Filtrar" Caption="Filtrar" Width="100px" />
-                        <DxGridDataColumn FieldName="BgColor" Caption="Color Fondo" Width="140px">
-                            <CellDisplayTemplate>
-                                <div class="d-flex align-items-center">
-                                    <div class="border me-2" style="width: 20px; height: 20px; background-color: @context.Value; border-radius: 4px;"></div>
-                                    <span>@context.Value</span>
-                                </div>
-                            </CellDisplayTemplate>
-                        </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="TextColor" Caption="Color Texto" Width="140px">
-                            <CellDisplayTemplate>
-                                <div class="d-flex align-items-center">
-                                    <div class="border me-2" style="width: 20px; height: 20px; background-color: @context.Value; border-radius: 4px;"></div>
-                                    <span>@context.Value</span>
-                                </div>
-                            </CellDisplayTemplate>
-                        </DxGridDataColumn>
-                        <DxGridDataColumn Caption="Vista Previa" Width="180px">
-                            <CellDisplayTemplate>
-                                @{
-                                    var est = (EstadoSolicitud)context.DataItem;
-                                }
-                                <div class="text-center py-1 px-2 border" style="background-color: @est.BgColor; color: @est.TextColor; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">
-                                    @est.Descripcion
-                                </div>
-                            </CellDisplayTemplate>
-                        </DxGridDataColumn>
-                    </Columns>
-                    <EditFormTemplate Context="EditFormContext">
-                        @{
-                            var est = (EstadoSolicitud)EditFormContext.EditModel;
-                        }
-                        <DxFormLayout CssClass="w-100 p-3">
-                            <DxFormLayoutItem Caption="Código" ColSpanMd="12" Enabled="false">
-                                <DxSpinEdit @bind-Value="@est.IdEstado" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Descripción" ColSpanMd="12">
-                                <DxTextBox @bind-Text="@est.Descripcion" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Filtrar" ColSpanMd="12">
-                                <DxCheckBox @bind-Checked="@est.Filtrar" LabelPosition="LabelPosition.Right">Aplicar en filtros</DxCheckBox>
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Color Fondo" ColSpanMd="6">
-                                <div class="d-flex gap-2 align-items-center">
-                                    <DxTextBox @bind-Text="@est.BgColor" />
-                                    <input type="color" @bind="@est.BgColor" style="height: 38px; width: 45px; padding: 2px; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;" />
-                                </div>
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Color Texto" ColSpanMd="6">
-                                <div class="d-flex gap-2 align-items-center">
-                                    <DxTextBox @bind-Text="@est.TextColor" />
-                                    <input type="color" @bind="@est.TextColor" style="height: 38px; width: 45px; padding: 2px; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;" />
-                                </div>
-                            </DxFormLayoutItem>
-                        </DxFormLayout>
-                    </EditFormTemplate>
-                </DxGrid>
-            }
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn FieldName="TextColor" Caption="Color Texto" Width="140px">
+                                <CellDisplayTemplate>
+                                    <div class="d-flex align-items-center">
+                                        <div class="border me-2" style="width: 20px; height: 20px; background-color: @context.Value; border-radius: 4px;"></div>
+                                        <span>@context.Value</span>
+                                    </div>
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn Caption="Vista Previa" Width="180px">
+                                <CellDisplayTemplate>
+                                    @{
+                                        var est = (EstadoSolicitud)context.DataItem;
+                                    }
+                                    <div class="text-center py-1 px-2 border" style="background-color: @est.BgColor; color: @est.TextColor; border-radius: 4px; font-weight: bold; font-size: 0.8rem;">
+                                        @est.Descripcion
+                                    </div>
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                        </Columns>
+                        <EditFormTemplate Context="EditFormContext">
+                            @{
+                                var est = (EstadoSolicitud)EditFormContext.EditModel;
+                            }
+                            <DxFormLayout CssClass="w-100 p-3">
+                                <DxFormLayoutItem Caption="Código" ColSpanMd="12" Enabled="false">
+                                    <DxSpinEdit @bind-Value="@est.IdEstado" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Descripción" ColSpanMd="12">
+                                    <DxTextBox @bind-Text="@est.Descripcion" />
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Filtrar" ColSpanMd="12">
+                                    <DxCheckBox @bind-Checked="@est.Filtrar" LabelPosition="LabelPosition.Right">Aplicar en filtros</DxCheckBox>
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Color Fondo" ColSpanMd="6">
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <DxTextBox @bind-Text="@est.BgColor" />
+                                        <input type="color" @bind="@est.BgColor" style="height: 38px; width: 45px; padding: 2px; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;" />
+                                    </div>
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem Caption="Color Texto" ColSpanMd="6">
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <DxTextBox @bind-Text="@est.TextColor" />
+                                        <input type="color" @bind="@est.TextColor" style="height: 38px; width: 45px; padding: 2px; border: 1px solid #ced4da; border-radius: 4px; cursor: pointer;" />
+                                    </div>
+                                </DxFormLayoutItem>
+                            </DxFormLayout>
+                        </EditFormTemplate>
+                    </DxGrid>
+                }
+            </div>
         </div>
     </div>
-</div>
+}
 
 @code {
     private IGrid? grid;
     private List<EstadoSolicitud>? estados;
     private string? errorMessage;
 
-    private static bool EsEstadoExclusivoApp(EstadoSolicitud estado) => estado.IdEstado is 5 or 8;
+    private bool isAuthorized = false;
+    private bool passwordModalVisible = false;
+    private string inputPassword = string.Empty;
+    private string? passwordError;
+    private string? configuredAdminPassword;
 
     protected override async Task OnInitializedAsync()
     {
         await SetupHeadersAsync();
-        await LoadDataAsync();
+        await CheckAdminPasswordAsync();
+        if (isAuthorized)
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task CheckAdminPasswordAsync()
+    {
+        inputPassword = string.Empty;
+        passwordError = null;
+        try
+        {
+            var parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
+            configuredAdminPassword = parametros?.FirstOrDefault()?.AdminPassword;
+            if (string.IsNullOrEmpty(configuredAdminPassword))
+            {
+                isAuthorized = true;
+            }
+            else
+            {
+                isAuthorized = false;
+                passwordModalVisible = true;
+            }
+        }
+        catch
+        {
+            isAuthorized = true;
+        }
+    }
+
+    private async Task ValidarPasswordAsync()
+    {
+        passwordError = null;
+        if (string.IsNullOrWhiteSpace(inputPassword))
+        {
+            passwordError = "Por favor, introduzca la contraseña.";
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(configuredAdminPassword) && inputPassword == configuredAdminPassword)
+        {
+            isAuthorized = true;
+            passwordModalVisible = false;
+            inputPassword = string.Empty;
+            await LoadDataAsync();
+            return;
+        }
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                ?? authState.User.Identity?.Name;
+
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var response = await Http.PostAsJsonAsync("login", new { email, password = inputPassword });
+                if (response.IsSuccessStatusCode)
+                {
+                    isAuthorized = true;
+                    passwordModalVisible = false;
+                    inputPassword = string.Empty;
+                    await LoadDataAsync();
+                    return;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        passwordError = "La contraseña introducida no es correcta.";
+    }
+
+    private void CancelarPasswordPrompt()
+    {
+        inputPassword = string.Empty;
+        passwordError = null;
+        passwordModalVisible = false;
+        NavigationManager.NavigateTo("/");
     }
 
     private async Task SetupHeadersAsync()
@@ -198,12 +304,6 @@
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
     {
         var editModel = (EstadoSolicitud)e.EditModel;
-        if (!e.IsNew && EsEstadoExclusivoApp(editModel))
-        {
-            errorMessage = "El estado Servicio iniciado o Finalizado servicio es exclusivo de la aplicación y no se puede modificar.";
-            e.Cancel = true;
-            return;
-        }
         try
         {
             await SetupHeadersAsync();
@@ -236,12 +336,6 @@
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
     {
         var dataItem = (EstadoSolicitud)e.DataItem;
-        if (EsEstadoExclusivoApp(dataItem))
-        {
-            errorMessage = "El estado Servicio iniciado o Finalizado servicio es exclusivo de la aplicación y no se puede eliminar.";
-            e.Cancel = true;
-            return;
-        }
         try
         {
             await SetupHeadersAsync();

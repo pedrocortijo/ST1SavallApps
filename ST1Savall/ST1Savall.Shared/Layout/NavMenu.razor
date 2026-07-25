@@ -15,6 +15,7 @@
                     <DxMenuItem NavigateUrl="/modelos/tareas-relaciones" Text="Relaciones de tareas" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/poblaciones" Text="Poblaciones" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/plantas" Text="Plantas" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/modelos/motivos" Text="Motivos" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                 </Items>
             </DxMenuItem>
 
@@ -22,6 +23,7 @@
                 <Items>
                     <DxMenuItem NavigateUrl="/modelos/operarios" Text="Operarios" CssClass="menu-item" IconCssClass="icon operarios-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/cargos" Text="Cargos" CssClass="menu-item" IconCssClass="icon cargos-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/laboral/usuarios" Text="Usuarios" CssClass="menu-item" IconCssClass="icon person-icon"></DxMenuItem>
                 </Items>
             </DxMenuItem>
 
@@ -87,7 +89,10 @@
                 await JSRuntime.InvokeVoidAsync("setTheme", selectedTheme);
                 StateHasChanged();
             }
-            catch { }
+            catch
+            {
+                
+            }
         }
     }
 

@@ -38,7 +38,7 @@ public class SageGestionDbContext : DbContext
             entity.Property(c => c.Cambio).HasColumnName("CAMBIO").HasPrecision(20, 6);
             entity.Property(c => c.Canal).HasColumnName("CANAL").HasMaxLength(10).IsFixedLength();
             entity.Property(c => c.CiaCred).HasColumnName("CIA_CRED").HasMaxLength(2).IsFixedLength();
-            entity.Property(c => c.Cif).HasColumnName("CIF").HasMaxLength(16).IsFixedLength();
+            entity.Property(c => c.Cif).HasColumnName("CIF").HasMaxLength(15).IsFixedLength();
             entity.Property(c => c.Clienteerp).HasColumnName("CLIENTEERP").HasMaxLength(15).IsFixedLength();
             entity.Property(c => c.Clifinal).HasColumnName("CLIFINAL").HasMaxLength(8).IsFixedLength();
             entity.Property(c => c.Codigo).HasColumnName("CODIGO").HasMaxLength(8).IsFixedLength();
@@ -154,7 +154,7 @@ public class SageGestionDbContext : DbContext
             entity.Property(c => c.Validcheck).HasColumnName("VALIDCHECK").HasMaxLength(64).IsFixedLength();
             entity.Property(c => c.ValorAlb).HasColumnName("VALOR_ALB");
             entity.Property(c => c.Valportes).HasColumnName("VALPORTES").HasPrecision(20, 6);
-            entity.Property(c => c.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(5).IsFixedLength();
+            entity.Property(c => c.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(2).IsFixedLength();
             entity.Property(c => c.Vista).HasColumnName("VISTA");
             entity.Property(c => c.Zona).HasColumnName("ZONA").HasMaxLength(4).IsFixedLength();
         });

@@ -102,6 +102,7 @@
                         EditMode="GridEditMode.PopupEditForm"
                         EditModelSaving="OnEditModelSaving"
                         DataItemDeleting="OnDataItemDeleting"
+                        CustomizeEditModel="OnCustomizeEditModel"
                         PopupEditFormHeaderText="Formulario - Contenedor"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormCssClass="crud-popup"                        
@@ -133,10 +134,10 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false" VisibleIndex="0">
+                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false" VisibleIndex="0">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        @onclick="StartNewContenedorAsync"
                                         title="Nuevo Contenedor">
                                     <i class="oi oi-plus me-1"></i> Nuevo
                                 </button>
@@ -151,6 +152,13 @@
                                                 @onclick:stopPropagation
                                                 title="Editar">
                                             <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center shadow-sm"
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => DuplicarContenedorAsync(cont)"
+                                                @onclick:stopPropagation
+                                                title="Duplicar">
+                                            <i class="oi oi-document" style="font-size: 0.9rem;"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
@@ -194,6 +202,14 @@
                             var cont = (Contenedor)EditFormContext.EditModel;
                         }
                         <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                            @if (!string.IsNullOrWhiteSpace(editWarningMessage))
+                            {
+                                <DxFormLayoutItem ColSpanMd="12">
+                                    <div class="alert alert-warning py-2 mb-2" role="alert">
+                                        <i class="oi oi-warning me-1"></i> @editWarningMessage
+                                    </div>
+                                </DxFormLayoutItem>
+                            }
                             <DxFormLayoutItem Caption="Número de Serie" ColSpanMd="5">
                                 <DxTextBox @bind-Text="@cont.NumSerie" />
                             </DxFormLayoutItem>
@@ -235,6 +251,8 @@
     private List<Planta>? plantas;
     private List<Solicitud>? solicitudesConContenedores;
     private string? errorMessage;
+    private string? editWarningMessage;
+    private Contenedor? contenedorToDuplicate;
 
     private List<ContenedorTipo> comboTipos = new() { new ContenedorTipo { IdTipo = 0, Descripcion = "Todos los tipos" } };
     private List<Planta> comboPlantas = new() { new Planta { IdPlanta = 0, Nombre = "Todas las plantas" } };
@@ -287,6 +305,42 @@
     private void CollapseAllGroups() => grid?.CollapseAllGroupRows();
 
     private void ExpandAllGroups() => grid?.ExpandAllGroupRows();
+
+    private async Task StartNewContenedorAsync()
+    {
+        contenedorToDuplicate = null;
+        editWarningMessage = null;
+        if (grid is not null)
+            await grid.StartEditNewRowAsync();
+    }
+
+    private async Task DuplicarContenedorAsync(Contenedor contenedor)
+    {
+        contenedorToDuplicate = contenedor;
+        editWarningMessage = null;
+        if (grid is not null)
+            await grid.StartEditNewRowAsync();
+    }
+
+    private void OnCustomizeEditModel(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew)
+            return;
+
+        var nuevoContenedor = (Contenedor)e.EditModel;
+        nuevoContenedor.IdContenedor = 0;
+        if (contenedorToDuplicate is null)
+            return;
+
+        // El número de serie debe ser único y se introduce al confirmar la copia.
+        nuevoContenedor.NumSerie = string.Empty;
+        nuevoContenedor.IdTipo = contenedorToDuplicate.IdTipo;
+        nuevoContenedor.EstadoFisico = contenedorToDuplicate.EstadoFisico;
+        nuevoContenedor.IdPlanta = contenedorToDuplicate.IdPlanta;
+        nuevoContenedor.UltimaRevision = contenedorToDuplicate.UltimaRevision;
+        nuevoContenedor.Observaciones = contenedorToDuplicate.Observaciones;
+        contenedorToDuplicate = null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -393,6 +447,18 @@
         var editModel = (Contenedor)e.EditModel;
         try
         {
+            editWarningMessage = null;
+            editModel.NumSerie = editModel.NumSerie?.Trim() ?? string.Empty;
+            var numeroSerieDuplicado = contenedores?.Any(c =>
+                c.IdContenedor != editModel.IdContenedor
+                && string.Equals(c.NumSerie?.Trim(), editModel.NumSerie, StringComparison.OrdinalIgnoreCase)) == true;
+            if (numeroSerieDuplicado)
+            {
+                editWarningMessage = $"El número de serie '{editModel.NumSerie}' ya pertenece a otro contenedor. Introduzca uno diferente.";
+                e.Cancel = true;
+                return;
+            }
+
             await SetupHeadersAsync();
             if (editModel.IdPlanta == 0 && plantas != null && plantas.Any())
             {
@@ -403,7 +469,8 @@
                 var response = await Http.PostAsJsonAsync("api/contenedores", editModel);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al crear contenedor: {response.ReasonPhrase}";
+                    editWarningMessage = await ObtenerMensajeErrorAsync(response, "Error al crear el contenedor");
+                    e.Cancel = true;
                     return;
                 }
             }
@@ -412,7 +479,8 @@
                 var response = await Http.PutAsJsonAsync($"api/contenedores/{editModel.IdContenedor}", editModel);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al actualizar contenedor: {response.ReasonPhrase}";
+                    editWarningMessage = await ObtenerMensajeErrorAsync(response, "Error al actualizar el contenedor");
+                    e.Cancel = true;
                     return;
                 }
             }
@@ -420,8 +488,28 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error al guardar: {ex.Message}";
+            editWarningMessage = $"No se pudo guardar el contenedor: {ex.Message}";
+            e.Cancel = true;
         }
+    }
+
+    private static async Task<string> ObtenerMensajeErrorAsync(HttpResponseMessage response, string mensajeBase)
+    {
+        var contenido = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(contenido))
+            return $"{mensajeBase}: {response.ReasonPhrase ?? $"HTTP {(int)response.StatusCode}"}";
+
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(contenido);
+            if (json.RootElement.TryGetProperty("message", out var message))
+                return message.GetString() ?? mensajeBase;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // La API también puede devolver una explicación en texto plano.
+        }
+        return contenido.Trim('"');
     }
 
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)

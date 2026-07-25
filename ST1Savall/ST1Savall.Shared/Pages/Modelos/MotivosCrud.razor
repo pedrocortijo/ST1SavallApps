@@ -1,0 +1,235 @@
+@page "/modelos/motivos"
+@using ST1Savall.Shared.Data
+@using DevExpress.Blazor
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Gestión de Motivos</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Motivos</h2>
+            <p class="text-muted mb-0">Administración de motivos de aplazamiento y reescalado de servicios</p>
+        </div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
+            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
+        </NavLink>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0" style="border-radius: 12px;">
+        <div class="card-body p-0">
+            @if (motivos == null)
+            {
+                <div class="p-5 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2 text-muted mb-0">Cargando motivos...</p>
+                </div>
+            }
+            else
+            {
+                <DxGrid @ref="grid"
+                        Data="@motivos"
+                        KeyFieldName="IdMotivo"
+                        EditMode="GridEditMode.PopupEditForm"
+                        EditModelSaving="OnEditModelSaving"
+                        DataItemDeleting="OnDataItemDeleting"
+                        PopupEditFormHeaderCssClass="bg-primary text-white"
+                        PopupEditFormHeaderText="Formulario - Motivo"
+                        PopupEditFormCssClass="crud-popup"
+                        PagerPosition="GridPagerPosition.Bottom"
+                        PageSize="20"
+                        AllowSort="true"
+                        ShowFilterRow="true"
+                        ShowSearchBox="true"
+                        SearchBoxNullText="Buscar motivo...">
+                    <Columns>
+                        <DxGridDataColumn Caption="Acciones" Width="155px">
+                            <HeaderCaptionTemplate>
+                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
+                                        @onclick="() => grid?.StartEditNewRowAsync()"
+                                        title="Nuevo Motivo">
+                                    <i class="oi oi-plus me-1"></i> Nuevo
+                                </button>
+                            </HeaderCaptionTemplate>
+                            <CellDisplayTemplate>
+                                @{
+                                    var motivo = (Motivo)context.DataItem;
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.StartEditDataItemAsync(motivo)" 
+                                                @onclick:stopPropagation
+                                                title="Editar">
+                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => DuplicarMotivoAsync(motivo)" 
+                                                @onclick:stopPropagation
+                                                title="Duplicar">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+                                                <path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
+                                                style="width: 32px; height: 32px;"
+                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(motivo)" 
+                                                @onclick:stopPropagation
+                                                title="Eliminar">
+                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="IdMotivo" Caption="Código" ReadOnly="true" Width="90px" />
+                        <DxGridDataColumn FieldName="DescripcionMotivo" Caption="Descripción del Motivo" />
+                    </Columns>
+                    <EditFormTemplate Context="EditFormContext">
+                        @{
+                            var motivo = (Motivo)EditFormContext.EditModel;
+                        }
+                        <DxFormLayout CssClass="w-100 p-3">
+                            <DxFormLayoutItem Caption="Motivo" ColSpanMd="12">
+                                <DxTextBox @bind-Text="@motivo.DescripcionMotivo" />
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Motivo>? motivos;
+    private IGrid? grid;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            motivos = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos");
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar los motivos: {ex.Message}";
+        }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var motivo = (Motivo)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            if (e.IsNew)
+            {
+                var response = await Http.PostAsJsonAsync("api/motivos", motivo);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = "Error al crear el motivo.";
+                    e.Cancel = true;
+                    return;
+                }
+            }
+            else
+            {
+                var response = await Http.PutAsJsonAsync($"api/motivos/{motivo.IdMotivo}", motivo);
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage = "Error al actualizar el motivo.";
+                    e.Cancel = true;
+                    return;
+                }
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar el motivo: {ex.Message}";
+            e.Cancel = true;
+        }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var motivo = (Motivo)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/motivos/{motivo.IdMotivo}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se pudo eliminar el motivo.";
+                e.Cancel = true;
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al eliminar el motivo: {ex.Message}";
+            e.Cancel = true;
+        }
+    }
+
+    private async Task DuplicarMotivoAsync(Motivo motivo)
+    {
+        try
+        {
+            await SetupHeadersAsync();
+            var nuevoMotivo = new Motivo
+            {
+                DescripcionMotivo = $"{motivo.DescripcionMotivo} (Copia)"
+            };
+            var response = await Http.PostAsJsonAsync("api/motivos", nuevoMotivo);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se pudo duplicar el motivo.";
+                return;
+            }
+            var motivoCreado = await response.Content.ReadFromJsonAsync<Motivo>();
+            await LoadDataAsync();
+            if (motivoCreado != null && grid != null)
+            {
+                var itemEnGrid = motivos?.FirstOrDefault(m => m.IdMotivo == motivoCreado.IdMotivo) ?? motivoCreado;
+                await grid.StartEditDataItemAsync(itemEnGrid);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al duplicar el motivo: {ex.Message}";
+        }
+    }
+}

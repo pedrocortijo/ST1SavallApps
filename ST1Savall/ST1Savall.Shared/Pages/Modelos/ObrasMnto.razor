@@ -10,6 +10,15 @@
 
 <PageTitle>Mantenimiento de Obras</PageTitle>
 
+<style>
+    .obra-bloqueada-row,
+    .obra-bloqueada-row td {
+        background-color: #fde7e9 !important;
+        color: #b42318 !important;
+        font-weight: 700 !important;
+    }
+</style>
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
@@ -52,7 +61,8 @@
                         LayoutAutoSaving="OnGridLayoutAutoSaving"
                         AllowSort="true"
                         ShowFilterRow="true"
-                        ShowSearchBox="true">
+                        ShowSearchBox="true"
+                        CustomizeElement="OnCustomizeElement">
                     <Columns>
                         <DxGridCommandColumn Width="130px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
@@ -136,6 +146,18 @@
     private List<ObraComunSage50>? obras;
     private List<ClienteSage50>? clientesList;
     private string? errorMessage;
+
+    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
+    {
+        if (e.ElementType != GridElementType.DataRow && e.ElementType != GridElementType.DataCell)
+            return;
+
+        if (e.Grid.GetDataItem(e.VisibleIndex) is ObraComunSage50 obra && obra.Posicion == 1)
+        {
+            e.CssClass = "obra-bloqueada-row";
+            e.Style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important;";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -9,6 +9,15 @@
 
 <PageTitle>Obras</PageTitle>
 
+<style>
+    .obra-bloqueada-row,
+    .obra-bloqueada-row td {
+        background-color: #fde7e9 !important;
+        color: #b42318 !important;
+        font-weight: 700 !important;
+    }
+</style>
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -55,12 +64,13 @@
                         PageSize="20"
                         AllowSort="true"
                         ShowFilterRow="true"
-                        ShowSearchBox="true">
+                        ShowSearchBox="true"
+                        CustomizeElement="OnCustomizeElement">
                     <Columns>
                         <DxGridCommandColumn Width="110px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="async () => await grid?.StartEditNewRowAsync()"
+                                        @onclick="StartNewObraAsync"
                                         title="Nueva Obra">
                                     <i class="oi oi-plus me-1"></i> Nueva
                                 </button>
@@ -104,7 +114,7 @@
                         <DxGridDataColumn FieldName="PoblacionCliente" Caption="Población" Visible="false" />
                         <DxGridDataColumn FieldName="TelefonoCliente" Caption="Teléfono" Visible="false" />
                         <DxGridDataColumn FieldName="IdEmpresa" Caption="Empresa Sage50" Width="120px" />
-                        <DxGridDataColumn FieldName="Visible" Caption="Visible" Width="100px" Visible="false" />
+                        <DxGridDataColumn FieldName="Visible" Caption="Bloqueada" Width="100px" />
                         <DxGridDataColumn FieldName="Finalizada" Caption="Finalizada" Width="100px" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
@@ -117,13 +127,17 @@
                                 Datos Generales
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Código" ColSpanMd="3" BeginRow="true">
-                                <DxTextBox @bind-Text="@o.Codigo" MaxLength="30" />
+                                <DxTextBox Text="@o.Codigo"
+                                           TextChanged="@((string valor) => o.Codigo = LimitarTexto(valor, 5))"
+                                           TextExpression="@(() => o.Codigo)"
+                                           BindValueMode="BindValueMode.OnInput"
+                                           MaxLength="5" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Nombre" ColSpanMd="9">
-                                <DxTextBox @bind-Text="@o.Descripcion" />
+                                <DxTextBox Text="@o.Descripcion" TextChanged="@((string valor) => o.Descripcion = LimitarTexto(valor, 50))" TextExpression="@(() => o.Descripcion)" MaxLength="50" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Dirección" ColSpanMd="8" BeginRow="true">
-                                 <DxTextBox @bind-Text="@o.Ubicacion" />
+                                 <DxTextBox Text="@o.Ubicacion" TextChanged="@((string valor) => o.Ubicacion = LimitarTexto(valor, 50))" TextExpression="@(() => o.Ubicacion)" MaxLength="50" />
                              </DxFormLayoutItem>
                              <DxFormLayoutItem Caption="Código Postal (Obra)" ColSpanMd="4">
                                  <div class="d-flex align-items-center gap-1 w-100">
@@ -187,10 +201,10 @@
                                  <DxTextBox @bind-Text="@o.Provincia" ReadOnly="true" />
                              </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="5" >
-                                <DxTextBox @bind-Text="@o.Nima" />
+                                <DxTextBox Text="@o.Nima" TextChanged="@((string valor) => o.Nima = LimitarTexto(valor, 30))" TextExpression="@(() => o.Nima)" MaxLength="30" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-center">
-                                <DxCheckBox @bind-Checked="@o.Visible" LabelPosition="LabelPosition.Right">Visible</DxCheckBox>
+                                <DxCheckBox @bind-Checked="@o.Bloqueada" LabelPosition="LabelPosition.Right">Bloqueada</DxCheckBox>
                             </DxFormLayoutItem>
                             <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-center">
                                 <DxCheckBox @bind-Checked="@o.Finalizada" LabelPosition="LabelPosition.Right">Finalizada</DxCheckBox>
@@ -206,10 +220,10 @@
                                 </button>
                             </DxFormLayoutItem>
                              <DxFormLayoutItem Caption="Teléfono Obra" ColSpanMd="6" BeginRow="true">
-                                 <DxTextBox @bind-Text="@o.Telefono" MaxLength="20" />
+                                 <DxTextBox Text="@o.Telefono" TextChanged="@((string valor) => o.Telefono = LimitarTexto(valor, 15))" TextExpression="@(() => o.Telefono)" MaxLength="15" />
                              </DxFormLayoutItem>
                              <DxFormLayoutItem Caption="Móvil Obra" ColSpanMd="6">
-                                 <DxTextBox @bind-Text="@o.Movil" MaxLength="20" />
+                                 <DxTextBox Text="@o.Movil" TextChanged="@((string valor) => o.Movil = LimitarTexto(valor, 15))" TextExpression="@(() => o.Movil)" MaxLength="15" />
                              </DxFormLayoutItem>
 
                             <!-- Grupo 2: Datos del Cliente -->
@@ -266,13 +280,13 @@
                         }
                         <DxFormLayout CaptionPosition="CaptionPosition.Vertical">
                             <DxFormLayoutItem Caption="Código Postal" ColSpanMd="6" Enabled="@isNewPoblacion">
-                                <DxTextBox @bind-Text="@newPoblacion.Codigo" MaxLength="10" />
+                                <DxTextBox Text="@newPoblacion.Codigo" TextChanged="@((string valor) => newPoblacion.Codigo = LimitarTexto(valor, 10))" TextExpression="@(() => newPoblacion.Codigo)" MaxLength="10" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Población" ColSpanMd="12">
-                                <DxTextBox @bind-Text="@newPoblacion.Poblacion" MaxLength="30" />
+                                <DxTextBox Text="@newPoblacion.Poblacion" TextChanged="@((string valor) => newPoblacion.Poblacion = LimitarTexto(valor, 30))" TextExpression="@(() => newPoblacion.Poblacion)" MaxLength="30" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Provincia" ColSpanMd="12">
-                                <DxTextBox @bind-Text="@newPoblacion.Provincia" MaxLength="30" />
+                                <DxTextBox Text="@newPoblacion.Provincia" TextChanged="@((string valor) => newPoblacion.Provincia = LimitarTexto(valor, 30))" TextExpression="@(() => newPoblacion.Provincia)" MaxLength="30" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Visible" ColSpanMd="6">
                                 <DxCheckBox @bind-Checked="@newPoblacionVisible" />
@@ -293,6 +307,18 @@
     private IGrid? grid;
     private Obra? obraToDuplicate;
     private List<Obra>? obras;
+
+    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
+    {
+        if (e.ElementType != GridElementType.DataRow && e.ElementType != GridElementType.DataCell)
+            return;
+
+        if (e.Grid.GetDataItem(e.VisibleIndex) is Obra obra && (obra.Posicion == 1 || obra.Visible == false))
+        {
+            e.CssClass = "obra-bloqueada-row";
+            e.Style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important;";
+        }
+    }
     private List<ClienteSage50>? clientesList;
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
@@ -386,7 +412,7 @@
                 var response = await Http.PostAsJsonAsync("api/obras", editModel);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al crear obra: {response.ReasonPhrase}";
+                    errorMessage = $"Error al crear obra: {await ObtenerDetalleErrorAsync(response)}";
                     return;
                 }
             }
@@ -446,7 +472,7 @@
 
     private void OnCodpostChanged(string val, Obra o)
     {
-        o.CodigoPostal = val?.Trim();
+        o.CodigoPostal = LimitarTexto(val?.Trim(), 13);
         var p = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == val?.Trim());
         if (p != null)
         {
@@ -457,7 +483,7 @@
 
     private void OnPoblacionChanged(string val, Obra o)
     {
-        o.Poblacion = val?.Trim();
+        o.Poblacion = LimitarTexto(val?.Trim(), 30);
         var p = poblaciones?.FirstOrDefault(x => x.Poblacion?.Trim().ToLower() == val?.Trim().ToLower());
         if (p != null)
         {
@@ -588,15 +614,48 @@
         }
     }
 
+    private sealed class ErrorApi
+    {
+        public string? Message { get; set; }
+        public string? Detail { get; set; }
+        public string? Title { get; set; }
+    }
+
+    private static async Task<string> ObtenerDetalleErrorAsync(HttpResponseMessage response)
+    {
+        var contenido = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var error = System.Text.Json.JsonSerializer.Deserialize<ErrorApi>(contenido,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return error?.Message ?? error?.Detail ?? error?.Title ?? contenido;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return string.IsNullOrWhiteSpace(contenido) ? response.ReasonPhrase ?? "Error desconocido." : contenido;
+        }
+    }
+
+    private async Task StartNewObraAsync()
+    {
+        obraToDuplicate = null;
+        if (grid is not null)
+        {
+            await grid.StartEditNewRowAsync();
+        }
+    }
+
     private void Grid_CustomizeEditModel(GridCustomizeEditModelEventArgs e)
     {
         if (e.IsNew)
         {
             var newObra = (Obra)e.EditModel;
+            newObra.IdObra = 0;
             if (obraToDuplicate != null)
             {
-                newObra.Codigo = obraToDuplicate.Codigo;
-                newObra.Descripcion = obraToDuplicate.Descripcion + " (Copia)";
+                // Codigo es la clave real de la obra en Sage. Se deja vacío para que la API asigne uno nuevo.
+                newObra.Codigo = string.Empty;
+                newObra.Descripcion = CrearDescripcionCopia(obraToDuplicate.Descripcion);
                 newObra.Ubicacion = obraToDuplicate.Ubicacion;
                 newObra.Nima = obraToDuplicate.Nima;
                 newObra.Poblacion = obraToDuplicate.Poblacion;
@@ -614,9 +673,27 @@
                 newObra.TelefonoContactoCliente = obraToDuplicate.TelefonoContactoCliente;
                 newObra.Visible = obraToDuplicate.Visible;
                 newObra.Finalizada = obraToDuplicate.Finalizada;
+                newObra.Contador = obraToDuplicate.Contador;
+                newObra.Anyo = obraToDuplicate.Anyo;
+                newObra.EmailCliente = obraToDuplicate.EmailCliente;
+                newObra.ResponsableCliente = obraToDuplicate.ResponsableCliente;
+                newObra.Encargado = obraToDuplicate.Encargado;
+                obraToDuplicate = null;
             }
         }
     }
+
+    private static string CrearDescripcionCopia(string? descripcion)
+    {
+        const string sufijo = " (Copia)";
+        const int longitudMaximaSage = 50;
+        var descripcionOriginal = descripcion ?? string.Empty;
+        var longitudBase = Math.Max(0, longitudMaximaSage - sufijo.Length);
+        return $"{descripcionOriginal[..Math.Min(descripcionOriginal.Length, longitudBase)]}{sufijo}";
+    }
+
+    private static string? LimitarTexto(string? valor, int longitudMaxima) =>
+        valor is null ? null : valor[..Math.Min(valor.Length, longitudMaxima)];
 
     private async Task ObtenerUbicacionActualAsync(Obra o)
     {

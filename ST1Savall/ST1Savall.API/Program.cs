@@ -39,7 +39,11 @@ builder.Services.AddDbContext<SageComunDbContext>(options =>
     options.UseSqlServer(sageComunConnectionString));
 
 // Add Identity Services with API Endpoints
-builder.Services.AddAuthentication();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = IdentityConstants.BearerScheme;
+    options.DefaultChallengeScheme = IdentityConstants.BearerScheme;
+});
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddRoles<IdentityRole>()

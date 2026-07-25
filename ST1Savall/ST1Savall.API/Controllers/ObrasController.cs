@@ -15,11 +15,16 @@ public class ObrasController : ControllerBase
 {
     private readonly SageComunDbContext _comunContext;
     private readonly SageGestionDbContext _gestionContext;
+    private readonly ApplicationDbContext _applicationContext;
 
-    public ObrasController(SageComunDbContext comunContext, SageGestionDbContext gestionContext)
+    public ObrasController(
+        SageComunDbContext comunContext,
+        SageGestionDbContext gestionContext,
+        ApplicationDbContext applicationContext)
     {
         _comunContext = comunContext;
         _gestionContext = gestionContext;
+        _applicationContext = applicationContext;
     }
 
     [HttpGet]
@@ -55,7 +60,8 @@ public class ObrasController : ControllerBase
                 CodigoPostal = so.Codpost.Trim(),
                 Provincia = so.Provincia.Trim(),
                 Finalizada = so.Terminada,
-                Visible = so.Vista,
+                Visible = so.Posicion == 0,
+                Posicion = so.Posicion,
                 Nima = so.Libre3.Trim(),
                 Telefono = so.Telefono.Trim(),
                 Movil = so.Movil.Trim(),
@@ -103,7 +109,8 @@ public class ObrasController : ControllerBase
             CodigoPostal = so.Codpost.Trim(),
             Provincia = so.Provincia.Trim(),
             Finalizada = so.Terminada,
-            Visible = so.Vista,
+            Visible = so.Posicion == 0,
+            Posicion = so.Posicion,
             Nima = so.Libre3.Trim(),
             Telefono = so.Telefono.Trim(),
             Movil = so.Movil.Trim(),
@@ -132,6 +139,14 @@ public class ObrasController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Obra>> PostObra(Obra obra)
     {
+        try
+        {
+        var validationError = ValidarObra(obra);
+        if (validationError is not null)
+        {
+            return BadRequest(new { message = validationError });
+        }
+
         var codigo = obra.Codigo?.Trim();
         if (string.IsNullOrWhiteSpace(codigo))
         {
@@ -172,6 +187,7 @@ public class ObrasController : ControllerBase
             Movil = obra.Movil ?? "",
             Encargado = obra.Encargado ?? "",
             Terminada = obra.Finalizada ?? false,
+            Posicion = obra.Posicion ?? (obra.Visible == false ? 1 : 0),
             Vista = obra.Visible ?? true,
             Libre3 = obra.Nima ?? "",
             Created = DateTime.Now,
@@ -210,12 +226,30 @@ public class ObrasController : ControllerBase
         so.Cliente = resolvedClientCode;
 
         _comunContext.Obras.Add(so);
-        await _comunContext.SaveChangesAsync();
+        try
+        {
+            await _comunContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            return Problem(
+                title: "No se pudo crear la obra en Sage.",
+                detail: ex.GetBaseException().Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
 
         obra.IdObra = ParseCodigoToInt(codigo);
         obra.Codigo = codigo;
         obra.Cliente = resolvedClientCode;
         return CreatedAtAction(nameof(GetObra), new { id = obra.IdObra }, obra);
+        }
+        catch (Exception ex)
+        {
+            return Problem(
+                title: "No se pudo crear la obra.",
+                detail: ex.GetBaseException().Message,
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
 
     [HttpPut("{id}")]
@@ -247,6 +281,7 @@ public class ObrasController : ControllerBase
         so.Movil = obra.Movil ?? "";
         so.Encargado = obra.Encargado ?? "";
         so.Terminada = obra.Finalizada ?? false;
+        so.Posicion = obra.Posicion ?? (obra.Visible == false ? 1 : 0);
         so.Vista = obra.Visible ?? true;
         so.Libre3 = obra.Nima ?? "";
         so.Modified = DateTime.Now;
@@ -272,6 +307,7 @@ public class ObrasController : ControllerBase
         try
         {
             await _comunContext.SaveChangesAsync();
+            await ActualizarBloqueoSolicitudesDeObraAsync(id, so.Posicion == 1);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -301,6 +337,32 @@ public class ObrasController : ControllerBase
             if (_comunContext.Obras.Any(e => e.Codigo.Trim() == codigoNum)) return true;
         }
         return _comunContext.Obras.AsEnumerable().Any(e => ParseCodigoToInt(e.Codigo) == id);
+    }
+
+    private static string? ValidarObra(Obra obra)
+    {
+        if (string.IsNullOrWhiteSpace(obra.Descripcion))
+            return "El nombre de la obra es obligatorio.";
+
+        var limites = new (string Campo, string? Valor, int Maximo)[]
+        {
+            ("Código", obra.Codigo, 5),
+            ("Nombre", obra.Descripcion, 50),
+            ("Dirección", obra.Ubicacion, 50),
+            ("Población", obra.Poblacion, 30),
+            ("Código postal", obra.CodigoPostal, 13),
+            ("Provincia", obra.Provincia, 30),
+            ("Teléfono", obra.Telefono, 15),
+            ("Móvil", obra.Movil, 15),
+            ("Encargado", obra.Encargado, 30),
+            ("NIMA", obra.Nima, 30),
+            ("Cliente", obra.Cliente, 8)
+        };
+
+        var excedido = limites.FirstOrDefault(x => x.Valor?.Trim().Length > x.Maximo);
+        return excedido.Campo is null
+            ? null
+            : $"El campo {excedido.Campo} no puede superar {excedido.Maximo} caracteres.";
     }
 
     private async Task<ObraComunSage50?> FindSageObraByIdAsync(int id)
@@ -341,5 +403,21 @@ public class ObrasController : ControllerBase
     private string FormatIntToCodigo(int idObra)
     {
         return idObra.ToString().PadLeft(5, '0');
+    }
+
+    private async Task ActualizarBloqueoSolicitudesDeObraAsync(int idObra, bool bloqueado)
+    {
+        var solicitudes = await _applicationContext.Solicitudes
+            .Where(s => s.IdCliente == idObra && s.Estado != 5 && s.Estado != 6)
+            .ToListAsync();
+
+        if (solicitudes.Count > 0)
+        {
+            foreach (var s in solicitudes)
+            {
+                s.Bloqueado = bloqueado;
+            }
+            await _applicationContext.SaveChangesAsync();
+        }
     }
 }

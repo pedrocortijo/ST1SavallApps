@@ -22,7 +22,7 @@ public class SageComunDbContext : DbContext
             entity.ToTable("obra");
             entity.HasKey(o => o.Codigo);
 
-            entity.Property(o => o.Cif).HasColumnName("CIF").HasMaxLength(16).IsFixedLength();
+            entity.Property(o => o.Cif).HasColumnName("CIF").HasMaxLength(15).IsFixedLength();
             entity.Property(o => o.Cliente).HasColumnName("CLIENTE").HasMaxLength(8).IsFixedLength();
             entity.Property(o => o.Codigo).HasColumnName("CODIGO").HasMaxLength(5).IsFixedLength();
             entity.Property(o => o.Codpost).HasColumnName("CODPOST").HasMaxLength(13).IsFixedLength();
@@ -54,7 +54,7 @@ public class SageComunDbContext : DbContext
             entity.Property(o => o.Terminada).HasColumnName("TERMINADA");
             entity.Property(o => o.TipoIva).HasColumnName("TIPO_IVA").HasMaxLength(2).IsFixedLength();
             entity.Property(o => o.Usuario).HasColumnName("USUARIO").HasMaxLength(15).IsFixedLength();
-            entity.Property(o => o.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(5).IsFixedLength();
+            entity.Property(o => o.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(2).IsFixedLength();
             entity.Property(o => o.Vista).HasColumnName("VISTA");
             entity.Property(o => o.Zona).HasColumnName("ZONA").HasMaxLength(4).IsFixedLength();
         });

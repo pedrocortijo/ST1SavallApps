@@ -21,13 +21,22 @@ public class Solicitud
     public int? IdHoraDisponible { get; set; }
     public int IdUsuario { get; set; }
     public int IdCliente { get; set; }
-    public int? Prioridad { get; set; }
+    public int? Prioridad { get; set; } = 3;
 
     [MaxLength(20)]
     public string? CodigoEntrega { get; set; }
 
     [MaxLength(20)]
     public string? CodigoRecogida { get; set; }
+
+    [MaxLength(20)]
+    public string? AlbaranPlanta { get; set; }
+
+    [MaxLength(2)]
+    public string? AlbaranSerieSage { get; set; }
+
+    [MaxLength(10)]
+    public string? AlbaranNumeroSage { get; set; }
 
     [MaxLength(20)]
     public string? CodigoAmbosEntrega { get; set; }
@@ -37,6 +46,8 @@ public class Solicitud
 
     public int Estado { get; set; }
 
+    public bool Bloqueado { get; set; }
+
     [ForeignKey("Estado")]
     public EstadoSolicitud? EstadoSolicitud { get; set; }
 
@@ -44,7 +55,9 @@ public class Solicitud
 
     public string? Observaciones { get; set; }
 
-    [MaxLength(15)]
+    public string? ComentariosOficina { get; set; }
+
+    [MaxLength(100)]
     public string? IdOperario { get; set; }
 
     public int? MotivoReprogramacion { get; set; }

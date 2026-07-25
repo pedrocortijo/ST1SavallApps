@@ -313,6 +313,17 @@ html.theme-fluent-dark ::deep .menu-button {
     color: #ffffff !important; /* White for dark themes */
 }
 
+/* Resumen de obra: contraste adaptado al tema activo. */
+.obra-resumen {
+    color: #000000;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+html.theme-blazing-dark .obra-resumen,
+html.theme-fluent-dark .obra-resumen {
+    color: #FFFF00;
+}
+
 /* Custom CRUD Popup styling */
 .crud-popup {
     min-width: 500px !important;

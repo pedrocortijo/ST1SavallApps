@@ -10,7 +10,36 @@
 
 <UnsavedChangesGuard @ref="unsavedChangesGuard" HasUnsavedChanges="@HayCambiosPendientes" />
 
-<DxPopup @bind-Visible="confirmacionCambioTareaVisible"
+<DxPopup @bind-Visible="passwordFinalizadaVisible"
+         HeaderText="Solicitud finalizada"
+         ShowFooter="true"
+         Width="460px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p>Esta solicitud está finalizada. Introduzca la contraseña de administración configurada en Parámetros para poder modificarla.</p>
+            <DxTextBox @bind-Text="passwordFinalizada"
+                       Password="true"
+                       NullText="Contraseña"
+                       CssClass="w-100"
+                       Attributes="@(new Dictionary<string, object> { { "autocomplete", "new-password" } })" />
+            @if (!string.IsNullOrWhiteSpace(errorPasswordFinalizada))
+            {
+                <div class="text-danger small mt-2">@errorPasswordFinalizada</div>
+            }
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarEdicionFinalizada" />
+            <DxButton Text="Desbloquear" RenderStyle="ButtonRenderStyle.Primary" Click="ValidarPasswordFinalizadaAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup Visible="confirmacionCambioTareaVisible"
+         VisibleChanged="OnConfirmacionVisibleChanged"
          HeaderText="Contenedores afectados"
          ShowFooter="true"
          Width="500px"
@@ -52,10 +81,137 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="confirmacionEliminarPlanificacionVisible"
+         HeaderText="Cambiar estado"
+         ShowFooter="true"
+         Width="540px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-warning text-warning fs-3"></i>
+            <p class="mb-0">Existen valores en la planificación del servicio que impiden el cambio de estado. ¿Desea que elimine los valores para pasar a este estado?</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarCambioEstado" />
+            <DxButton Text="Eliminar valores" RenderStyle="ButtonRenderStyle.Primary" Click="ConfirmarCambioEstadoYEliminarPlanificacion" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup @bind-Visible="advertenciaPlanificacionIncompletaVisible"
+         HeaderText="Planificación incompleta"
+         ShowFooter="true"
+         Width="540px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-warning text-warning fs-3"></i>
+            <p class="mb-0">Existen valores en la planificación del servicio que no se han introducido para pasar a este estado.</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => advertenciaPlanificacionIncompletaVisible = false" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup @bind-Visible="advertenciaEstadoIniciadoVisible"
+         HeaderText="Cambio de estado no permitido"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-warning text-warning fs-3"></i>
+            <p class="mb-0">Una solicitud solo puede pasar al estado Iniciado si anteriormente estaba en estado Asignado.</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => advertenciaEstadoIniciadoVisible = false" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup @bind-Visible="popupObraBloqueadaVisible"
+         HeaderText="Incidencia - Obra Bloqueada"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-warning text-warning fs-3"></i>
+            <div>
+                <p class="mb-0 fw-semibold text-danger">No se puede desmarcar la casilla Bloqueado.</p>
+                <p class="mb-0 text-muted small mt-1">La solicitud/Servicio no se puede desbloquear al encontrase la obra bloqueada.</p>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => popupObraBloqueadaVisible = false" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup Visible="@(!string.IsNullOrWhiteSpace(errorMessage))"
+         VisibleChanged="@((bool visible) => { if (!visible) errorMessage = null; })"
+         HeaderText="Error"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-circle-x text-danger fs-3"></i>
+            <div>
+                <p class="mb-0">@errorMessage</p>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => errorMessage = null" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup Visible="@(!string.IsNullOrWhiteSpace(motivoEstadoMessage))"
+         VisibleChanged="@((bool visible) => { if (!visible) motivoEstadoMessage = null; })"
+         HeaderText="No se puede cambiar el estado"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-circle-x text-danger fs-3"></i>
+            <div>
+                <p class="mb-0 fw-semibold">@motivoEstadoMessage</p>
+                <p class="mb-0 small mt-2" style="opacity: 0.8;">Por favor, revise los datos antes de volver a grabar la solicitud.</p>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => motivoEstadoMessage = null" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">@(Id.HasValue ? "Editar - Solicitud de Servicio" : "Nueva - Solicitud de Servicio")</h2>
+            <h2 class="fw-bold text-primary mb-1">@(Id.HasValue && Id.Value > 0 && Duplicate != true ? "Editar - Solicitud de Servicio" : "Nueva - Solicitud de Servicio")</h2>
             <p class="text-muted mb-0">Complete los datos de la solicitud del servicio</p>
         </div>
         <div class="d-flex gap-2">
@@ -68,13 +224,7 @@
         </div>
     </div>
 
-    @if (errorMessage != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
-        </div>
-    }
+
 
     @if (loading)
     {
@@ -85,7 +235,7 @@
             <p class="mt-2 text-muted mb-0">Cargando datos...</p>
         </div>
     }
-    else if (solicitud != null)
+    else if (solicitud != null && PuedeEditarSolicitud)
     {
         <div class="card shadow-sm border-0" style="border-radius: 12px;">
             <div class="card-body p-4">
@@ -112,42 +262,51 @@
                                     TextFieldName="Codigo"
                                     ValueFieldName="IdObra"
                                     Value="@solicitud.IdCliente"
-                                    ValueChanged="@((int val) => OnObraChanged(val))">
+                                    ValueChanged="@((int val) => OnObraChangedAsync(val))">
                             <ItemTemplate Context="obra">
                                 <span><strong>@obra.Codigo</strong> - @obra.Descripcion</span>
                             </ItemTemplate>
                         </DxComboBox>
                     </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Albarán planta" ColSpanMd="2">
+                        <DxTextBox @bind-Text="@solicitud.AlbaranPlanta" MaxLength="20" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Serie Sage" ColSpanMd="2">
+                        <DxTextBox @bind-Text="@solicitud.AlbaranSerieSage" MaxLength="2" Enabled="false" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Número Sage" ColSpanMd="2">
+                        <DxTextBox @bind-Text="@solicitud.AlbaranNumeroSage" MaxLength="10" Enabled="false" />
+                    </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
                         <Template>
-                            <div class="p-3 rounded border mb-2" style="background-color: rgba(128, 128, 128, 0.05);">
+                            <div class="obra-resumen small p-3 rounded border mb-2" style="background-color: rgba(128, 128, 128, 0.05);">
                                 <div class="row g-3">
-                                    <div class="col-md-6 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Nombre Obra:</span>
+                                    <div class="col-md-8 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="text-nowrap" style="opacity: 0.75;">Nombre Obra:</span>
                                         <span>@(solicitud.NombreObra ?? "-")</span>
                                     </div>
-                                    <div class="col-md-6 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Cliente:</span>
+                                    <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
+                                        <span class="text-nowrap" style="opacity: 0.75;">Cliente:</span>
                                         <span>@(solicitud.NombreCliente ?? "-")</span>
                                     </div>
                                     <div class="col-md-8 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Dirección Obra:</span>
+                                        <span class="text-nowrap" style="opacity: 0.75;">Dirección Obra:</span>
                                         <span>@(solicitud.DireccionCliente ?? "-")</span>
                                     </div>
                                     <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Población:</span>
+                                        <span class="text-nowrap" style="opacity: 0.75;">Población:</span>
                                         <span>@(solicitud.PoblacionCliente ?? "-")</span>
                                     </div>
                                     <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Encargado:</span>
+                                        <span class="text-nowrap" style="opacity: 0.75;">Encargado:</span>
                                         <span>@(solicitud.Encargado ?? "-")</span>
                                     </div>
                                     <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Teléfono:</span>
+                                        <span class="text-nowrap" style="opacity: 0.75;">Teléfono:</span>
                                         <span>@(solicitud.TelefonoCliente ?? "-")</span>
                                     </div>
                                     <div class="col-md-4 col-12 d-flex align-items-baseline gap-2">
-                                        <span class="fw-bold text-nowrap" style="opacity: 0.75; font-size: 0.85rem;">Móvil:</span>
+                                        <span class="text-nowrap" style="opacity: 0.75;">Móvil:</span>
                                         <span>@(solicitud.Movil ?? "-")</span>
                                     </div>
                                 </div>
@@ -159,47 +318,79 @@
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
                         Datos del Servicio
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Tarea" ColSpanMd="2" Visible="false">
-                        <DxDateEdit @bind-Date="@solicitud.FechaTarea" />
-                    </DxFormLayoutItem>
+
 
                     <DxFormLayoutItem Caption="Usuario" ColSpanMd="4" BeginRow="true"> 
-                        <DxComboBox Data="@usuariosSage"
-                                    TextFieldName="Nombre"
-                                    ValueFieldName="Codigo"
+                        <DxComboBox Data="@usuariosList"
+                                    TextFieldName="UserName"
+                                    ValueFieldName="UserName"
                                     @bind-Value="@solicitud.IdOperario"
-                                    ClearButtonVisible="true" />
+                                    Enabled="@(Id.HasValue)"
+                                    ReadOnly="@(!Id.HasValue)"
+                                    ClearButtonVisible="@(Id.HasValue)" />
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="4">
-                        <DxComboBox Data="@tareasList"
+                        <DxComboBox @key="tareaComboKey"
+                                    Data="@tareasList"
                                     TextFieldName="NombreTarea"
                                     ValueFieldName="IdTarea"
                                     Value="@solicitud.IdTipoTarea"
                                     ValueChanged="@((int val) => OnTareaChanged(val))" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="3">
-                        <DxComboBox Data="@operarios"
+                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="4">
+                        <DxComboBox Data="@GetOperariosDisponibles()"
                                     TextFieldName="Nombre"
                                     ValueFieldName="IdOperario"
-                                    Value="@solicitud.IdConductor"
+                                    Value="@solicitud?.IdConductor"
                                     ValueChanged="@((int? value) => OnConductorChanged(value))"
                                     ClearButtonVisible="true" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Estado" ColSpanMd="6" BeginRow="true">
-                        <DxComboBox Data="@estadosList"
-                                    TextFieldName="Descripcion"
-                                    ValueFieldName="IdEstado"
-                                    @bind-Value="@solicitud.Estado" />
+                    <DxFormLayoutItem Caption="Estado" ColSpanMd="8" BeginRow="true">
+                        @if (estadosList != null && estadosList.Any())
+                        {
+                            <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                                @foreach (var est in estadosList.OrderBy(e => e.IdEstado))
+                                {
+                                    var id = est.IdEstado;
+                                    var isChecked = solicitud?.Estado == id;
+                                    var bg = !string.IsNullOrEmpty(est.BgColor) ? est.BgColor : "#f8f9fa";
+                                    var text = !string.IsNullOrEmpty(est.TextColor) ? est.TextColor : "#000000";
+                                    
+                                    <div class="form-check form-check-inline d-flex align-items-center gap-2 px-3 py-2 rounded-3 border shadow-sm"
+                                         style="cursor: pointer; background-color: @(isChecked ? bg : "var(--bs-card-bg, #ffffff)"); color: @(isChecked ? text : "inherit"); border-color: @(isChecked ? bg : "#dee2e6") !important; font-weight: @(isChecked ? "bold" : "normal"); transition: all 0.2s ease-in-out;"
+                                         @onclick="() => SolicitarCambioEstado(id)">
+                                        <input class="form-check-input mt-0"
+                                               type="radio"
+                                               name="solicitudEstadoRadioGroup"
+                                               id="@($"estadoRadio_{id}")"
+                                               value="@id"
+                                               checked="@isChecked"
+                                               @onclick="() => SolicitarCambioEstado(id)"
+                                               @onclick:stopPropagation="true"
+                                               style="cursor: pointer;" />
+                                        <label class="form-check-label mb-0 ms-1" for="@($"estadoRadio_{id}")" style="cursor: pointer; font-size: 0.9rem;">
+                                            @est.Descripcion
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        }
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="4">
-                        <DxComboBox Data="@prioridadesList"
+                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="2" CssClass="d-flex align-items-center mt-4">
+                        <DxComboBox Data="@prioridadesList"                                    
                                     TextFieldName="Name"
-                                    ValueFieldName="Id"
+                                    ValueFieldName="Id"                                   
                                     @bind-Value="@solicitud.Prioridad" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-center mt-4">
+                        <DxCheckBox Checked="@solicitud.Bloqueado"
+                                    CheckedChanged="@((bool val) => OnBloqueadoChanged(val))"
+                                    LabelPosition="LabelPosition.Right">Bloqueado</DxCheckBox>
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Hora" ColSpanMd="3" Visible="false">
@@ -230,16 +421,30 @@
                                     MinValue="1" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Inicio planificado" ColSpanMd="3" BeginRow="true">
-                        <DxDateEdit @bind-Date="@solicitud.FechaHoraInicioPlanificada"
-                                    TimeSectionVisible="true"
-                                    DisplayFormat="dd/MM/yyyy HH:mm" />
+                    <DxFormLayoutItem Caption="Fecha prevista" ColSpanMd="3" BeginRow="true">
+                        <DxDateEdit Date="@solicitud.FechaTarea"
+                                    DateChanged="@((DateTime? val) => OnFechaPlanificacionChanged(val))"
+                                    DateExpression="@(() => solicitud.FechaTarea)"
+                                    Format="dd/MM/yyyy"
+                                    DisplayFormat="dd/MM/yyyy" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Fin planificado" ColSpanMd="3" >
-                        <DxDateEdit @bind-Date="@solicitud.FechaHoraFinPlanificada"
+                    <DxFormLayoutItem Caption="Hora Inicio" ColSpanMd="2">
+                        <DxDateEdit Date="@solicitud.FechaHoraInicioPlanificada"
+                                    DateChanged="@((DateTime? val) => OnInicioPlanificadoChanged(val))"
+                                    DateExpression="@(() => solicitud.FechaHoraInicioPlanificada)"
                                     TimeSectionVisible="true"
-                                    DisplayFormat="dd/MM/yyyy HH:mm" />
+                                    Format="HH:mm"
+                                    DisplayFormat="HH:mm" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Hora final." ColSpanMd="2">
+                        <DxDateEdit Date="@solicitud.FechaHoraFinPlanificada"
+                                    DateChanged="@((DateTime? val) => OnFinPlanificadoChanged(val))"
+                                    DateExpression="@(() => solicitud.FechaHoraFinPlanificada)"
+                                    TimeSectionVisible="true"
+                                    Format="HH:mm"
+                                    DisplayFormat="HH:mm" />
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-end pt-2">
@@ -250,7 +455,7 @@
                         </button>
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-end pt-2">
+                    <DxFormLayoutItem ColSpanMd="3" CssClass="d-flex align-items-end pt-2">
                         <button type="button"
                                 class="btn btn-outline-success btn-sm w-100"
                                 disabled="@calculandoRuta"
@@ -281,10 +486,11 @@
                                 · Origen→Obra: @solicitud.MinutosOrigenObra min
                                 · Obra→Reciclaje: @solicitud.MinutosObraDescarga min
                                 · Reciclaje→Central: @solicitud.MinutosDescargaRegreso min
-                                <span class="ms-2" 
-                                      translate="no" 
-                                      style="font-size: 12px; font-weight: 400; color: #f59e0b; white-space: nowrap;"> 
-                                </span>
+                                @if (solicitud.DuracionOperacionMinutos.GetValueOrDefault() > 0)
+                                {
+                                    <span> · Operación: @solicitud.DuracionOperacionMinutos min</span>
+                                }
+                                <strong> · Total: @solicitud.DuracionPlanificadaMinutos min</strong>
                             </div>
                         }
                     </DxFormLayoutItem>
@@ -311,7 +517,7 @@
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="12" BeginRow="true">
-                        <DxTextBox @bind-Text="@comentariosOficina" />
+                        <DxTextBox @bind-Text="@solicitud.ComentariosOficina" />
                     </DxFormLayoutItem>
 
                     <!-- Grupo 3: Contenedor y Ubicación -->
@@ -332,6 +538,8 @@
                                                     ValueFieldName="NumSerie"
                                                     @bind-Value="@solicitud.CodigoEntrega"
                                                     ClearButtonVisible="true"
+                                                    NullText="Seleccionar..."
+                                                    NullValue="@((string?)null)"
                                                     SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains"
                                                     AllowUserInput="false">
@@ -352,6 +560,8 @@
                                                     ValueFieldName="NumSerie"
                                                     @bind-Value="@solicitud.CodigoAmbosEntrega"
                                                     ClearButtonVisible="true"
+                                                    NullText="Seleccionar..."
+                                                    NullValue="@((string?)null)"
                                                     SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains"
                                                     AllowUserInput="false">
@@ -370,7 +580,10 @@
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
                                                     @bind-Value="@solicitud.CodigoRecogida"
-                                                    ClearButtonVisible="true" SearchMode="ListSearchMode.AutoSearch"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccionar..."
+                                                    NullValue="@((string?)null)"
+                                                    SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="false">
                                             <Columns>
                                                 <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
@@ -385,7 +598,10 @@
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
                                                     @bind-Value="@solicitud.CodigoAmbosRecogida"
-                                                    ClearButtonVisible="true" SearchMode="ListSearchMode.AutoSearch"
+                                                    ClearButtonVisible="true"
+                                                    NullText="Seleccionar..."
+                                                    NullValue="@((string?)null)"
+                                                    SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="false">
                                             <Columns>
                                                 <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
@@ -432,10 +648,23 @@
                         Aplazamiento de tarea
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Fecha Próxima Prevista" ColSpanMd="2" BeginRow="true">
-                        <DxDateEdit @bind-Date="@solicitud.FechaPrevista" />
+                        <DxDateEdit Date="@solicitud.FechaPrevista"
+                                    DateChanged="@((DateTime? val) => OnFechaPrevistaChanged(val))"
+                                    DateExpression="@(() => solicitud.FechaPrevista)" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Motivo del aplazamiento" ColSpanMd="10">
-                        <DxSpinEdit @bind-Value="@solicitud.MotivoReprogramacion" ShowSpinButtons="false" />
+                        <DxComboBox Data="@motivosList"
+                                    TData="Motivo"
+                                    TValue="int?"
+                                    TextFieldName="DescripcionMotivo"
+                                    ValueFieldName="IdMotivo"
+                                    Value="@solicitud.MotivoReprogramacion"
+                                    ValueChanged="@((int? val) => OnMotivoReprogramacionChanged(val))"
+                                    ValueExpression="@(() => solicitud.MotivoReprogramacion)"
+                                    ClearButtonVisible="true"
+                                    SearchMode="ListSearchMode.AutoSearch"
+                                    SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                    NullText="Seleccione el motivo de aplazamiento..." />
                     </DxFormLayoutItem>
 
                     <!-- Grupo 5: Ocupación de Vía Pública (OVP) -->
@@ -445,13 +674,13 @@
                     <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
                         <DxCheckBox @bind-Checked="@solicitud.RequiereOVP" LabelPosition="LabelPosition.Right">Requiere Licencia OVP</DxCheckBox>
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Nº Licencia" ColSpanMd="8">
+                    <DxFormLayoutItem Caption="Nº Licencia" ColSpanMd="4">
                         <DxTextBox @bind-Text="@solicitud.NumLicenciaOVP" Enabled="@solicitud.RequiereOVP" />
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Inicio OVP" ColSpanMd="6" BeginRow="true">
+                    <DxFormLayoutItem Caption="Fecha Inicio OVP" ColSpanMd="2">
                         <DxDateEdit @bind-Date="@solicitud.FechaInicioOVP" Enabled="@solicitud.RequiereOVP" />
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Fin OVP" ColSpanMd="6">
+                    <DxFormLayoutItem Caption="Fecha Fin OVP" ColSpanMd="2">
                         <DxDateEdit @bind-Date="@solicitud.FechaFinOVP" Enabled="@solicitud.RequiereOVP" />
                     </DxFormLayoutItem>
 
@@ -470,6 +699,9 @@
     public int? Id { get; set; }
 
     [SupplyParameterFromQuery]
+    public bool? Duplicate { get; set; }
+
+    [SupplyParameterFromQuery]
     public int? ObraId { get; set; }
 
     [SupplyParameterFromQuery]
@@ -486,20 +718,39 @@
 
     private Solicitud? solicitud;
     private List<Operario>? operarios;
-    private List<UsuarioComunSage50>? usuariosSage;
+    private List<ApplicationUserDto>? usuariosList;
     private List<EstadoSolicitud>? estadosList;
     private List<Obra>? obras;
+    private List<Motivo>? motivosList;
+    private List<Parametro>? parametrosList;
     private List<Contenedor>? contenedoresList;
     private List<Solicitud>? solicitudesConContenedores;
     private List<Planta>? plantas;
     private bool loading = true;
     private string? errorMessage;
-    private string? comentariosOficina;
+    private string? motivoEstadoMessage;
+    private int? estadoInicial;
+    private int? estadoPendienteCambio;
+    private bool confirmacionEliminarPlanificacionVisible;
+    private bool advertenciaPlanificacionIncompletaVisible;
+    private bool advertenciaEstadoIniciadoVisible;
+    private bool passwordFinalizadaVisible;
+    private int? estadoPendienteFinalizado;
+    private bool finalizadaDesbloqueada;
+    private string passwordFinalizada = string.Empty;
+    private string? errorPasswordFinalizada;
     private string? planificacionMessage;
     private bool calculandoRuta;
     private string? solicitudInicial;
     private bool confirmacionCambioTareaVisible;
+    private bool popupObraBloqueadaVisible;
+    private int tareaComboKey = 0;
     private int? tipoTareaPendiente;
+    private int? tareaAnterior;
+    private string? codigoEntregaPrevio;
+    private string? codigoAmbosEntregaPrevio;
+    private string? codigoRecogidaPrevio;
+    private string? codigoAmbosRecogidaPrevio;
     private bool entrega1Afectada;
     private bool entrega2Afectada;
     private bool recogida1Afectada;
@@ -542,27 +793,52 @@
         {
             loading = true;
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
-            usuariosSage = await Http.GetFromJsonAsync<List<UsuarioComunSage50>>("api/UsuariosComunSage50");
+            usuariosList = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users");
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
+            motivosList = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos");
+            parametrosList = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
 
             if (Id.HasValue)
             {
                 solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id.Value}");
+                if (solicitud != null)
+                {
+                    estadoInicial = solicitud.Estado;
+                }
+                if (Duplicate == true && solicitud != null)
+                {
+                    solicitud.IdSolicitud = 0;
+                    solicitud.FechaSolicitud = DateTime.Today;
+                    solicitud.Bloqueado = false;
+                    solicitud.NotificacionInicioVisualizada = false;
+                    AplicarEstadoReprogramacion();
+                }
+                else
+                {
+                    passwordFinalizadaVisible = solicitud != null && EsEstadoFinalizado(solicitud.Estado);
+                }
             }
             else
             {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var currentUserName = authState.User.Identity?.Name;
+
                 solicitud = new Solicitud
                 {
                     FechaSolicitud = DateTime.Today,
                     //FechaInicial = DateTime.Today,
                     //FechaTarea = DateTime.Today,
                     Estado = 1, // Introducido por defecto
+                    Prioridad = 3, // Prioridad baja por defecto
                     IdConductor = null, // Sin asignar por defecto
-                    DuracionPlanificadaMinutos = 60,
-                    DuracionOperacionMinutos = 30
+                    IdOperario = currentUserName, // Prefilled with login UserName
+                    DuracionPlanificadaMinutos = null,
+                    DuracionOperacionMinutos = 30,
+                    FechaHoraInicioPlanificada = null,
+                    FechaHoraFinPlanificada = null
                 };
 
                 if (ObraId.HasValue)
@@ -578,6 +854,8 @@
                         solicitud.TelefonoCliente = obra.Telefono;
                         solicitud.Encargado = obra.Encargado;
                         solicitud.Movil = obra.Movil;
+
+                        await GeocodificarUbicacionObraAsync(obra);
                     }
                 }
 
@@ -620,7 +898,7 @@
         }
     }
 
-    private void OnObraChanged(int val)
+    private async Task OnObraChangedAsync(int val)
     {
         if (solicitud == null) return;
         solicitud.IdCliente = val;
@@ -634,14 +912,280 @@
             solicitud.TelefonoCliente = obra.Telefono;
             solicitud.Encargado = obra.Encargado;
             solicitud.Movil = obra.Movil;
+
+            if (obra.Visible == false)
+            {
+                solicitud.Bloqueado = true;
+            }
+
+            await GeocodificarUbicacionObraAsync(obra);
         }
     }
 
-    private async Task SaveAsync()
+    private async Task GeocodificarUbicacionObraAsync(Obra obra)
     {
         if (solicitud == null) return;
+
+        var address = ST1Savall.MapHelper.BuildNormalizedQuery(
+            obra.Ubicacion,
+            obra.Poblacion,
+            obra.CodigoPostal,
+            obra.Provincia);
+
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            address = obra.Descripcion;
+        }
+
+        if (string.IsNullOrWhiteSpace(address)) return;
+
         try
         {
+            var queryJson = System.Text.Json.JsonSerializer.Serialize($"{address}, Spain");
+            var geocodeResult = await JSRuntime.InvokeAsync<GpsPosition>("eval", $@"
+                (async () => {{
+                    try {{
+                        const response = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent({queryJson}) + '&limit=1');
+                        if (!response.ok) return null;
+                        const results = await response.json();
+                        if (!results || results.length === 0) return null;
+                        return {{ latitud: parseFloat(results[0].lat), longitud: parseFloat(results[0].lon) }};
+                    }} catch (e) {{
+                        return null;
+                    }}
+                }})()");
+
+            if (geocodeResult != null && solicitud != null)
+            {
+                solicitud.Latitud = (decimal)geocodeResult.Latitud;
+                solicitud.Longitud = (decimal)geocodeResult.Longitud;
+                SyncCoordinates();
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task OnBloqueadoChanged(bool value)
+    {
+        if (solicitud == null) return;
+
+        if (!value)
+        {
+            try
+            {
+                await SetupHeadersAsync();
+                var latestObra = await Http.GetFromJsonAsync<Obra>($"api/obras/{solicitud.IdCliente}");
+                if (latestObra != null)
+                {
+                    var idx = obras?.FindIndex(o => o.IdObra == solicitud.IdCliente) ?? -1;
+                    if (idx >= 0 && obras != null)
+                    {
+                        obras[idx] = latestObra;
+                    }
+
+                    if (latestObra.Visible == false)
+                    {
+                        solicitud.Bloqueado = true;
+                        popupObraBloqueadaVisible = true;
+                        StateHasChanged();
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                var obra = obras?.FirstOrDefault(o => o.IdObra == solicitud.IdCliente);
+                if (obra != null && obra.Visible == false)
+                {
+                    solicitud.Bloqueado = true;
+                    popupObraBloqueadaVisible = true;
+                    StateHasChanged();
+                    return;
+                }
+            }
+        }
+
+        solicitud.Bloqueado = value;
+    }
+
+    private void AplicarEstadoReprogramacion()
+    {
+        if (solicitud == null) return;
+        var parametro = parametrosList?.FirstOrDefault();
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro);
+    }
+
+    private void OnMotivoReprogramacionChanged(int? val)
+    {
+        if (solicitud == null) return;
+        solicitud.MotivoReprogramacion = val;
+        AplicarEstadoReprogramacion();
+    }
+
+    private void OnFechaPrevistaChanged(DateTime? val)
+    {
+        if (solicitud == null) return;
+        solicitud.FechaPrevista = val;
+        AplicarEstadoReprogramacion();
+    }
+
+    private void SolicitarCambioEstado(int nuevoEstado)
+    {
+        if (solicitud == null || solicitud.Estado == nuevoEstado) return;
+
+        if (EsEstadoFinalizado(nuevoEstado))
+        {
+            estadoPendienteFinalizado = nuevoEstado;
+            passwordFinalizada = string.Empty;
+            errorPasswordFinalizada = null;
+            passwordFinalizadaVisible = true;
+            return;
+        }
+
+        if (EsEstadoIniciado(nuevoEstado) && !EsEstadoAsignado(solicitud.Estado))
+        {
+            advertenciaEstadoIniciadoVisible = true;
+            return;
+        }
+
+        if (EsEstadoAsignado(nuevoEstado) && !TienePlanificacionCompletaParaAsignar())
+        {
+            advertenciaPlanificacionIncompletaVisible = true;
+            return;
+        }
+
+        if (EsEstadoAsignado(solicitud.Estado)
+            && !EsEstadoAsignado(nuevoEstado)
+            && !EsEstadoIniciado(nuevoEstado)
+            && TieneValoresPlanificacion())
+        {
+            estadoPendienteCambio = nuevoEstado;
+            confirmacionEliminarPlanificacionVisible = true;
+            return;
+        }
+
+        solicitud.Estado = nuevoEstado;
+    }
+
+    private bool EsEstadoAsignado(int idEstado)
+    {
+        var idConfigurado = parametrosList?.FirstOrDefault()?.EstadoAdjudicado;
+        if (idConfigurado == idEstado) return true;
+
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        return descripcion?.Contains("asignad", StringComparison.OrdinalIgnoreCase) == true
+            || descripcion?.Contains("adjudicad", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool EsEstadoIniciado(int idEstado)
+    {
+        var idConfigurado = parametrosList?.FirstOrDefault()?.EstadoIniciado;
+        if (idConfigurado == idEstado) return true;
+
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        return descripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool EsEstadoFinalizado(int idEstado)
+    {
+        var idConfigurado = parametrosList?.FirstOrDefault()?.EstadoFinalizado;
+        if (idConfigurado == idEstado) return true;
+
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        return descripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool TieneValoresPlanificacion() =>
+        solicitud?.IdConductor.HasValue == true ||
+        solicitud?.IdPlantaOrigen.HasValue == true ||
+        solicitud?.IdPlantaDescarga.HasValue == true ||
+        solicitud?.IdPlantaRegreso.HasValue == true ||
+        solicitud?.DuracionPlanificadaMinutos.HasValue == true ||
+        solicitud?.FechaPrevista.HasValue == true ||
+        solicitud?.FechaTarea.HasValue == true ||
+        solicitud?.FechaHoraInicioPlanificada.HasValue == true ||
+        solicitud?.FechaHoraFinPlanificada.HasValue == true;
+
+    private bool TienePlanificacionCompletaParaAsignar() =>
+        solicitud?.IdConductor is > 0 &&
+        solicitud?.IdPlantaOrigen.HasValue == true &&
+        solicitud?.IdPlantaDescarga.HasValue == true &&
+        solicitud?.IdPlantaRegreso.HasValue == true &&
+        solicitud?.DuracionPlanificadaMinutos is > 0 &&
+        (solicitud?.FechaTarea.HasValue == true || solicitud?.FechaPrevista.HasValue == true) &&
+        solicitud?.FechaHoraInicioPlanificada.HasValue == true &&
+        solicitud?.FechaHoraFinPlanificada.HasValue == true;
+
+    private void ConfirmarCambioEstadoYEliminarPlanificacion()
+    {
+        if (solicitud != null && estadoPendienteCambio.HasValue)
+        {
+            solicitud.IdConductor = null;
+            solicitud.IdPlantaOrigen = null;
+            solicitud.IdPlantaDescarga = null;
+            solicitud.IdPlantaRegreso = null;
+            solicitud.DuracionPlanificadaMinutos = null;
+            solicitud.FechaPrevista = null;
+            solicitud.FechaTarea = null;
+            solicitud.FechaHoraInicioPlanificada = null;
+            solicitud.FechaHoraFinPlanificada = null;
+            solicitud.Estado = estadoPendienteCambio.Value;
+        }
+
+        estadoPendienteCambio = null;
+        confirmacionEliminarPlanificacionVisible = false;
+    }
+
+    private void CancelarCambioEstado()
+    {
+        estadoPendienteCambio = null;
+        confirmacionEliminarPlanificacionVisible = false;
+    }
+
+    private async Task<bool> GuardarInternamenteAsync()
+    {
+        if (solicitud == null) return false;
+        if (EsEstadoFinalizado(solicitud.Estado) && !finalizadaDesbloqueada)
+        {
+            passwordFinalizadaVisible = true;
+            return false;
+        }
+
+        if (!ValidarEstadoAlGuardar(out var motivoError))
+        {
+            motivoEstadoMessage = motivoError;
+            return false;
+        }
+
+        try
+        {
+            AplicarEstadoReprogramacion();
+            if (solicitud.FechaTarea.HasValue)
+            {
+                var targetDate = solicitud.FechaTarea.Value.Date;
+                if (solicitud.FechaHoraInicioPlanificada.HasValue)
+                {
+                    solicitud.FechaHoraInicioPlanificada = targetDate + solicitud.FechaHoraInicioPlanificada.Value.TimeOfDay;
+                }
+                if (solicitud.FechaHoraFinPlanificada.HasValue)
+                {
+                    solicitud.FechaHoraFinPlanificada = targetDate + solicitud.FechaHoraFinPlanificada.Value.TimeOfDay;
+                }
+            }
+            else if (solicitud.FechaHoraInicioPlanificada.HasValue)
+            {
+                var targetDate = solicitud.FechaHoraInicioPlanificada.Value.Date;
+                solicitud.FechaTarea = targetDate;
+                solicitud.FechaHoraInicioPlanificada = targetDate + solicitud.FechaHoraInicioPlanificada.Value.TimeOfDay;
+                if (solicitud.FechaHoraFinPlanificada.HasValue)
+                {
+                    solicitud.FechaHoraFinPlanificada = targetDate + solicitud.FechaHoraFinPlanificada.Value.TimeOfDay;
+                }
+            }
+
             SyncCoordinates();
             if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
             {
@@ -650,14 +1194,35 @@
             }
 
             if (TieneDatosRutaCompletos() && !await CalcularRutaAsync(false))
-                return;
+                return false;
 
             solicitud.FechaActualizacion = DateTime.Now;
             await SetupHeadersAsync();
             HttpResponseMessage response;
-            if (Id.HasValue)
+            if (Id.HasValue && Duplicate != true && solicitud.IdSolicitud > 0)
             {
-                response = await Http.PutAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}", solicitud);
+                using var request = new HttpRequestMessage(HttpMethod.Put, $"api/solicitudes/{solicitud.IdSolicitud}")
+                {
+                    Content = JsonContent.Create(solicitud)
+                };
+                if (Http.DefaultRequestHeaders.Authorization != null)
+                {
+                    request.Headers.Authorization = Http.DefaultRequestHeaders.Authorization;
+                }
+                else
+                {
+                    var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                    var token = authState.User.FindFirst("token")?.Value;
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        var authHeader = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        Http.DefaultRequestHeaders.Authorization = authHeader;
+                        request.Headers.Authorization = authHeader;
+                    }
+                }
+                if (EsEstadoFinalizado(solicitud.Estado))
+                    request.Headers.Add("X-Finalized-Service-Password", passwordFinalizada);
+                response = await Http.SendAsync(request);
             }
             else
             {
@@ -666,25 +1231,103 @@
 
             if (response.IsSuccessStatusCode)
             {
+                if (!Id.HasValue || Duplicate == true || solicitud.IdSolicitud == 0)
+                {
+                    var created = await response.Content.ReadFromJsonAsync<Solicitud>();
+                    if (created != null)
+                    {
+                        solicitud = created;
+                        Id = created.IdSolicitud;
+                        Duplicate = false;
+                    }
+                }
+
                 solicitudInicial = SerializarSolicitud();
                 unsavedChangesGuard?.AllowNextNavigation();
-                GoBack();
+                return true;
             }
             else
             {
-                var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
-                errorMessage = apiError?.Message ?? $"Error al guardar la solicitud: {response.ReasonPhrase}";
+                errorMessage = await ObtenerMensajeErrorAsync(response, "Error al guardar la solicitud");
+                return false;
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
+            return false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (await GuardarInternamenteAsync())
+        {
+            GoBack();
         }
     }
 
     private void GoBack()
     {
         NavigationManager.NavigateTo("/modelos/solicitudes");
+    }
+
+    private void DuplicarSolicitudActual()
+    {
+        if (solicitud == null) return;
+        solicitud.IdSolicitud = 0;
+        solicitud.FechaSolicitud = DateTime.Today;
+        solicitud.Bloqueado = false;
+        solicitud.NotificacionInicioVisualizada = false;
+        Duplicate = true;
+        AplicarEstadoReprogramacion();
+        StateHasChanged();
+    }
+
+    private bool PuedeEditarSolicitud => solicitud == null || !EsEstadoFinalizado(solicitud.Estado) || finalizadaDesbloqueada;
+
+    private async Task ValidarPasswordFinalizadaAsync()
+    {
+        errorPasswordFinalizada = null;
+        if (string.IsNullOrWhiteSpace(passwordFinalizada))
+        {
+            errorPasswordFinalizada = "Introduzca la contraseña.";
+            return;
+        }
+
+        try
+        {
+            var parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
+            var adminPassword = parametros?.FirstOrDefault()?.AdminPassword;
+            if (!string.IsNullOrEmpty(adminPassword) && passwordFinalizada == adminPassword)
+            {
+                finalizadaDesbloqueada = true;
+                if (solicitud != null && estadoPendienteFinalizado.HasValue)
+                {
+                    solicitud.Estado = estadoPendienteFinalizado.Value;
+                    estadoPendienteFinalizado = null;
+                }
+                passwordFinalizadaVisible = false;
+                return;
+            }
+        }
+        catch
+        {
+        }
+
+        errorPasswordFinalizada = "La contraseña de administración no es correcta.";
+    }
+
+    private void CancelarEdicionFinalizada()
+    {
+        passwordFinalizada = string.Empty;
+        passwordFinalizadaVisible = false;
+        if (estadoPendienteFinalizado.HasValue)
+        {
+            estadoPendienteFinalizado = null;
+            return;
+        }
+        GoBack();
     }
 
     private UnsavedChangesGuard? unsavedChangesGuard;
@@ -706,23 +1349,91 @@
             return;
         }
 
+        var conductor = operarios?.FirstOrDefault(o => o.IdOperario == solicitud.IdConductor.Value);
+        var inicioShift = conductor != null && conductor.InicioJornada != TimeSpan.Zero ? conductor.InicioJornada : new TimeSpan(8, 0, 0);
+
+        DateTime baseDate = solicitud.FechaTarea?.Date 
+            ?? solicitud.FechaHoraInicioPlanificada?.Date 
+            ?? DateTime.Today;
+
+        TimeSpan baseTime = solicitud.FechaHoraInicioPlanificada?.TimeOfDay ?? inicioShift;
+        if (baseTime < inicioShift) baseTime = inicioShift;
+        DateTime desde = baseDate.Date + baseTime;
+
         var duracion = solicitud.DuracionPlanificadaMinutos.GetValueOrDefault(60);
-        var desde = solicitud.FechaHoraInicioPlanificada
-                    ?? solicitud.FechaTarea?.Date.AddHours(8)
-                    ?? DateTime.Today.AddHours(8);
         var url = $"api/solicitudes/siguiente-hueco?idConductor={solicitud.IdConductor.Value}&fecha={Uri.EscapeDataString(desde.ToString("O"))}&duracionMinutos={duracion}&excluirSolicitudId={solicitud.IdSolicitud}";
         var hueco = await Http.GetFromJsonAsync<PlanificacionHueco>(url);
         if (hueco?.Disponible == true)
         {
             solicitud.FechaHoraInicioPlanificada = hueco.Inicio;
             solicitud.FechaHoraFinPlanificada = hueco.Fin;
-            solicitud.FechaTarea = hueco.Inicio?.Date;
+            if (hueco.Inicio.HasValue)
+            {
+                solicitud.FechaTarea = hueco.Inicio.Value.Date;
+            }
             planificacionMessage = $"Hueco propuesto: {hueco.Inicio:dd/MM/yyyy HH:mm}–{hueco.Fin:HH:mm}.";
         }
         else
         {
-            planificacionMessage = hueco?.Mensaje ?? "No se encontró disponibilidad.";
+            planificacionMessage = hueco?.Mensaje ?? "No se encontró disponibilidad para la fecha seleccionada.";
         }
+    }
+
+    private void OnFechaPlanificacionChanged(DateTime? nuevaFecha)
+    {
+        if (solicitud == null) return;
+        solicitud.FechaTarea = nuevaFecha;
+
+        if (nuevaFecha.HasValue)
+        {
+            if (solicitud.FechaHoraInicioPlanificada.HasValue)
+            {
+                var time = solicitud.FechaHoraInicioPlanificada.Value.TimeOfDay;
+                solicitud.FechaHoraInicioPlanificada = nuevaFecha.Value.Date + time;
+            }
+            if (solicitud.FechaHoraFinPlanificada.HasValue)
+            {
+                var time = solicitud.FechaHoraFinPlanificada.Value.TimeOfDay;
+                solicitud.FechaHoraFinPlanificada = nuevaFecha.Value.Date + time;
+            }
+        }
+        AplicarEstadoReprogramacion();
+    }
+
+    private void OnInicioPlanificadoChanged(DateTime? nuevoInicio)
+    {
+        if (solicitud == null) return;
+
+        if (nuevoInicio.HasValue)
+        {
+            DateTime baseDate = solicitud.FechaTarea?.Date ?? nuevoInicio.Value.Date;
+            solicitud.FechaTarea = baseDate;
+            solicitud.FechaHoraInicioPlanificada = baseDate.Date + nuevoInicio.Value.TimeOfDay;
+        }
+        else
+        {
+            solicitud.FechaHoraInicioPlanificada = null;
+        }
+
+        ActualizarFinPlanificado();
+        AplicarEstadoReprogramacion();
+    }
+
+    private void OnFinPlanificadoChanged(DateTime? nuevoFin)
+    {
+        if (solicitud == null) return;
+
+        if (nuevoFin.HasValue)
+        {
+            DateTime baseDate = solicitud.FechaTarea?.Date ?? nuevoFin.Value.Date;
+            solicitud.FechaTarea = baseDate;
+            solicitud.FechaHoraFinPlanificada = baseDate.Date + nuevoFin.Value.TimeOfDay;
+        }
+        else
+        {
+            solicitud.FechaHoraFinPlanificada = null;
+        }
+        AplicarEstadoReprogramacion();
     }
 
     private async Task<bool> CalcularRutaAsync(bool mostrarMensaje)
@@ -740,12 +1451,16 @@
         {
             calculandoRuta = true;
             errorMessage = null;
+            if (mostrarMensaje)
+            {
+                solicitud.DuracionModificadaManualmente = false;
+            }
             await SetupHeadersAsync();
-            var response = await Http.PostAsJsonAsync("api/solicitudes/calcular-ruta", solicitud);
+            var url = mostrarMensaje ? "api/solicitudes/calcular-ruta?forzarActualizacion=true" : "api/solicitudes/calcular-ruta";
+            var response = await Http.PostAsJsonAsync(url, solicitud);
             if (!response.IsSuccessStatusCode)
             {
-                var apiError = await response.Content.ReadFromJsonAsync<ApiError>();
-                errorMessage = apiError?.Message ?? $"No se pudo calcular la ruta: {response.ReasonPhrase}";
+                errorMessage = await ObtenerMensajeErrorAsync(response, "No se pudo calcular la ruta");
                 return false;
             }
 
@@ -815,11 +1530,40 @@
         public string? Message { get; set; }
     }
 
+    private static async Task<string> ObtenerMensajeErrorAsync(HttpResponseMessage response, string mensajeBase)
+    {
+        var contenido = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(contenido))
+            return $"{mensajeBase}: {response.ReasonPhrase ?? $"HTTP {(int)response.StatusCode}"}";
+
+        try
+        {
+            var apiError = System.Text.Json.JsonSerializer.Deserialize<ApiError>(contenido,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (!string.IsNullOrWhiteSpace(apiError?.Message))
+                return apiError.Message;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Algunas respuestas de infraestructura devuelven texto plano en lugar de JSON.
+        }
+
+        return $"{mensajeBase}: {contenido}";
+    }
+
 
 
     private async Task VerCoordenadasEnMapa()
     {
         if (solicitud == null) return;
+
+        if (HayCambiosPendientes)
+        {
+            if (!await GuardarInternamenteAsync())
+            {
+                return;
+            }
+        }
 
         SyncCoordinates();
 
@@ -878,9 +1622,9 @@
         }
 
         var backUrl = "/modelos/solicitudes";
-        if (Id.HasValue)
+        if (solicitud.IdSolicitud > 0)
         {
-            backUrl = $"/modelos/solicitudes/edit/{Id.Value}";
+            backUrl = $"/modelos/solicitudes/edit/{solicitud.IdSolicitud}";
         }
 
         // Obtener la serie del contenedor y su descripción si está asignado
@@ -1031,6 +1775,7 @@
     private void OnTareaChanged(int val)
     {
         if (solicitud == null) return;
+        if (solicitud.IdTipoTarea == val) return;
 
         var nuevaTarea = tareasList?.FirstOrDefault(t => t.IdTarea == val);
         var seAfectaEntrega1 = !string.IsNullOrWhiteSpace(solicitud.CodigoEntrega) && nuevaTarea?.Entrega1 != true;
@@ -1040,6 +1785,12 @@
 
         if (seAfectaEntrega1 || seAfectaEntrega2 || seAfectaRecogida1 || seAfectaRecogida2)
         {
+            tareaAnterior = solicitud.IdTipoTarea;
+            codigoEntregaPrevio = solicitud.CodigoEntrega;
+            codigoAmbosEntregaPrevio = solicitud.CodigoAmbosEntrega;
+            codigoRecogidaPrevio = solicitud.CodigoRecogida;
+            codigoAmbosRecogidaPrevio = solicitud.CodigoAmbosRecogida;
+
             tipoTareaPendiente = val;
             entrega1Afectada = seAfectaEntrega1;
             entrega2Afectada = seAfectaEntrega2;
@@ -1062,7 +1813,30 @@
         LimpiarCambioTareaPendiente();
     }
 
-    private void CancelarCambioTarea() => LimpiarCambioTareaPendiente();
+    private void CancelarCambioTarea()
+    {
+        if (tareaAnterior.HasValue && solicitud != null)
+        {
+            solicitud.IdTipoTarea = tareaAnterior.Value;
+            solicitud.CodigoEntrega = codigoEntregaPrevio;
+            solicitud.CodigoAmbosEntrega = codigoAmbosEntregaPrevio;
+            solicitud.CodigoRecogida = codigoRecogidaPrevio;
+            solicitud.CodigoAmbosRecogida = codigoAmbosRecogidaPrevio;
+        }
+
+        tareaComboKey++;
+        LimpiarCambioTareaPendiente();
+        StateHasChanged();
+    }
+
+    private void OnConfirmacionVisibleChanged(bool visible)
+    {
+        confirmacionCambioTareaVisible = visible;
+        if (!visible && tipoTareaPendiente.HasValue)
+        {
+            CancelarCambioTarea();
+        }
+    }
 
     private void AplicarCambioTarea(int tipoTarea)
     {
@@ -1089,10 +1863,25 @@
     {
         confirmacionCambioTareaVisible = false;
         tipoTareaPendiente = null;
+        tareaAnterior = null;
+        codigoEntregaPrevio = null;
+        codigoAmbosEntregaPrevio = null;
+        codigoRecogidaPrevio = null;
+        codigoAmbosRecogidaPrevio = null;
         entrega1Afectada = false;
         entrega2Afectada = false;
         recogida1Afectada = false;
         recogida2Afectada = false;
+    }
+
+    private IEnumerable<Operario> GetOperariosDisponibles()
+    {
+        if (operarios == null) return Enumerable.Empty<Operario>();
+
+        return operarios.Where(o =>
+            (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+            || (solicitud != null && solicitud.IdConductor.HasValue && o.IdOperario == solicitud.IdConductor.Value)
+        ).OrderBy(o => o.Nombre);
     }
 
     private void OnConductorChanged(int? idConductor)
@@ -1100,11 +1889,70 @@
         if (solicitud == null) return;
 
         solicitud.IdConductor = idConductor;
-        var idPlanta = operarios?.FirstOrDefault(o => o.IdOperario == idConductor)?.IdPlanta;
+        var operarioConductor = operarios?.FirstOrDefault(o => o.IdOperario == idConductor);
+        var idPlanta = operarioConductor?.IdPlanta;
 
         solicitud.IdPlantaOrigen = idPlanta;
         solicitud.IdPlantaDescarga = idPlanta;
         solicitud.IdPlantaRegreso = idPlanta;
+
+        AplicarEstadoReprogramacion();
+    }
+
+    private bool ValidarEstadoAlGuardar(out string? motivoError)
+    {
+        motivoError = null;
+        if (solicitud == null) return true;
+
+        var estadoSeleccionado = solicitud.Estado;
+        var parametro = parametrosList?.FirstOrDefault();
+        var idAdjudicado = parametro?.EstadoAdjudicado ?? 9;
+        var idReprogramado = parametro?.EstadoReprogramacion ?? 6;
+        var idFinalizado = parametro?.EstadoFinalizado ?? 5;
+
+        bool tieneConductor = solicitud.IdConductor.HasValue && solicitud.IdConductor.Value > 0;
+        bool tieneFechaPrevista = solicitud.FechaPrevista.HasValue || solicitud.FechaTarea.HasValue;
+        bool tieneHoraInicio = solicitud.FechaHoraInicioPlanificada.HasValue;
+        bool tieneHoraFin = solicitud.FechaHoraFinPlanificada.HasValue;
+        bool tieneTiempo = solicitud.DuracionPlanificadaMinutos.HasValue && solicitud.DuracionPlanificadaMinutos.Value > 0;
+        bool tieneMotivoAplazamiento = solicitud.MotivoReprogramacion.HasValue && solicitud.MotivoReprogramacion.Value > 0;
+
+        if (estadoSeleccionado == idAdjudicado && !(tieneConductor && tieneFechaPrevista && tieneHoraInicio && tieneHoraFin && tieneTiempo))
+        {
+            var faltantes = new List<string>();
+            if (!tieneConductor) faltantes.Add("Conductor");
+            if (!tieneFechaPrevista) faltantes.Add("Fecha prevista");
+            if (!tieneHoraInicio) faltantes.Add("Hora de inicio");
+            if (!tieneHoraFin) faltantes.Add("Hora fin");
+            if (!tieneTiempo) faltantes.Add("Duración (minutos)");
+
+            motivoError = $"No se puede cambiar el estado a '{ObtenerNombreEstado(idAdjudicado)}' porque no se cumplen los requisitos de planificación. Faltan los siguientes datos: {string.Join(", ", faltantes)}.";
+            return false;
+        }
+
+        if (estadoSeleccionado == idReprogramado && !(tieneFechaPrevista && tieneMotivoAplazamiento))
+        {
+            var faltantes = new List<string>();
+            if (!tieneFechaPrevista) faltantes.Add("Fecha prevista");
+            if (!tieneMotivoAplazamiento) faltantes.Add("Motivo de reprogramación");
+
+            motivoError = $"No se puede cambiar el estado a '{ObtenerNombreEstado(idReprogramado)}' porque se requiere indicar: {string.Join(" y ", faltantes)}.";
+            return false;
+        }
+
+        if ((EsEstadoIniciado(estadoSeleccionado) && !EsEstadoAsignado(estadoInicial ?? 0))
+            || (estadoSeleccionado == idFinalizado && !finalizadaDesbloqueada))
+        {
+            motivoError = $"No se puede seleccionar el estado '{ObtenerNombreEstado(estadoSeleccionado)}' al grabar la solicitud, ya que es un estado exclusivo de la ejecución del servicio en la aplicación móvil.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private string ObtenerNombreEstado(int idEstado)
+    {
+        return estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion ?? $"Estado {idEstado}";
     }
 
     private class GpsPosition
