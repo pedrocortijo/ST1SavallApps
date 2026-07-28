@@ -53,7 +53,18 @@
                 </AuthorizeView>
             </div>
             <div class="px-4 pt-0 pb-4">
-                @Body
+                @if (!accessChecked)
+                {
+                    <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div>
+                }
+                else if (!isConductor || IsConductorRoute())
+                {
+                    @Body
+                }
+                else
+                {
+                    <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div>
+                }
             </div>
         </DrawerTarget>
     </Drawer>
@@ -76,6 +87,8 @@
     </div>;
 
     private string? currentUrl;
+    private bool accessChecked;
+    private bool isConductor;
     private string companyName = "JOSE SAVALL RONDA, S.A.";
     private string displayName = "José Savall Ronda S.A.";
 
@@ -98,10 +111,22 @@
             if (!string.IsNullOrWhiteSpace(empresa)) {
                 companyName = empresa;
             }
+
+            var users = await Http.GetFromJsonAsync<List<ST1Savall.Shared.Data.ApplicationUserDto>>("api/users") ?? [];
+            var operarios = await Http.GetFromJsonAsync<List<ST1Savall.Shared.Data.Operario>>("api/operarios") ?? [];
+            var user = users.FirstOrDefault(u => string.Equals(u.Email, authState.User.Identity?.Name, StringComparison.OrdinalIgnoreCase));
+            isConductor = !string.IsNullOrWhiteSpace(user?.Tecnico)
+                && operarios.Any(o => string.Equals(o.Nombre, user.Tecnico, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(o.Cargo?.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception ex) {
             Console.WriteLine($"Error loading user display name in layout: {ex.Message}");
         }
+        finally {
+            accessChecked = true;
+        }
+
+        RedirectConductorToServices();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) {
@@ -136,7 +161,19 @@
         }
 
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        RedirectConductorToServices();
         StateHasChanged();
+    }
+
+    private bool IsConductorRoute() => new Uri(NavigationManager.Uri).LocalPath
+        .StartsWith("/servicios/mis-servicios", StringComparison.OrdinalIgnoreCase);
+
+    private void RedirectConductorToServices()
+    {
+        if (accessChecked && isConductor && !IsConductorRoute())
+        {
+            NavigationManager.NavigateTo("/servicios/mis-servicios", replace: true);
+        }
     }
 
     public void Dispose() {

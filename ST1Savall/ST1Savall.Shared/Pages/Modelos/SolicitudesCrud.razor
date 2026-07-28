@@ -130,8 +130,8 @@
                         AllowSort="true"
                         ShowFilterRow="true"
                         ShowSearchBox="true"
-                        ColumnResizeMode="GridColumnResizeMode.NextColumn"
-                        CustomizeElement="@OnCustomizeElement">
+                    ColumnResizeMode="GridColumnResizeMode.NextColumn"
+                    CustomizeElement="@OnCustomizeElement">
                     <Columns>
                         <DxGridCommandColumn Width="115px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
@@ -176,6 +176,7 @@
                             </CellDisplayTemplate>
 
                         </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Soli" Width="65px" />
                         <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
                             <CellDisplayTemplate>
                                 @{
@@ -191,12 +192,15 @@
                                     var sol = (Solicitud)context.DataItem;
                                     <div>
                                         <strong style="font-size: 0.82rem;">@sol.NombreCliente</strong><br />
-                                        <span style="font-size: 0.74rem; display: block; line-height: 1.2;">@sol.DireccionCliente, @sol.PoblacionCliente</span>
-                                        <span style="font-size: 0.7rem; opacity: 0.85; color: inherit;"><i class="oi oi-phone" style="font-size: 0.65rem; color: inherit;"></i> @sol.TelefonoCliente</span>
+                                        <div style="font-size: 0.74rem; display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; line-height: 1.2;">
+                                            <span>@sol.DireccionCliente, @sol.PoblacionCliente</span>
+                                            <span style="font-size: 0.7rem; opacity: 0.85; color: inherit; white-space: nowrap;"><i class="oi oi-phone" style="font-size: 0.65rem; color: inherit;"></i> @sol.TelefonoCliente</span>
+                                        </div>
                                     </div>
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
                         <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tipo Tarea">
                             <CellDisplayTemplate>
                                 @{
@@ -206,23 +210,15 @@
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
                         <DxGridDataColumn FieldName="FechaInicial" Caption="F. Inicial" DisplayFormat="dd/MM/yyyy" Visible="false" />
-                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="130px" />
-                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio" DisplayFormat="HH:mm" Width="90px" />
+                        <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="100px" />
+                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio" DisplayFormat="HH:mm" Width="70px" />
                         <DxGridDataColumn FieldName="DuracionPlanificadaMinutos" Caption="Duración (min)" Width="110px" Visible="false" />
-                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="180px">
+                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="100px">
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
                                     var est = estadosList?.FirstOrDefault(x => x.IdEstado == sol.Estado);
                                     @est?.Descripcion
-                                }
-                            </CellDisplayTemplate>
-                        </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="PrioridadDescripcion" Caption="Prioridad">
-                            <CellDisplayTemplate>
-                                @{
-                                    var sol = (Solicitud)context.DataItem;
-                                    @(sol.Prioridad == 1 ? "Alta" : sol.Prioridad == 2 ? "Media" : "Baja")
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
@@ -274,12 +270,30 @@
     {
         if (solicitudes == null) return Array.Empty<Solicitud>();
 
-        var filteredSolicitudes = solicitudes.AsEnumerable();
+        var filteredSolicitudes = solicitudes.Where(s =>
+            !EsSolicitudFinalizada(s)
+            || !EsFinalizadaAnteriorAFechaActual(s)
+            || selectedEstadoId == s.Estado);
         if (selectedConductorId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdConductor == selectedConductorId);
         if (selectedTareaId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdTipoTarea == selectedTareaId);
         if (selectedEstadoId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
         if (selectedPrioridadId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Prioridad == selectedPrioridadId);
-        return filteredSolicitudes;
+        return filteredSolicitudes.OrderByDescending(s => s.FechaSolicitud ?? DateTime.MinValue);
+    }
+
+    private bool EsSolicitudFinalizada(Solicitud solicitud)
+    {
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == solicitud.Estado)?.Descripcion;
+        if (descripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (descripcion?.Contains("anulad", StringComparison.OrdinalIgnoreCase) == true) return false;
+
+        return parametrosList?.FirstOrDefault()?.EstadoFinalizado == solicitud.Estado;
+    }
+
+    private static bool EsFinalizadaAnteriorAFechaActual(Solicitud solicitud)
+    {
+        var fechaServicio = solicitud.FechaTarea ?? solicitud.FechaSolicitud;
+        return fechaServicio?.Date < DateTime.Today;
     }
 
     private int GetStateCount(int estado)

@@ -90,7 +90,13 @@
     <BodyContentTemplate>
         <div class="py-2 d-flex align-items-center gap-3">
             <i class="oi oi-warning text-warning fs-3"></i>
-            <p class="mb-0">Existen valores en la planificación del servicio que impiden el cambio de estado. ¿Desea que elimine los valores para pasar a este estado?</p>
+            <div>
+                <p class="mb-0">Existen valores en la planificación del servicio que impiden el cambio de estado. ¿Desea que elimine los valores para pasar a este estado?</p>
+                @if (estadoPendienteCambio.HasValue && EsEstadoAnulado(estadoPendienteCambio.Value))
+                {
+                    <p class="mb-0 mt-2 small">Si se va a reprogramar el servicio, indique la próxima fecha prevista y el motivo del aplazamiento para que la solicitud aparezca después en la planificación.</p>
+                }
+            </div>
         </div>
     </BodyContentTemplate>
     <FooterContentTemplate>
@@ -332,7 +338,7 @@
 
                     <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="4">
                         <DxComboBox @key="tareaComboKey"
-                                    Data="@tareasList"
+                                    Data="@TareasDisponibles"
                                     TextFieldName="NombreTarea"
                                     ValueFieldName="IdTarea"
                                     Value="@solicitud.IdTipoTarea"
@@ -667,21 +673,33 @@
                                     NullText="Seleccione el motivo de aplazamiento..." />
                     </DxFormLayoutItem>
 
-                    <!-- Grupo 5: Ocupación de Vía Pública (OVP) -->
-                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        Ocupación de Vía Pública (OVP)
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
-                        <DxCheckBox @bind-Checked="@solicitud.RequiereOVP" LabelPosition="LabelPosition.Right">Requiere Licencia OVP</DxCheckBox>
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Nº Licencia" ColSpanMd="4">
-                        <DxTextBox @bind-Text="@solicitud.NumLicenciaOVP" Enabled="@solicitud.RequiereOVP" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Inicio OVP" ColSpanMd="2">
-                        <DxDateEdit @bind-Date="@solicitud.FechaInicioOVP" Enabled="@solicitud.RequiereOVP" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Fin OVP" ColSpanMd="2">
-                        <DxDateEdit @bind-Date="@solicitud.FechaFinOVP" Enabled="@solicitud.RequiereOVP" />
+                    <!-- Grupo 5: Ocupación de Vía Pública y firma -->
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                        <Template>
+                            <div class="row g-4 mt-2">
+                                <div class="col-md-7 border-end pe-md-4">
+                                    <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Ocupación de Vía Pública (OVP)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-5 d-flex align-items-end mb-2"><DxCheckBox @bind-Checked:get="@solicitud.RequiereOVP" @bind-Checked:set="@OnRequiereOVPChanged" LabelPosition="LabelPosition.Right">Requiere Licencia OVP</DxCheckBox></div>
+                                        <div class="col-md-7 mb-2"><label class="form-label fw-bold text-muted small mb-1">Nº Licencia</label><DxTextBox @bind-Text="@solicitud.NumLicenciaOVP" Enabled="@solicitud.RequiereOVP" /></div>
+                                        <div class="col-12 mb-2"><div class="row justify-content-end"><div class="col-md-4"><label class="form-label fw-bold text-muted small mb-1">Fecha Inicio OVP</label><DxDateEdit @bind-Date="@solicitud.FechaInicioOVP" Enabled="@solicitud.RequiereOVP" /></div></div></div>
+                                        <div class="col-12 mb-2"><div class="row justify-content-end"><div class="col-md-4"><label class="form-label fw-bold text-muted small mb-1">Fecha Finalización OVP</label><DxDateEdit @bind-Date="@solicitud.FechaFinOVP" Enabled="@solicitud.RequiereOVP" /></div></div></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-5 ps-md-4">
+                                    <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Firma de solicitud</h6>
+                                    <div class="row g-2">
+                                        <div class="col-7"><label class="form-label fw-bold text-muted small mb-1">Nombre firmante</label><DxTextBox @bind-Text="@solicitud.FirmaNombre" NullText="Nombre y apellidos" /></div>
+                                        <div class="col-5"><label class="form-label fw-bold text-muted small mb-1">DNI</label><DxTextBox @bind-Text="@solicitud.FirmaDni" NullText="DNI" /></div>
+                                        @if (!PuedeFirmar)
+                                        {
+                                            <div class="col-12"><div class="alert alert-warning py-1 px-2 small mb-0">Antes de firmar, indique: @string.Join(", ", ContenedoresPendientesFirma).</div></div>
+                                        }
+                                        <div class="col-12"><div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Firma</label><button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" title="Borrar firma" aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i class="oi oi-trash"></i></button></div><canvas @ref="firmaCanvas" class="w-100 border rounded bg-white" style="@EstiloLienzoFirma"></canvas></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Template>
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
@@ -735,7 +753,6 @@
     private bool advertenciaPlanificacionIncompletaVisible;
     private bool advertenciaEstadoIniciadoVisible;
     private bool passwordFinalizadaVisible;
-    private int? estadoPendienteFinalizado;
     private bool finalizadaDesbloqueada;
     private string passwordFinalizada = string.Empty;
     private string? errorPasswordFinalizada;
@@ -755,6 +772,13 @@
     private bool entrega2Afectada;
     private bool recogida1Afectada;
     private bool recogida2Afectada;
+    private ElementReference firmaCanvas;
+    private DotNetObjectReference<SolicitudesEdit>? firmaReference;
+    private string? firmaImagenBase64;
+    private bool firmaModificada;
+    private bool firmaInicializada;
+    private bool firmaPendienteDeMostrar;
+    private bool firmaEliminada;
 
     private class KeyName
     {
@@ -775,6 +799,81 @@
     {
         await SetupHeadersAsync();
         await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firmaInicializada && solicitud is not null)
+        {
+            firmaReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initSignaturePad", firmaCanvas, firmaReference);
+            firmaInicializada = true;
+        }
+
+        if (firmaInicializada && firmaPendienteDeMostrar && !string.IsNullOrWhiteSpace(firmaImagenBase64))
+        {
+            await JSRuntime.InvokeVoidAsync("setSignatureImage", firmaCanvas, firmaImagenBase64);
+            firmaPendienteDeMostrar = false;
+        }
+    }
+
+    [JSInvokable]
+    public Task OnSignatureChanged(string imagenBase64)
+    {
+        if (!PuedeFirmar) return Task.CompletedTask;
+        firmaImagenBase64 = imagenBase64;
+        firmaModificada = true;
+        firmaEliminada = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task LimpiarFirmaAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("clearSignaturePad", firmaCanvas);
+        firmaImagenBase64 = null;
+        firmaModificada = false;
+        firmaPendienteDeMostrar = false;
+        firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
+        if (solicitud is not null)
+        {
+            solicitud.FirmaNombre = null;
+            solicitud.FirmaDni = null;
+        }
+    }
+
+    private IEnumerable<string> ContenedoresPendientesFirma
+    {
+        get
+        {
+            var tarea = TareaSeleccionada;
+            if (solicitud is null || tarea is null) return ["el tipo de tarea"];
+
+            var pendientes = new List<string>();
+            if (tarea.Entrega1 && string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)) pendientes.Add("Entrega [1]");
+            if (tarea.Entrega2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)) pendientes.Add("Entrega [2]");
+            if (tarea.Recoger1 && string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)) pendientes.Add("Retirada [1]");
+            if (tarea.Recoger2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)) pendientes.Add("Retirada [2]");
+            return pendientes;
+        }
+    }
+
+    private bool PuedeFirmar => !ContenedoresPendientesFirma.Any();
+
+    private string EstiloLienzoFirma => PuedeFirmar
+        ? "height: 115px; touch-action: none;"
+        : "height: 115px; touch-action: none; pointer-events: none; opacity: .55;";
+
+    private void OnRequiereOVPChanged(bool requiereOVP)
+    {
+        if (solicitud is null) return;
+
+        solicitud.RequiereOVP = requiereOVP;
+        if (!requiereOVP)
+        {
+            solicitud.NumLicenciaOVP = null;
+            solicitud.FechaInicioOVP = null;
+            solicitud.FechaFinOVP = null;
+        }
     }
 
     private async Task SetupHeadersAsync()
@@ -807,6 +906,8 @@
                 if (solicitud != null)
                 {
                     estadoInicial = solicitud.Estado;
+                    if (Duplicate != true)
+                        await CargarFirmaAsync();
                 }
                 if (Duplicate == true && solicitud != null)
                 {
@@ -896,6 +997,18 @@
         {
             loading = false;
         }
+    }
+
+    private async Task CargarFirmaAsync()
+    {
+        if (solicitud?.IdSolicitud <= 0 || string.IsNullOrWhiteSpace(solicitud.FirmaPath)) return;
+
+        var response = await Http.GetAsync($"api/solicitudes/{solicitud.IdSolicitud}/firma");
+        if (!response.IsSuccessStatusCode) return;
+
+        var imagen = await response.Content.ReadAsByteArrayAsync();
+        firmaImagenBase64 = $"data:image/png;base64,{Convert.ToBase64String(imagen)}";
+        firmaPendienteDeMostrar = true;
     }
 
     private async Task OnObraChangedAsync(int val)
@@ -1022,28 +1135,32 @@
     {
         if (solicitud == null) return;
         solicitud.MotivoReprogramacion = val;
-        AplicarEstadoReprogramacion();
+        ActualizarEstadoPorAplazamiento();
     }
 
     private void OnFechaPrevistaChanged(DateTime? val)
     {
         if (solicitud == null) return;
         solicitud.FechaPrevista = val;
+        ActualizarEstadoPorAplazamiento();
+    }
+
+    private void ActualizarEstadoPorAplazamiento()
+    {
+        if (solicitud == null) return;
+
+        if (solicitud.FechaPrevista.HasValue && solicitud.MotivoReprogramacion is > 0)
+        {
+            solicitud.Estado = ObtenerEstadoAnulado();
+            return;
+        }
+
         AplicarEstadoReprogramacion();
     }
 
     private void SolicitarCambioEstado(int nuevoEstado)
     {
         if (solicitud == null || solicitud.Estado == nuevoEstado) return;
-
-        if (EsEstadoFinalizado(nuevoEstado))
-        {
-            estadoPendienteFinalizado = nuevoEstado;
-            passwordFinalizada = string.Empty;
-            errorPasswordFinalizada = null;
-            passwordFinalizadaVisible = true;
-            return;
-        }
 
         if (EsEstadoIniciado(nuevoEstado) && !EsEstadoAsignado(solicitud.Estado))
         {
@@ -1054,6 +1171,13 @@
         if (EsEstadoAsignado(nuevoEstado) && !TienePlanificacionCompletaParaAsignar())
         {
             advertenciaPlanificacionIncompletaVisible = true;
+            return;
+        }
+
+        if ((EsEstadoPendiente(nuevoEstado) || EsEstadoAnulado(nuevoEstado)) && TieneValoresPlanificacion())
+        {
+            estadoPendienteCambio = nuevoEstado;
+            confirmacionEliminarPlanificacionVisible = true;
             return;
         }
 
@@ -1091,11 +1215,39 @@
 
     private bool EsEstadoFinalizado(int idEstado)
     {
-        var idConfigurado = parametrosList?.FirstOrDefault()?.EstadoFinalizado;
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        if (descripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (descripcion?.Contains("anulad", StringComparison.OrdinalIgnoreCase) == true) return false;
+
+        return parametrosList?.FirstOrDefault()?.EstadoFinalizado == idEstado;
+    }
+
+    private bool EsEstadoPendiente(int idEstado)
+    {
+        var idConfigurado = parametrosList?.FirstOrDefault()?.EstadoPendiente;
         if (idConfigurado == idEstado) return true;
 
         var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
-        return descripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true;
+        return descripcion?.Contains("pendiente", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool EsEstadoAnulado(int idEstado)
+    {
+        if (idEstado == ObtenerEstadoAnulado()) return true;
+
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        return descripcion?.Contains("anulad", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private int ObtenerEstadoAnulado()
+    {
+        var parametro = parametrosList?.FirstOrDefault();
+        if (parametro?.EstadoReprogramacion is > 0) return parametro.EstadoReprogramacion.Value;
+
+        return estadosList?.FirstOrDefault(e =>
+                   e.Descripcion.Contains("anulad", StringComparison.OrdinalIgnoreCase)
+                   || e.Descripcion.Contains("reprogram", StringComparison.OrdinalIgnoreCase))?.IdEstado
+               ?? 6;
     }
 
     private bool TieneValoresPlanificacion() =>
@@ -1148,7 +1300,12 @@
     private async Task<bool> GuardarInternamenteAsync()
     {
         if (solicitud == null) return false;
-        if (EsEstadoFinalizado(solicitud.Estado) && !finalizadaDesbloqueada)
+        if (firmaModificada && !PuedeFirmar)
+        {
+            errorMessage = $"No se puede guardar la firma: faltan los contenedores requeridos ({string.Join(", ", ContenedoresPendientesFirma)}).";
+            return false;
+        }
+        if (EsEstadoFinalizado(estadoInicial ?? 0) && !finalizadaDesbloqueada)
         {
             passwordFinalizadaVisible = true;
             return false;
@@ -1220,7 +1377,7 @@
                         request.Headers.Authorization = authHeader;
                     }
                 }
-                if (EsEstadoFinalizado(solicitud.Estado))
+                if (EsEstadoFinalizado(estadoInicial ?? 0))
                     request.Headers.Add("X-Finalized-Service-Password", passwordFinalizada);
                 response = await Http.SendAsync(request);
             }
@@ -1242,6 +1399,12 @@
                     }
                 }
 
+                if (firmaEliminada && !await EliminarFirmaAsync())
+                    return false;
+
+                if (firmaModificada && !await GuardarFirmaAsync())
+                    return false;
+
                 solicitudInicial = SerializarSolicitud();
                 unsavedChangesGuard?.AllowNextNavigation();
                 return true;
@@ -1257,6 +1420,43 @@
             errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
             return false;
         }
+    }
+
+    private async Task<bool> GuardarFirmaAsync()
+    {
+        if (solicitud is null || solicitud.IdSolicitud <= 0 || string.IsNullOrWhiteSpace(firmaImagenBase64))
+            return true;
+
+        var response = await Http.PostAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}/firma", new
+        {
+            Nombre = solicitud.FirmaNombre,
+            Dni = solicitud.FirmaDni,
+            ImagenBase64 = firmaImagenBase64
+        });
+        if (response.IsSuccessStatusCode)
+        {
+            firmaModificada = false;
+            return true;
+        }
+
+        errorMessage = await ObtenerMensajeErrorAsync(response, "Error al guardar la firma");
+        return false;
+    }
+
+    private async Task<bool> EliminarFirmaAsync()
+    {
+        if (solicitud is null || solicitud.IdSolicitud <= 0) return true;
+
+        var response = await Http.DeleteAsync($"api/solicitudes/{solicitud.IdSolicitud}/firma");
+        if (response.IsSuccessStatusCode)
+        {
+            solicitud.FirmaPath = null;
+            firmaEliminada = false;
+            return true;
+        }
+
+        errorMessage = await ObtenerMensajeErrorAsync(response, "Error al borrar la firma");
+        return false;
     }
 
     private async Task SaveAsync()
@@ -1284,7 +1484,7 @@
         StateHasChanged();
     }
 
-    private bool PuedeEditarSolicitud => solicitud == null || !EsEstadoFinalizado(solicitud.Estado) || finalizadaDesbloqueada;
+    private bool PuedeEditarSolicitud => solicitud == null || !EsEstadoFinalizado(estadoInicial ?? 0) || finalizadaDesbloqueada;
 
     private async Task ValidarPasswordFinalizadaAsync()
     {
@@ -1302,11 +1502,6 @@
             if (!string.IsNullOrEmpty(adminPassword) && passwordFinalizada == adminPassword)
             {
                 finalizadaDesbloqueada = true;
-                if (solicitud != null && estadoPendienteFinalizado.HasValue)
-                {
-                    solicitud.Estado = estadoPendienteFinalizado.Value;
-                    estadoPendienteFinalizado = null;
-                }
                 passwordFinalizadaVisible = false;
                 return;
             }
@@ -1322,11 +1517,6 @@
     {
         passwordFinalizada = string.Empty;
         passwordFinalizadaVisible = false;
-        if (estadoPendienteFinalizado.HasValue)
-        {
-            estadoPendienteFinalizado = null;
-            return;
-        }
         GoBack();
     }
 
@@ -1738,19 +1928,21 @@
         .FirstOrDefault(o => o.IdOperario == solicitud?.IdConductor)?.IdPlanta;
 
     private List<Contenedor> contenedoresEntrega => contenedoresList?
-        .Where(c => EsContenedorActual(c, solicitud?.CodigoEntrega)
+        .Where(c => !EstaSeleccionadoParaRetirada(c)
+            && (EsContenedorActual(c, solicitud?.CodigoEntrega)
             || EsContenedorActual(c, solicitud?.CodigoAmbosEntrega)
             || (IdPlantaConductor.HasValue
                 && c.IdPlanta == IdPlantaConductor.Value
-                && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase)))
+                && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase))))
         .OrderBy(c => c.NumSerie)
         .ToList() ?? new List<Contenedor>();
 
     private List<Contenedor> contenedoresRecogida => contenedoresList?
-        .Where(c => EsContenedorActual(c, solicitud?.CodigoRecogida)
+        .Where(c => !EstaSeleccionadoParaEntrega(c)
+            && (EsContenedorActual(c, solicitud?.CodigoRecogida)
             || EsContenedorActual(c, solicitud?.CodigoAmbosRecogida)
             || (string.Equals(c.EstadoFisico, "Entregado", StringComparison.OrdinalIgnoreCase)
-                && EstaEntregadoEnObraSeleccionada(c)))
+                && EstaEntregadoEnObraSeleccionada(c))))
         .OrderBy(c => c.NumSerie)
         .ToList() ?? new List<Contenedor>();
 
@@ -1758,14 +1950,35 @@
         !string.IsNullOrWhiteSpace(codigoSeleccionado)
         && string.Equals(contenedor.NumSerie, codigoSeleccionado, StringComparison.OrdinalIgnoreCase);
 
+    private bool EstaSeleccionadoParaEntrega(Contenedor contenedor) =>
+        EsContenedorActual(contenedor, solicitud?.CodigoEntrega)
+        || EsContenedorActual(contenedor, solicitud?.CodigoAmbosEntrega);
+
+    private bool EstaSeleccionadoParaRetirada(Contenedor contenedor) =>
+        EsContenedorActual(contenedor, solicitud?.CodigoRecogida)
+        || EsContenedorActual(contenedor, solicitud?.CodigoAmbosRecogida);
+
     private bool EstaEntregadoEnObraSeleccionada(Contenedor contenedor) =>
         solicitud?.IdCliente > 0
         && solicitudesConContenedores?.Any(s =>
             s.IdCliente == solicitud.IdCliente
-            && string.Equals(s.CodigoEntrega, contenedor.NumSerie, StringComparison.OrdinalIgnoreCase)) == true;
+            && (string.Equals(s.CodigoEntrega, contenedor.NumSerie, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(s.CodigoAmbosEntrega, contenedor.NumSerie, StringComparison.OrdinalIgnoreCase))) == true;
 
     private Tarea? TareaSeleccionada => tareasList?
         .FirstOrDefault(t => t.IdTarea == solicitud?.IdTipoTarea);
+
+    private IEnumerable<Tarea> TareasDisponibles => tareasList?.Where(PuedeSeleccionarTarea)
+        ?? Enumerable.Empty<Tarea>();
+
+    private bool TieneContenedoresEnObra => solicitud?.IdCliente > 0
+        && solicitudesConContenedores?.Any(s => s.IdCliente == solicitud.IdCliente) == true;
+
+    private bool PuedeSeleccionarTarea(Tarea tarea) =>
+        !RequiereContenedorExistente(tarea) || TieneContenedoresEnObra;
+
+    private static bool RequiereContenedorExistente(Tarea tarea) =>
+        tarea.Recoger1 || tarea.Recoger2;
 
     private bool IsEntregaEnabled => TareaSeleccionada?.Entrega1 == true;
     private bool IsEntrega2Enabled => TareaSeleccionada?.Entrega2 == true;
@@ -1778,6 +1991,11 @@
         if (solicitud.IdTipoTarea == val) return;
 
         var nuevaTarea = tareasList?.FirstOrDefault(t => t.IdTarea == val);
+        if (nuevaTarea is not null && !PuedeSeleccionarTarea(nuevaTarea))
+        {
+            errorMessage = "No se puede seleccionar esta tarea porque incluye una retirada y la obra no tiene contenedores asignados.";
+            return;
+        }
         var seAfectaEntrega1 = !string.IsNullOrWhiteSpace(solicitud.CodigoEntrega) && nuevaTarea?.Entrega1 != true;
         var seAfectaEntrega2 = !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega) && nuevaTarea?.Entrega2 != true;
         var seAfectaRecogida1 = !string.IsNullOrWhiteSpace(solicitud.CodigoRecogida) && nuevaTarea?.Recoger1 != true;
@@ -1908,7 +2126,6 @@
         var parametro = parametrosList?.FirstOrDefault();
         var idAdjudicado = parametro?.EstadoAdjudicado ?? 9;
         var idReprogramado = parametro?.EstadoReprogramacion ?? 6;
-        var idFinalizado = parametro?.EstadoFinalizado ?? 5;
 
         bool tieneConductor = solicitud.IdConductor.HasValue && solicitud.IdConductor.Value > 0;
         bool tieneFechaPrevista = solicitud.FechaPrevista.HasValue || solicitud.FechaTarea.HasValue;
@@ -1940,8 +2157,12 @@
             return false;
         }
 
-        if ((EsEstadoIniciado(estadoSeleccionado) && !EsEstadoAsignado(estadoInicial ?? 0))
-            || (estadoSeleccionado == idFinalizado && !finalizadaDesbloqueada))
+        if ((EsEstadoIniciado(estadoSeleccionado)
+                && estadoSeleccionado != estadoInicial
+                && !EsEstadoAsignado(estadoInicial ?? 0))
+            || (EsEstadoFinalizado(estadoSeleccionado)
+                && EsEstadoFinalizado(estadoInicial ?? 0)
+                && !finalizadaDesbloqueada))
         {
             motivoError = $"No se puede seleccionar el estado '{ObtenerNombreEstado(estadoSeleccionado)}' al grabar la solicitud, ya que es un estado exclusivo de la ejecución del servicio en la aplicación móvil.";
             return false;

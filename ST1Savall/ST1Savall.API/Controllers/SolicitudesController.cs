@@ -92,6 +92,9 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
+        if (TieneContenedorEnEntregaYRetirada(solicitud))
+            return BadRequest(new { message = "Un contenedor no puede entregarse y retirarse en la misma solicitud." });
+
         if (!solicitud.Prioridad.HasValue || solicitud.Prioridad == 0)
         {
             solicitud.Prioridad = 3; // Baja por defecto
@@ -118,11 +121,12 @@ public class SolicitudesController : ControllerBase
         return CreatedAtAction(nameof(GetSolicitud), new { id = solicitud.IdSolicitud }, solicitud);
     }
 
-    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
+        if (TieneContenedorEnEntregaYRetirada(solicitud))
+            return BadRequest(new { message = "Un contenedor no puede entregarse y retirarse en la misma solicitud." });
 
         var solicitudAnterior = await _context.Solicitudes
             .AsNoTracking()
@@ -130,7 +134,12 @@ public class SolicitudesController : ControllerBase
         if (solicitudAnterior == null) return NotFound();
 
         var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
-        var idFinalizado = parametro?.EstadoFinalizado ?? 5;
+        var idEstadoFinalizadoPorDescripcion = await _context.EstadosSolicitud
+            .AsNoTracking()
+            .Where(e => e.Descripcion.Contains("Finalizado"))
+            .Select(e => (int?)e.IdEstado)
+            .FirstOrDefaultAsync();
+        var idFinalizado = idEstadoFinalizadoPorDescripcion ?? parametro?.EstadoFinalizado ?? 5;
         if (solicitudAnterior.Estado == idFinalizado)
         {
             if (!Request.Headers.TryGetValue("X-Finalized-Service-Password", out var password)
@@ -214,6 +223,81 @@ public class SolicitudesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id}/firma")]
+    public async Task<IActionResult> GuardarFirma(int id, [FromBody] FirmaSolicitudRequest firma)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(firma.ImagenBase64))
+            return BadRequest(new { message = "No se ha recibido la imagen de la firma." });
+
+        var pathFirmas = await _context.Parametros.AsNoTracking()
+            .Select(p => p.PathFirmas)
+            .FirstOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(pathFirmas))
+            return BadRequest(new { message = "Configure la ruta de firmas en Parámetros antes de guardar una firma." });
+
+        byte[] imagen;
+        try
+        {
+            var contenidoBase64 = firma.ImagenBase64.Contains(',')
+                ? firma.ImagenBase64[(firma.ImagenBase64.IndexOf(',') + 1)..]
+                : firma.ImagenBase64;
+            imagen = Convert.FromBase64String(contenidoBase64);
+        }
+        catch (FormatException)
+        {
+            return BadRequest(new { message = "El formato de la imagen de firma no es válido." });
+        }
+
+        try
+        {
+            Directory.CreateDirectory(pathFirmas);
+            var rutaFirma = Path.Combine(pathFirmas, $"{solicitud.IdSolicitud}.png");
+            await System.IO.File.WriteAllBytesAsync(rutaFirma, imagen);
+
+            solicitud.FirmaNombre = firma.Nombre?.Trim();
+            solicitud.FirmaDni = firma.Dni?.Trim();
+            solicitud.FirmaPath = rutaFirma;
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = $"No se ha podido guardar la firma en la ruta configurada: {ex.Message}" });
+        }
+    }
+
+    [HttpGet("{id}/firma")]
+    public async Task<IActionResult> ObtenerFirma(int id)
+    {
+        var firmaPath = await _context.Solicitudes.AsNoTracking()
+            .Where(s => s.IdSolicitud == id)
+            .Select(s => s.FirmaPath)
+            .FirstOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(firmaPath) || !System.IO.File.Exists(firmaPath)) return NotFound();
+
+        return File(await System.IO.File.ReadAllBytesAsync(firmaPath), "image/png");
+    }
+
+    [HttpDelete("{id}/firma")]
+    public async Task<IActionResult> EliminarFirma(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(solicitud.FirmaPath) && System.IO.File.Exists(solicitud.FirmaPath))
+            System.IO.File.Delete(solicitud.FirmaPath);
+
+        solicitud.FirmaNombre = null;
+        solicitud.FirmaDni = null;
+        solicitud.FirmaPath = null;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
     private async Task ActualizarEstadosContenedores(Solicitud solicitud)
     {
         if (!string.IsNullOrEmpty(solicitud.CodigoEntrega))
@@ -259,6 +343,13 @@ public class SolicitudesController : ControllerBase
                 _context.Entry(contenedorRecogida).State = EntityState.Modified;
             }
         }
+    }
+
+    public sealed class FirmaSolicitudRequest
+    {
+        public string? Nombre { get; init; }
+        public string? Dni { get; init; }
+        public string? ImagenBase64 { get; init; }
     }
 
     private async Task RestaurarEstadosContenedoresEliminados(Solicitud solicitudAnterior, Solicitud solicitudActual)
@@ -311,6 +402,15 @@ public class SolicitudesController : ControllerBase
     private bool SolicitudExists(int id)
     {
         return _context.Solicitudes.Any(e => e.IdSolicitud == id);
+    }
+
+    private static bool TieneContenedorEnEntregaYRetirada(Solicitud solicitud)
+    {
+        var entregas = new[] { solicitud.CodigoEntrega, solicitud.CodigoAmbosEntrega }
+            .Where(codigo => !string.IsNullOrWhiteSpace(codigo))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return entregas.Overlaps(new[] { solicitud.CodigoRecogida, solicitud.CodigoAmbosRecogida }
+            .Where(codigo => !string.IsNullOrWhiteSpace(codigo)));
     }
 
     private async Task<ObjectResult?> CalcularRutaAutomaticamenteAsync(Solicitud solicitud)

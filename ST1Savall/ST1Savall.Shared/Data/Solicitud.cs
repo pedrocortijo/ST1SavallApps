@@ -90,6 +90,18 @@ public class Solicitud
     public DateTime? FechaInicioOVP { get; set; }
     public DateTime? FechaFinOVP { get; set; }
 
+    [MaxLength(50)]
+    [Column(TypeName = "varchar(50)")]
+    public string? FirmaNombre { get; set; }
+
+    [MaxLength(25)]
+    [Column(TypeName = "varchar(25)")]
+    public string? FirmaDni { get; set; }
+
+    [MaxLength(255)]
+    [Column(TypeName = "varchar(255)")]
+    public string? FirmaPath { get; set; }
+
     [NotMapped]
     public string? ConductorNombre { get; set; }
 

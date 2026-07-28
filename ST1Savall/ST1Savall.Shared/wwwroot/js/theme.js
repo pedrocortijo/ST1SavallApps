@@ -177,6 +177,24 @@ window.clearSignaturePad = function (canvas) {
     }
 };
 
+window.setSignatureImage = function (canvas, imageData) {
+    if (!canvas || !canvas._signatureCtx || !imageData) return;
+
+    var ctx = canvas._signatureCtx;
+    var image = new Image();
+    image.onload = function () {
+        var scale = window.devicePixelRatio || 1;
+        var width = canvas.width / scale;
+        var height = canvas.height / scale;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var ratio = Math.min(width / image.width, height / image.height);
+        var drawWidth = image.width * ratio;
+        var drawHeight = image.height * ratio;
+        ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+    };
+    image.src = imageData;
+};
+
 window.getSignatureImage = function (canvas) {
     if (canvas) {
         return canvas.toDataURL();

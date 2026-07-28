@@ -64,6 +64,9 @@ public static class DbInitializer
                 IF COL_LENGTH('Parametros', 'PathImagenes') IS NULL
                     ALTER TABLE Parametros ADD PathImagenes VARCHAR(255) NULL;
 
+                IF COL_LENGTH('Parametros', 'PathFirmas') IS NULL
+                    ALTER TABLE Parametros ADD PathFirmas VARCHAR(255) NULL;
+
                 IF COL_LENGTH('Parametros', 'EstadoReprogramacion') IS NULL
                     ALTER TABLE Parametros ADD EstadoReprogramacion INT NULL;
 
@@ -95,6 +98,15 @@ public static class DbInitializer
 
                 IF COL_LENGTH('Solicitudes', 'ComentariosOficina') IS NULL
                     ALTER TABLE Solicitudes ADD ComentariosOficina NVARCHAR(MAX) NULL;
+
+                IF COL_LENGTH('Solicitudes', 'FirmaNombre') IS NULL
+                    ALTER TABLE Solicitudes ADD FirmaNombre VARCHAR(50) NULL;
+
+                IF COL_LENGTH('Solicitudes', 'FirmaDni') IS NULL
+                    ALTER TABLE Solicitudes ADD FirmaDni VARCHAR(25) NULL;
+
+                IF COL_LENGTH('Solicitudes', 'FirmaPath') IS NULL
+                    ALTER TABLE Solicitudes ADD FirmaPath VARCHAR(255) NULL;
             END
 
             IF OBJECT_ID(N'Motivos', N'U') IS NULL

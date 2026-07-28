@@ -1,6 +1,16 @@
 <div id="sidebar">
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu">
         <Items>
+            @if (isConductor)
+            {
+                <DxMenuItem Text="Servicios" CssClass="menu-item" IconCssClass="icon doc-icon">
+                    <Items>
+                        <DxMenuItem NavigateUrl="/servicios/mis-servicios" Text="Mis servicios" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
+                    </Items>
+                </DxMenuItem>
+            }
+            else
+            {
             <DxMenuItem NavigateUrl="/" Text="Inicio" CssClass="menu-item" IconCssClass="icon home-icon"></DxMenuItem>
             
             <DxMenuItem Text="Maestros" CssClass="menu-item" IconCssClass="icon database-icon">
@@ -30,6 +40,7 @@
             <DxMenuItem Text="Servicios" CssClass="menu-item" IconCssClass="icon doc-icon">
                 <Items>
                     <DxMenuItem NavigateUrl="/modelos/solicitudes" Text="Solicitudes" CssClass="menu-item" IconCssClass="icon solicitudes-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/mis-servicios" Text="Mis servicios" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/asignacion-tareas" Text="Asignación de tareas" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/informes" Text="Informes" CssClass="menu-item" IconCssClass="icon chart-icon"></DxMenuItem>
                 </Items>
@@ -41,6 +52,7 @@
                 </Items>
             </DxMenuItem>
 
+            }
         </Items>
     </DxMenu>
     
@@ -57,6 +69,10 @@
  
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
 @inject IJSRuntime JSRuntime
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using System.Net.Http.Json
+@using ST1Savall.Shared.Data
  
 @code {
     private string ManageUrl => FormFactor.GetPlatform() == "Web" ? "login" : "settings";
@@ -71,6 +87,28 @@
         new() { Id = "fluent-dark", Name = "Fluent Dark" }
     };
     private string selectedTheme = "blazing-berry";
+    private bool isConductor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var email = state.User.Identity?.Name;
+        var token = state.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrWhiteSpace(token))
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        if (string.IsNullOrWhiteSpace(email)) return;
+
+        try
+        {
+            var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
+            var user = users.FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
+            var operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? [];
+            isConductor = !string.IsNullOrWhiteSpace(user?.Tecnico)
+                && operarios.Any(o => string.Equals(o.Nombre, user.Tecnico, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(o.Cargo?.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase));
+        }
+        catch { }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

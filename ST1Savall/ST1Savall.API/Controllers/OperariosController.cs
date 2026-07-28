@@ -26,6 +26,7 @@ public class OperariosController : ControllerBase
     {
         return await _context.Operarios
             .AsNoTracking()
+            .Include(o => o.Cargo)
             .OrderBy(o => o.Nombre)
             .ToListAsync();
     }

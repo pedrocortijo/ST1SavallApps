@@ -42,6 +42,10 @@ public class Parametro
     [Column(TypeName = "varchar(255)")]
     public string? PathImagenes { get; set; }
 
+    [MaxLength(255)]
+    [Column(TypeName = "varchar(255)")]
+    public string? PathFirmas { get; set; }
+
     public int? EstadoReprogramacion { get; set; }
 
     public int? EstadoIniciado { get; set; }

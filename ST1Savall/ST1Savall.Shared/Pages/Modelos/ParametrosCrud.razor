@@ -126,6 +126,9 @@
                                     <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">
                                         <DxTextBox @bind-Text="parametro.PathImagenes" />
                                     </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta de firmas" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas..." />
+                                    </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Estado al reprogramar" ColSpanMd="12">
                                         <DxComboBox Data="@estadosList"
                                                     TData="EstadoSolicitud"

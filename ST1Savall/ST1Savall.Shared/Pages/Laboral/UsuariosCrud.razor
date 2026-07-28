@@ -188,7 +188,11 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-semibold small">Técnico / Puesto</label>
-                <DxTextBox @bind-Text="@editTecnico" NullText="Ej. Técnico de servicio, Conductor, Oficina" CssClass="w-100" />
+                <DxComboBox Data="@operarios" TData="Operario" TValue="string"
+                            TextFieldName="Nombre" ValueFieldName="Nombre" @bind-Value="@editTecnico"
+                            ClearButtonVisible="true" SearchMode="ListSearchMode.AutoSearch"
+                            SearchFilterCondition="ListSearchFilterCondition.Contains"
+                            NullText="Seleccione el operario..." CssClass="w-100" />
             </div>
             @*  
             <div class="mb-3">
@@ -291,6 +295,7 @@
 @code {
     private List<ApplicationUserDto> usuarios = new();
     private List<ClienteSage50> clientes = new();
+    private List<Operario> operarios = new();
     private bool loading = true;
     private string? errorMessage;
     private string? successMessage;
@@ -354,6 +359,10 @@
             usuarios = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? new();
             var clientesList = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/ClientesSage50") ?? new();
             clientes = clientesList.OrderBy(c => c.Nombre).ToList();
+            operarios = (await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? new())
+                .Where(o => o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(o => o.Nombre)
+                .ToList();
         }
         catch (Exception ex)
         {

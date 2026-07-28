@@ -1,0 +1,110 @@
+@page "/servicios/mis-servicios"
+@using System.Net.Http.Json
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Mis servicios</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Mis servicios</h2>
+            <p class="text-muted mb-0">Servicios asignados al usuario conectado.</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="LoadDataAsync"><i class="oi oi-reload me-1"></i>Actualizar</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    else if (loading)
+    {
+        <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Cargando servicios...</p></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(userName) && servicios.Count == 0)
+    {
+        <div class="alert alert-info">No hay servicios asignados a <strong>@userName</strong>.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm"><div class="card-body p-0">
+            <DxGrid Data="@servicios" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" ShowFilterRow="true" AllowSort="true">
+                <Columns>
+                    <DxGridCommandColumn Caption="Acciones" Width="150px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <CellDisplayTemplate>
+                            @{ var servicio = (Solicitud)context.DataItem; }
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary" title="Validar firma" @onclick='() => ShowPendingAction("Validar firma")'><i class="oi oi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-success" title="Iniciar servicio" @onclick='() => ShowPendingAction("Iniciar servicio")'><i class="oi oi-media-play"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" title="Finalizar servicio" @onclick='() => ShowPendingAction("Finalizar servicio")'><i class="oi oi-media-stop"></i></button>
+                                <button class="btn btn-sm btn-outline-secondary" title="Ver servicio" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye"></i></button>
+                            </div>
+                        </CellDisplayTemplate>
+                    </DxGridCommandColumn>
+                    <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor" Width="160px" />
+                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="260px">
+                        <CellDisplayTemplate>
+                            @{ var s = (Solicitud)context.DataItem; }
+                            <strong>@s.NombreCliente</strong><br /><span class="small text-muted">@s.DireccionCliente, @s.PoblacionCliente</span>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tarea" Width="160px" />
+                    <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="105px" />
+                    <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Hora inic." DisplayFormat="HH:mm" Width="90px" />
+                    <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="130px" />
+                </Columns>
+            </DxGrid>
+        </div></div>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(pendingAction))
+{
+    <div class="alert alert-info position-fixed bottom-0 end-0 m-4 shadow">@pendingAction estará disponible al incorporar las reglas de negocio.<button class="btn-close ms-3" @onclick="() => pendingAction = null"></button></div>
+}
+
+@code {
+    private readonly List<Solicitud> servicios = [];
+    private bool loading = true;
+    private string? errorMessage, pendingAction, userName;
+
+    protected override async Task OnInitializedAsync() => await LoadDataAsync();
+
+    private async Task LoadDataAsync()
+    {
+        loading = true; errorMessage = null;
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            userName = state.User.Identity?.Name;
+            var token = state.User.FindFirst("token")?.Value;
+            if (!string.IsNullOrWhiteSpace(token)) Http.DefaultRequestHeaders.Authorization = new("Bearer", token);
+            var solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes") ?? [];
+            var operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? [];
+            var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
+            var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
+            var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
+            var conductorId = operarios.FirstOrDefault(o => string.Equals(o.Nombre,
+                users.FirstOrDefault(u => string.Equals(u.Email, userName, StringComparison.OrdinalIgnoreCase))?.Tecnico,
+                StringComparison.OrdinalIgnoreCase))?.IdOperario;
+            servicios.Clear();
+            servicios.AddRange(solicitudes.Where(s =>
+                    s.IdConductor == conductorId
+                    && s.FechaTarea?.Date == DateTime.Today)
+                .OrderBy(s => s.FechaTarea ?? s.FechaSolicitud));
+            foreach (var s in servicios)
+            {
+                s.ConductorNombre = operarios.FirstOrDefault(o => o.IdOperario == s.IdConductor)?.Nombre ?? "-";
+                s.TipoTareaDescripcion = tareas.FirstOrDefault(t => t.IdTarea == s.IdTipoTarea)?.NombreTarea ?? "-";
+                s.EstadoDescripcion = estados.FirstOrDefault(e => e.IdEstado == s.Estado)?.Descripcion ?? "-";
+            }
+        }
+        catch (Exception ex) { errorMessage = $"No se han podido cargar los servicios: {ex.Message}"; }
+        finally { loading = false; }
+    }
+    private void OpenServicio(int id) => NavigationManager.NavigateTo($"/servicios/mis-servicios/{id}");
+    private void ShowPendingAction(string action) => pendingAction = action;
+}

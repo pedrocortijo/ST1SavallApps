@@ -688,20 +688,25 @@
     {
         if (solicitudes == null) return Array.Empty<Solicitud>();
 
-        var filteredSolicitudes = solicitudes.Where(s => s.FechaTarea?.Date == DateTime.Today && s.Estado != 4);
+        var filteredSolicitudes = solicitudes.Where(EsDeFechaPanel);
 
         if (selectedConductorId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdConductor == selectedConductorId);
         if (selectedTareaId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdTipoTarea == selectedTareaId);
         if (selectedEstadoId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
         if (selectedPrioridadId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Prioridad == selectedPrioridadId);
-        return filteredSolicitudes;
+        return filteredSolicitudes.OrderByDescending(s => s.FechaSolicitud ?? DateTime.MinValue);
+    }
+
+    private static bool EsDeFechaPanel(Solicitud solicitud)
+    {
+        return solicitud.FechaTarea?.Date == DateTime.Today;
     }
 
     private IEnumerable<Solicitud> GetFilteredSolicitudesBloqueadas()
     {
         if (solicitudes == null) return Array.Empty<Solicitud>();
 
-        var filtered = solicitudes.Where(s => s.Bloqueado);
+        var filtered = solicitudes.Where(s => s.Bloqueado && EsDeFechaPanel(s));
 
         if (selectedConductorId >= 0) filtered = filtered.Where(s => s.IdConductor == selectedConductorId);
         if (selectedTareaId >= 0) filtered = filtered.Where(s => s.IdTipoTarea == selectedTareaId);
