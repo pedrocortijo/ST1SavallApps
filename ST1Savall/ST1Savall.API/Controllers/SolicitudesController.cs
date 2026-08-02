@@ -6,6 +6,9 @@ using ST1Savall.Shared.Data;
 using ST1Savall.API.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 
 namespace ST1Savall.API.Controllers;
 
@@ -158,6 +161,9 @@ public class SolicitudesController : ControllerBase
         if (solicitudAnterior.FechaHoraInicioPlanificada != solicitud.FechaHoraInicioPlanificada)
             solicitud.NotificacionInicioVisualizada = false;
 
+        if (!string.Equals(solicitudAnterior.ObservacionesConductor, solicitud.ObservacionesConductor, StringComparison.Ordinal))
+            solicitud.NotificacionInicioVisualizada = false;
+
         var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
         if (errorRuta != null) return errorRuta;
 
@@ -209,6 +215,39 @@ public class SolicitudesController : ControllerBase
         foreach (var solicitud in solicitudes)
             solicitud.NotificacionInicioVisualizada = true;
 
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPost("{id}/iniciar")]
+    public async Task<IActionResult> IniciarSolicitud(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var estadoIniciado = parametro?.EstadoIniciado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("iniciado"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+
+        if (!estadoIniciado.HasValue)
+            return BadRequest(new { message = "No hay un estado de servicio iniciado configurado." });
+
+        solicitud.Estado = estadoIniciado.Value;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPut("{id}/datos-firma")]
+    public async Task<IActionResult> ActualizarDatosFirma(int id, [FromBody] DatosFirmaSolicitudRequest datos)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        solicitud.AlbaranPlanta = datos.AlbaranPlanta?.Trim();
+        solicitud.TipoResiduo = datos.TipoResiduo?.Trim();
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -298,6 +337,102 @@ public class SolicitudesController : ControllerBase
         return NoContent();
     }
 
+    [HttpGet("{id}/fotos")]
+    public async Task<ActionResult<IEnumerable<SolicitudFoto>>> ObtenerFotos(int id)
+    {
+        if (!await _context.Solicitudes.AnyAsync(s => s.IdSolicitud == id)) return NotFound();
+        return await _context.SolicitudFotos.AsNoTracking()
+            .Where(f => f.IdSolicitud == id)
+            .OrderByDescending(f => f.FechaCreacion)
+            .ToListAsync();
+    }
+
+    [HttpGet("{id}/fotos/{idFoto}")]
+    public async Task<IActionResult> ObtenerFoto(int id, int idFoto)
+    {
+        var foto = await _context.SolicitudFotos.AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == idFoto && f.IdSolicitud == id);
+        if (foto == null || !System.IO.File.Exists(foto.RutaArchivo)) return NotFound();
+
+        return File(await System.IO.File.ReadAllBytesAsync(foto.RutaArchivo), "image/jpeg");
+    }
+
+    [HttpGet("{id}/fotos/{idFoto}/miniatura")]
+    public async Task<IActionResult> ObtenerMiniaturaFoto(int id, int idFoto)
+    {
+        var foto = await _context.SolicitudFotos.AsNoTracking()
+            .FirstOrDefaultAsync(f => f.Id == idFoto && f.IdSolicitud == id);
+        if (foto == null || !System.IO.File.Exists(foto.RutaArchivo)) return NotFound();
+
+        await using var input = System.IO.File.OpenRead(foto.RutaArchivo);
+        using var imagen = await Image.LoadAsync(input);
+        imagen.Mutate(context => context.Resize(new ResizeOptions
+        {
+            Size = new Size(360, 360),
+            Mode = ResizeMode.Max
+        }));
+
+        await using var output = new MemoryStream();
+        await imagen.SaveAsJpegAsync(output, new JpegEncoder { Quality = 75 });
+        return File(output.ToArray(), "image/jpeg");
+    }
+
+    [HttpPost("{id}/fotos")]
+    public async Task<ActionResult<SolicitudFoto>> GuardarFoto(int id, [FromBody] FotoSolicitudRequest foto)
+    {
+        if (!await _context.Solicitudes.AnyAsync(s => s.IdSolicitud == id)) return NotFound();
+        if (string.IsNullOrWhiteSpace(foto.ImagenBase64))
+            return BadRequest(new { message = "No se ha recibido ninguna foto." });
+
+        byte[] imagen;
+        try
+        {
+            var contenidoBase64 = foto.ImagenBase64.Contains(',')
+                ? foto.ImagenBase64[(foto.ImagenBase64.IndexOf(',') + 1)..]
+                : foto.ImagenBase64;
+            imagen = Convert.FromBase64String(contenidoBase64);
+        }
+        catch (FormatException)
+        {
+            return BadRequest(new { message = "El formato de la foto no es válido." });
+        }
+
+        if (imagen.Length == 0 || imagen.Length > 10 * 1024 * 1024)
+            return BadRequest(new { message = "La foto debe tener un tamaño máximo de 10 MB." });
+
+        var pathFirmas = await _context.Parametros.AsNoTracking().Select(p => p.PathFirmas).FirstOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(pathFirmas))
+            return BadRequest(new { message = "Configure la ruta de firmas en Parámetros antes de guardar fotos." });
+
+        var carpetaFotos = Path.Combine(pathFirmas, "Fotos", id.ToString());
+        Directory.CreateDirectory(carpetaFotos);
+        var rutaArchivo = Path.Combine(carpetaFotos, $"{Guid.NewGuid():N}.jpg");
+        await System.IO.File.WriteAllBytesAsync(rutaArchivo, imagen);
+
+        var nuevaFoto = new SolicitudFoto
+        {
+            IdSolicitud = id,
+            RutaArchivo = rutaArchivo,
+            NombreArchivo = foto.NombreArchivo?.Trim(),
+            FechaCreacion = DateTime.Now
+        };
+        _context.SolicitudFotos.Add(nuevaFoto);
+        await _context.SaveChangesAsync();
+        return CreatedAtAction(nameof(ObtenerFoto), new { id, idFoto = nuevaFoto.Id }, nuevaFoto);
+    }
+
+    [HttpDelete("{id}/fotos/{idFoto}")]
+    public async Task<IActionResult> EliminarFoto(int id, int idFoto)
+    {
+        var foto = await _context.SolicitudFotos.FirstOrDefaultAsync(f => f.Id == idFoto && f.IdSolicitud == id);
+        if (foto == null) return NotFound();
+
+        if (System.IO.File.Exists(foto.RutaArchivo)) System.IO.File.Delete(foto.RutaArchivo);
+        _context.SolicitudFotos.Remove(foto);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
     private async Task ActualizarEstadosContenedores(Solicitud solicitud)
     {
         if (!string.IsNullOrEmpty(solicitud.CodigoEntrega))
@@ -349,6 +484,18 @@ public class SolicitudesController : ControllerBase
     {
         public string? Nombre { get; init; }
         public string? Dni { get; init; }
+        public string? ImagenBase64 { get; init; }
+    }
+
+    public sealed class DatosFirmaSolicitudRequest
+    {
+        public string? AlbaranPlanta { get; init; }
+        public string? TipoResiduo { get; init; }
+    }
+
+    public sealed class FotoSolicitudRequest
+    {
+        public string? NombreArchivo { get; init; }
         public string? ImagenBase64 { get; init; }
     }
 

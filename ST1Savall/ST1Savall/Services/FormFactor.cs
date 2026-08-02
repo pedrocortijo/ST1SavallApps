@@ -36,5 +36,25 @@ namespace ST1Savall.Services
             var location = await Geolocation.Default.GetLocationAsync(request);
             return location == null ? null : new DeviceLocation(location.Latitude, location.Longitude);
         }
+
+        public async Task<CapturedPhoto?> CapturePhotoAsync()
+        {
+            var permission = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (permission != PermissionStatus.Granted)
+                permission = await Permissions.RequestAsync<Permissions.Camera>();
+
+            if (permission != PermissionStatus.Granted)
+                throw new InvalidOperationException("El permiso de cámara no ha sido concedido.");
+            if (!MediaPicker.Default.IsCaptureSupported)
+                throw new InvalidOperationException("Este dispositivo no dispone de cámara.");
+
+            var photo = await MediaPicker.Default.CapturePhotoAsync();
+            if (photo == null) return null;
+
+            await using var source = await photo.OpenReadAsync();
+            using var memory = new MemoryStream();
+            await source.CopyToAsync(memory);
+            return new CapturedPhoto(photo.FileName, photo.ContentType, memory.ToArray());
+        }
     }
 }

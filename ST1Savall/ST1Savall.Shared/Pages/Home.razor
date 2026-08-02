@@ -36,6 +36,7 @@
     .dashboard-ovp { background: linear-gradient(135deg, #c2185b, #880e4f); }
     .dashboard-blocked { background: linear-gradient(135deg, #6f42c1, #43257c); }
     .dashboard-notifications { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+    .dashboard-driver-notes { background: #f365f3; color: #212529; }
     .solicitud-bloqueada-row,
     .solicitud-bloqueada-row td,
     .solicitud-bloqueada-row span,
@@ -68,14 +69,14 @@
     }
 
     <DxPopup @bind-Visible="notificacionesServiciosVisibles"
-             HeaderText="Notificaciones de servicios"
+             HeaderText="Control de inicio de servicios"
              ShowFooter="true"
              Width="960px"
              HorizontalAlignment="HorizontalAlignment.Center"
              VerticalAlignment="VerticalAlignment.Center">
         <BodyContentTemplate>
-            <p class="mb-3">Servicios que han superado la tolerancia de inicio y aún no están marcados como iniciados:</p>
-            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
+@*             <p class="mb-3">Servicios anulados o que han superado la tolerancia de inicio y aún no están marcados como iniciados:</p>
+ *@            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
                 <Columns>
                     <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="60px" />
                     <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="110px" />
@@ -102,6 +103,38 @@
                 <DxButton Text="Ver avisos" RenderStyle="ButtonRenderStyle.Primary" Click="MostrarNotificacionesServicios" />
                 <DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="CerrarNotificacionesServicios" />
             </div>
+        </FooterContentTemplate>
+    </DxPopup>
+
+    <DxPopup @bind-Visible="observacionesConductorVisibles"
+             HeaderText="Observaciones del conductor"
+             ShowFooter="true"
+             Width="960px"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <p class="mb-3">Observaciones enviadas por los conductores a oficina:</p>
+            <DxGrid Data="@observacionesConductorParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
+                <Columns>
+                    <DxGridDataColumn Caption="Acciones" Width="105px" AllowSort="false">
+                        <CellDisplayTemplate Context="celdaObservacionPopup">
+                            @{ var solicitud = (Solicitud)celdaObservacionPopup.DataItem; }
+                            <button type="button" class="btn btn-sm btn-outline-primary" title="Editar servicio" @onclick="() => EditarSolicitud(solicitud.IdSolicitud)">
+                                <i class="oi oi-pencil me-1"></i> Editar
+                            </button>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Serv." Width="70px" />
+                    <DxGridDataColumn FieldName="ObservacionesConductor" Caption="Observación" Width="300px" />
+                    <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
+                    <DxGridDataColumn FieldName="FechaTarea" Caption="Fecha Serv." DisplayFormat="dd/MM/yyyy" Width="135px" />
+                    <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor" Width="150px" />
+                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="220px" />
+                </Columns>
+            </DxGrid>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <div class="d-flex justify-content-end w-100"><DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="CerrarObservacionesConductor" /></div>
         </FooterContentTemplate>
     </DxPopup>
 
@@ -163,11 +196,19 @@
                     </button>
                     <button type="button" class="dashboard-indicator dashboard-notifications" @onclick="MostrarNotificacionesServiciosAsync">
                         <div class="d-flex justify-content-between align-items-start">
-                            <span class="indicator-label">Notificaciones de servicios</span>
+                            <span class="indicator-label">Control de servicios</span>
                             <i class="oi oi-bell indicator-icon"></i>
                         </div>
                         <div class="indicator-value mt-3">@CantidadNotificacionesServicios</div>
-                        <div class="indicator-detail mt-2">Inicio fuera de tolerancia · Ver avisos</div>
+                        <div class="indicator-detail mt-2">Inicio y finalización de servicios</div>
+                    </button>
+                    <button type="button" class="dashboard-indicator dashboard-driver-notes" @onclick="MostrarObservacionesConductorAsync">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Observaciones del conductor</span>
+                            <i class="oi oi-comment-square indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadObservacionesConductor</div>
+                        <div class="indicator-detail mt-2">Mensajes del conductor para oficina</div>
                     </button>
                 </div>
             }
@@ -492,7 +533,7 @@
             <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background-color: #ffc107; color: #212529;">
                 <div>
                     <h5 class="fw-bold mb-0">Notificaciones de servicios</h5>
-                    <span class="small">Tolerancia de inicio: @ToleranciaInicioServicioMinutos minuto(s)</span>
+                    <span class="small">Observaciones del conductor y tolerancia de inicio: @ToleranciaInicioServicioMinutos minuto(s)</span>
                 </div>
                 <DxButton Text="Ver servicios" IconCssClass="oi oi-list-rich" RenderStyle="ButtonRenderStyle.Light" Click="MostrarServiciosHoy" />
             </div>
@@ -533,7 +574,9 @@
     private bool loading = true;
     private string? errorMessage;
     private bool notificacionesServiciosVisibles;
+    private bool observacionesConductorVisibles;
     private List<Solicitud> notificacionesServiciosParaMostrar = [];
+    private List<Solicitud> observacionesConductorParaMostrar = [];
     private readonly CancellationTokenSource cancelacionRefresco = new();
     private Task? tareaRefrescoAutomatico;
     private int selectedConductorId = -1;
@@ -550,6 +593,7 @@
     private int CantidadClientesBloqueados => GetClientesBloqueadosConObrasPendientes().Count();
     private int ToleranciaInicioServicioMinutos => parametros?.FirstOrDefault()?.AvisoTiempoServicio ?? 0;
     private int CantidadNotificacionesServicios => GetNotificacionesServicios().Count();
+    private int CantidadObservacionesConductor => GetObservacionesConductor().Count();
 
     private enum VistaDashboard { Servicios, SolicitudesBloqueadas, OperariosInactivos, OvpARetirar, ClientesBloqueados, NotificacionesServicios }
 
@@ -597,6 +641,13 @@
         vistaDashboard = VistaDashboard.NotificacionesServicios;
         await DesplazarAGridAsync();
     }
+    private Task MostrarObservacionesConductorAsync()
+    {
+        observacionesConductorParaMostrar = GetObservacionesConductor().ToList();
+        observacionesConductorVisibles = observacionesConductorParaMostrar.Count > 0;
+        return Task.CompletedTask;
+    }
+    private void CerrarObservacionesConductor() => observacionesConductorVisibles = false;
     private void CerrarNotificacionesServicios() => notificacionesServiciosVisibles = false;
 
     private async Task DesplazarAGridAsync()
@@ -673,6 +724,11 @@
                         s.Estado is not 5 and not 6 and not 8)
             .OrderBy(s => s.FechaHoraInicioPlanificada);
     }
+
+    private IEnumerable<Solicitud> GetObservacionesConductor() => solicitudes?
+        .Where(s => !string.IsNullOrWhiteSpace(s.ObservacionesConductor))
+        .OrderByDescending(s => s.FechaActualizacion ?? s.FechaSolicitud)
+        ?? Enumerable.Empty<Solicitud>();
 
     private IEnumerable<Solicitud> GetNotificacionesServiciosNoVisualizadas() =>
         GetNotificacionesServicios().Where(s => !s.NotificacionInicioVisualizada);

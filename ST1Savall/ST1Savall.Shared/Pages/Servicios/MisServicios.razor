@@ -5,15 +5,33 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 
-<PageTitle>Mis servicios</PageTitle>
+<PageTitle>Servicios asignados</PageTitle>
+
+<style>
+    .mis-servicios-header { gap: 16px; }
+    .servicios-asignados-titulo { font-size: 1.1rem; }
+    .servicios-asignados-conductor { color: #000000; }
+    html.theme-blazing-dark .servicios-asignados-conductor,
+    html.theme-fluent-dark .servicios-asignados-conductor { color: #ffc107; }
+    .mis-servicios-refresh { min-height: 44px; min-width: 120px; }
+    .servicios-tablet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .servicio-tablet-card { border: 1px solid var(--bs-border-color, #d8dce1); border-left: 5px solid #0d6efd; border-radius: 12px; padding: 16px; min-height: 225px; display: flex; flex-direction: column; gap: 12px; }
+    .servicio-tablet-card .servicio-hora { font-size: 1.7rem; font-weight: 700; line-height: 1; color: #0d6efd; }
+    .servicio-tablet-card .servicio-tarea { font-size: 1rem; font-weight: 700; }
+    .servicio-tablet-card .servicio-cliente { font-size: 1rem; font-weight: 600; }
+    .servicio-tablet-card .servicio-direccion { font-size: .9rem; }
+    .servicio-estado-iniciado { background-color: #198754 !important; color: #ffffff !important; font-size: 1.15rem; padding: .5rem .8rem; }
+    .servicio-tablet-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
+    .servicio-tablet-actions .btn { min-height: 44px; font-weight: 600; }
+    @@media (max-width: 700px) { .servicios-tablet-grid { grid-template-columns: 1fr; } .mis-servicios-header { align-items: stretch !important; } }
+</style>
 
 <div class="container-fluid py-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mis-servicios-header mb-3">
         <div>
-            <h2 class="fw-bold text-primary mb-1">Mis servicios</h2>
-            <p class="text-muted mb-0">Servicios asignados al usuario conectado.</p>
+            <h2 class="fw-bold text-primary mb-1 servicios-asignados-titulo">Servicios asignados a: <span class="servicios-asignados-conductor">@(conductorNombre ?? "...")</span></h2>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" @onclick="LoadDataAsync"><i class="oi oi-reload me-1"></i>Actualizar</button>
+        <button class="btn btn-outline-secondary mis-servicios-refresh" @onclick="LoadDataAsync"><i class="oi oi-reload me-1"></i>Actualizar</button>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(errorMessage))
@@ -30,34 +48,25 @@
     }
     else
     {
-        <div class="card shadow-sm"><div class="card-body p-0">
-            <DxGrid Data="@servicios" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" ShowFilterRow="true" AllowSort="true">
-                <Columns>
-                    <DxGridCommandColumn Caption="Acciones" Width="150px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
-                        <CellDisplayTemplate>
-                            @{ var servicio = (Solicitud)context.DataItem; }
-                            <div class="d-flex gap-1">
-                                <button class="btn btn-sm btn-outline-primary" title="Validar firma" @onclick='() => ShowPendingAction("Validar firma")'><i class="oi oi-pencil"></i></button>
-                                <button class="btn btn-sm btn-outline-success" title="Iniciar servicio" @onclick='() => ShowPendingAction("Iniciar servicio")'><i class="oi oi-media-play"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" title="Finalizar servicio" @onclick='() => ShowPendingAction("Finalizar servicio")'><i class="oi oi-media-stop"></i></button>
-                                <button class="btn btn-sm btn-outline-secondary" title="Ver servicio" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye"></i></button>
-                            </div>
-                        </CellDisplayTemplate>
-                    </DxGridCommandColumn>
-                    <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor" Width="160px" />
-                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="260px">
-                        <CellDisplayTemplate>
-                            @{ var s = (Solicitud)context.DataItem; }
-                            <strong>@s.NombreCliente</strong><br /><span class="small text-muted">@s.DireccionCliente, @s.PoblacionCliente</span>
-                        </CellDisplayTemplate>
-                    </DxGridDataColumn>
-                    <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tarea" Width="160px" />
-                    <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="105px" />
-                    <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Hora inic." DisplayFormat="HH:mm" Width="90px" />
-                    <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="130px" />
-                </Columns>
-            </DxGrid>
-        </div></div>
+        <div class="servicios-tablet-grid">
+            @foreach (var servicio in servicios)
+            {
+                <article class="servicio-tablet-card">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div><div class="small text-muted">Servicio #@servicio.IdSolicitud · @servicio.FechaTarea?.ToString("dd/MM/yyyy")</div><div class="servicio-hora">@(servicio.FechaHoraInicioPlanificada?.ToString("HH:mm") ?? "Sin hora")</div></div>
+                        <span class="badge @(EsServicioIniciado(servicio) ? "servicio-estado-iniciado" : "text-bg-secondary")">@servicio.EstadoDescripcion</span>
+                    </div>
+                    <div class="servicio-tarea">@servicio.TipoTareaDescripcion</div>
+                    <div><div class="servicio-cliente">@servicio.NombreCliente</div><div class="servicio-direccion text-muted">@servicio.NombreObra</div><div class="servicio-direccion text-muted">@servicio.DireccionCliente, @servicio.PoblacionCliente</div></div>
+                    <div class="servicio-tablet-actions">
+                        <button class="btn btn-primary" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye me-1"></i>Ver servicio</button>
+                        <button class="btn btn-outline-success" disabled="@(iniciandoServicioId == servicio.IdSolicitud || EsServicioIniciado(servicio))" @onclick="() => IniciarServicioAsync(servicio.IdSolicitud)"><i class="oi oi-media-play me-1"></i>@(iniciandoServicioId == servicio.IdSolicitud ? "Iniciando..." : "Iniciar")</button>
+                        <button class="btn btn-outline-primary" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
+                        <button class="btn btn-outline-danger" @onclick='() => ShowPendingAction("Finalizar servicio")'><i class="oi oi-media-stop me-1"></i>Finalizar</button>
+                    </div>
+                </article>
+            }
+        </div>
     }
 </div>
 
@@ -69,7 +78,8 @@
 @code {
     private readonly List<Solicitud> servicios = [];
     private bool loading = true;
-    private string? errorMessage, pendingAction, userName;
+    private string? errorMessage, pendingAction, userName, conductorNombre;
+    private int? iniciandoServicioId;
 
     protected override async Task OnInitializedAsync() => await LoadDataAsync();
 
@@ -87,14 +97,17 @@
             var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
             var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
             var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
-            var conductorId = operarios.FirstOrDefault(o => string.Equals(o.Nombre,
+            var conductor = operarios.FirstOrDefault(o => string.Equals(o.Nombre,
                 users.FirstOrDefault(u => string.Equals(u.Email, userName, StringComparison.OrdinalIgnoreCase))?.Tecnico,
-                StringComparison.OrdinalIgnoreCase))?.IdOperario;
+                StringComparison.OrdinalIgnoreCase));
+            var conductorId = conductor?.IdOperario;
+            conductorNombre = conductor?.Nombre;
             servicios.Clear();
             servicios.AddRange(solicitudes.Where(s =>
                     s.IdConductor == conductorId
                     && s.FechaTarea?.Date == DateTime.Today)
-                .OrderBy(s => s.FechaTarea ?? s.FechaSolicitud));
+                .OrderBy(s => s.FechaHoraInicioPlanificada ?? DateTime.MaxValue)
+                .ThenBy(s => s.IdSolicitud));
             foreach (var s in servicios)
             {
                 s.ConductorNombre = operarios.FirstOrDefault(o => o.IdOperario == s.IdConductor)?.Nombre ?? "-";
@@ -106,5 +119,36 @@
         finally { loading = false; }
     }
     private void OpenServicio(int id) => NavigationManager.NavigateTo($"/servicios/mis-servicios/{id}");
+    private void AbrirFirma(int id) => NavigationManager.NavigateTo($"/servicios/mis-servicios/{id}/firma");
+
+    private static bool EsServicioIniciado(Solicitud servicio) =>
+        servicio.EstadoDescripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task IniciarServicioAsync(int idSolicitud)
+    {
+        iniciandoServicioId = idSolicitud;
+        errorMessage = null;
+        try
+        {
+            var response = await Http.PostAsync($"api/solicitudes/{idSolicitud}/iniciar", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se ha podido iniciar el servicio.";
+                return;
+            }
+
+            pendingAction = "Servicio iniciado.";
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido iniciar el servicio: {ex.Message}";
+        }
+        finally
+        {
+            iniciandoServicioId = null;
+        }
+    }
+
     private void ShowPendingAction(string action) => pendingAction = action;
 }

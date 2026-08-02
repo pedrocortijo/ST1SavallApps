@@ -99,6 +99,9 @@ public static class DbInitializer
                 IF COL_LENGTH('Solicitudes', 'ComentariosOficina') IS NULL
                     ALTER TABLE Solicitudes ADD ComentariosOficina NVARCHAR(MAX) NULL;
 
+                IF COL_LENGTH('Solicitudes', 'ObservacionesConductor') IS NULL
+                    ALTER TABLE Solicitudes ADD ObservacionesConductor VARCHAR(MAX) NULL;
+
                 IF COL_LENGTH('Solicitudes', 'FirmaNombre') IS NULL
                     ALTER TABLE Solicitudes ADD FirmaNombre VARCHAR(50) NULL;
 
@@ -245,6 +248,19 @@ public static class DbInitializer
                     ALTER TABLE Solicitudes ADD AlbaranSerieSage VARCHAR(2) NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranNumeroSage') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranNumeroSage VARCHAR(10) NULL;
+                IF COL_LENGTH('Solicitudes', 'TipoResiduo') IS NULL
+                    ALTER TABLE Solicitudes ADD TipoResiduo VARCHAR(150) NULL;
+                IF OBJECT_ID('SolicitudFotos', 'U') IS NULL
+                BEGIN
+                    CREATE TABLE SolicitudFotos (
+                        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        IdSolicitud INT NOT NULL,
+                        RutaArchivo VARCHAR(255) NOT NULL,
+                        NombreArchivo VARCHAR(150) NULL,
+                        FechaCreacion DATETIME2 NOT NULL
+                    );
+                    CREATE INDEX IX_SolicitudFotos_IdSolicitud_FechaCreacion ON SolicitudFotos (IdSolicitud, FechaCreacion);
+                END;
                 IF COL_LENGTH('Solicitudes', 'CodigoAmbosEntrega') IS NULL
                     ALTER TABLE Solicitudes ADD CodigoAmbosEntrega NVARCHAR(20) NULL;
                 IF COL_LENGTH('Solicitudes', 'CodigoAmbosRecogida') IS NULL

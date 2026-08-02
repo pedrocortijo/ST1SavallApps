@@ -38,6 +38,9 @@ public class Solicitud
     [MaxLength(10)]
     public string? AlbaranNumeroSage { get; set; }
 
+    [MaxLength(150)]
+    public string? TipoResiduo { get; set; }
+
     [MaxLength(20)]
     public string? CodigoAmbosEntrega { get; set; }
 
@@ -54,6 +57,9 @@ public class Solicitud
     public DateTime? HoraLlegada { get; set; }
 
     public string? Observaciones { get; set; }
+
+    [Column(TypeName = "varchar(max)")]
+    public string? ObservacionesConductor { get; set; }
 
     public string? ComentariosOficina { get; set; }
 

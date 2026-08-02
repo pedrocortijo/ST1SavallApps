@@ -10,6 +10,18 @@ public static class SolicitudEstadoEvaluator
     {
         if (solicitud == null || parametro == null) return;
 
+        // Cualquier motivo de reprogramación cierra el servicio original.
+        // La nueva solicitud que se genere para atenderlo seguirá su propio ciclo de estados.
+        if (!string.IsNullOrWhiteSpace(solicitud.ObservacionesConductor))
+        {
+            var estadoFinalizado = parametro.EstadoFinalizado ?? 5;
+            if (EsEstadoValido(estadoFinalizado, validEstadoIds))
+            {
+                solicitud.Estado = estadoFinalizado;
+                return;
+            }
+        }
+
         // Si la solicitud está en un estado exclusivo o finalizado/iniciado, se mantiene su estado (si es válido)
         if (EsEstadoValido(solicitud.Estado, validEstadoIds) &&
             ((parametro.EstadoFinalizado.HasValue && solicitud.Estado == parametro.EstadoFinalizado.Value) ||

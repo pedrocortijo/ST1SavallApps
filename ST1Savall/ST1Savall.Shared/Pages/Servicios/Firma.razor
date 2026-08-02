@@ -1,0 +1,264 @@
+@page "/servicios/mis-servicios/{Id:int}/firma"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ST1Savall.Shared.Services.IFormFactor FormFactor
+@implements IDisposable
+
+<PageTitle>Firma de solicitud</PageTitle>
+
+<style>
+    .firma-pagina { max-width: 900px; margin: 0 auto; }
+    .firma-cabecera { gap: 12px; }
+    .firma-canvas { height: 115px; touch-action: none; }
+    .firma-fotos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .firma-foto { position: relative; aspect-ratio: 1; border: 1px solid var(--bs-border-color); border-radius: 10px; overflow: hidden; background: #fff; }
+    .firma-miniatura { width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+    .firma-miniatura img { width: 100%; height: 100%; object-fit: cover; }
+    .firma-foto button { position: absolute; right: 6px; top: 6px; min-width: 36px; min-height: 36px; }
+    .visor-foto { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .78); }
+    .visor-foto-contenido { position: relative; max-width: min(100%, 1100px); max-height: 100%; }
+    .visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
+    .visor-foto-cerrar { position: absolute; top: 8px; right: 8px; min-width: 40px; min-height: 40px; }
+    .visor-foto-cargando { color: #fff; text-align: center; }
+    .visor-foto { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .78); }
+    .visor-foto-contenido { position: relative; max-width: min(100%, 1100px); max-height: 100%; }
+    .visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
+    .visor-foto button { position: absolute; top: 8px; right: 8px; min-width: 40px; min-height: 40px; }
+    .firma-acciones .btn { min-height: 44px; }
+    @@media (max-width: 700px) { .firma-fotos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .firma-cabecera { align-items: stretch !important; } }
+</style>
+
+<div class="container-fluid py-0 firma-pagina">
+    <div class="d-flex justify-content-between align-items-center firma-cabecera mb-3">
+        <h2 class="fw-bold text-primary mb-0" style="font-size:1.2rem">Firma de solicitud</h2>
+        <button type="button" class="btn btn-outline-secondary" @onclick="Volver"><i class="oi oi-arrow-left me-1"></i>Volver</button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    else if (solicitud is not null)
+    {
+        <div class="card shadow-sm border-0"><div class="card-body p-3 p-md-4">
+            <div class="row g-2 mb-3">
+                <div class="col-4"><label class="form-label small fw-bold">Nº solicitud</label><input class="form-control" value="@solicitud.IdSolicitud" readonly /></div>
+                <div class="col-8"><label class="form-label small fw-bold">Fecha servicio</label><input class="form-control" value="@FechaServicio" readonly /></div>
+                <div class="col-12"><label class="form-label small fw-bold">Obra</label><input class="form-control" value="@solicitud.NombreObra" readonly /></div>
+                <div class="col-12"><label class="form-label small fw-bold">Dirección de la obra</label><input class="form-control" value="@($"{solicitud.DireccionCliente}, {solicitud.PoblacionCliente}")" readonly /></div>
+            </div>
+
+            <div class="row g-2 border-top pt-3 mb-3">
+                <div class="col-md-6"><label class="form-label small fw-bold">Albarán planta</label><input class="form-control" @bind="solicitud.AlbaranPlanta" maxlength="20" /></div>
+                <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><input class="form-control" @bind="solicitud.TipoResiduo" maxlength="150" /></div>
+            </div>
+
+            <section class="border-top pt-3">
+                <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Firma de solicitud</h3>
+                <div class="row g-2">
+                    <div class="col-7"><label class="form-label small fw-bold">Nombre firmante</label><input class="form-control" @bind="solicitud.FirmaNombre" placeholder="Nombre y apellidos" maxlength="50" /></div>
+                    <div class="col-5"><label class="form-label small fw-bold">DNI</label><input class="form-control" @bind="solicitud.FirmaDni" placeholder="DNI" maxlength="25" /></div>
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label small fw-bold mb-0">Firma</label><button type="button" class="btn btn-outline-danger" title="Borrar firma" aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i class="oi oi-trash"></i></button></div>
+                        <canvas id="firmaSolicitudCanvas" @ref="firmaCanvas" class="w-100 border rounded bg-white firma-canvas"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="border-top pt-3 mt-3">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h3 class="h6 text-primary fw-bold mb-0">Fotos</h3><div class="d-flex gap-2">@if (esAplicacionNativa) { <button type="button" class="btn btn-primary" @onclick="CapturarFotoAsync"><i class="oi oi-camera-slr me-1"></i>Cámara</button> }<label class="btn btn-outline-primary mb-0"><i class="oi oi-folder me-1"></i>Seleccionar<InputFile class="d-none" OnChange="SubirFotoAsync" accept="image/*" /></label></div></div>
+                <p class="small text-muted">Use Cámara en la tableta o seleccione una imagen desde el dispositivo.</p>
+                @if (fotos.Count == 0) { <div class="small text-muted border rounded p-3">No se han añadido fotos.</div> }
+                else { <div class="firma-fotos">@foreach (var foto in fotos) { <div class="firma-foto"><button type="button" class="firma-miniatura" title="Abrir foto original" @onclick="() => AbrirFotoOriginalAsync(foto.Id)" @onclick:stopPropagation="true"><img src="@FotoDataUri(foto.Id)" alt="Abrir foto original" /></button><button type="button" class="btn btn-danger" title="Eliminar foto" @onclick="() => EliminarFotoAsync(foto.Id)"><i class="oi oi-trash"></i></button></div> }</div> }
+            </section>
+
+            <div class="firma-acciones d-flex justify-content-end gap-2 border-top pt-3 mt-3"><button type="button" class="btn btn-outline-secondary" @onclick="Volver">Cancelar</button><button type="button" class="btn btn-primary" disabled="@guardando" @onclick="GuardarAsync">@(guardando ? "Guardando..." : "Guardar")</button></div>
+        </div></div>
+    }
+</div>
+
+@if (fotoCargando || !string.IsNullOrWhiteSpace(fotoSeleccionadaDataUri))
+{
+    <div class="visor-foto" role="dialog" aria-modal="true" aria-label="Foto original" @onclick="CerrarFoto">
+        <div class="visor-foto-contenido" @onclick:stopPropagation="true">
+            @if (fotoCargando)
+            {
+                <div class="visor-foto-cargando"><div class="spinner-border mb-3" role="status"></div><div>Cargando foto...</div></div>
+            }
+            else
+            {
+                <img src="@fotoSeleccionadaDataUri" alt="Foto original de la solicitud" />
+                <button type="button" class="btn btn-light visor-foto-cerrar" title="Cerrar" aria-label="Cerrar" @onclick="CerrarFoto"><i class="oi oi-x"></i></button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Solicitud? solicitud;
+    private List<SolicitudFoto> fotos = [];
+    private readonly Dictionary<int, string> fotosDataUri = [];
+    private string? fotoSeleccionadaDataUri;
+    private ElementReference firmaCanvas;
+    private DotNetObjectReference<Firma>? firmaReference;
+    private string? firmaImagenBase64, errorMessage;
+    private bool loading = true, guardando, firmaInicializada, firmaModificada, firmaEliminada, firmaPendienteDeMostrar, fotoCargando;
+    private bool esAplicacionNativa;
+    private string FechaServicio => solicitud?.FechaTarea?.ToString("dd/MM/yyyy") ?? string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            esAplicacionNativa = !string.Equals(FormFactor.GetFormFactor(), "Web", StringComparison.OrdinalIgnoreCase);
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            var token = state.User.FindFirst("token")?.Value;
+            if (!string.IsNullOrWhiteSpace(token)) Http.DefaultRequestHeaders.Authorization = new("Bearer", token);
+            solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id}");
+            if (solicitud is null) { errorMessage = "No se ha encontrado la solicitud."; return; }
+            await CargarFotosAsync();
+            if (!string.IsNullOrWhiteSpace(solicitud.FirmaPath))
+            {
+                var bytes = await Http.GetByteArrayAsync($"api/solicitudes/{Id}/firma");
+                firmaImagenBase64 = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+                firmaPendienteDeMostrar = true;
+            }
+        }
+        catch (Exception ex) { errorMessage = $"No se han podido cargar los datos: {ex.Message}"; }
+        finally { loading = false; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firmaInicializada && solicitud is not null)
+        {
+            firmaReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initSignaturePad", firmaCanvas, firmaReference);
+            firmaInicializada = true;
+        }
+        if (firmaInicializada && firmaPendienteDeMostrar && !string.IsNullOrWhiteSpace(firmaImagenBase64))
+        {
+            await JSRuntime.InvokeVoidAsync("setSignatureImage", firmaCanvas, firmaImagenBase64);
+            firmaPendienteDeMostrar = false;
+        }
+    }
+
+    [JSInvokable]
+    public Task OnSignatureChanged(string imagenBase64) { firmaImagenBase64 = imagenBase64; firmaModificada = true; firmaEliminada = false; return Task.CompletedTask; }
+
+    private async Task LimpiarFirmaAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("clearSignaturePad", firmaCanvas);
+        firmaImagenBase64 = null; firmaModificada = false; firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
+        if (solicitud is not null) { solicitud.FirmaNombre = null; solicitud.FirmaDni = null; }
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (solicitud is null) return;
+        guardando = true; errorMessage = null;
+        try
+        {
+            var datos = await Http.PutAsJsonAsync($"api/solicitudes/{Id}/datos-firma", new { solicitud.AlbaranPlanta, solicitud.TipoResiduo });
+            if (!datos.IsSuccessStatusCode) throw new InvalidOperationException("No se han podido guardar los datos del albarán.");
+            if (firmaEliminada) await Http.DeleteAsync($"api/solicitudes/{Id}/firma");
+            if (firmaModificada && !string.IsNullOrWhiteSpace(firmaImagenBase64))
+            {
+                var firma = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/firma", new { Nombre = solicitud.FirmaNombre, Dni = solicitud.FirmaDni, ImagenBase64 = firmaImagenBase64 });
+                if (!firma.IsSuccessStatusCode) throw new InvalidOperationException("No se ha podido guardar la firma.");
+            }
+            firmaModificada = false; firmaEliminada = false;
+            NavigationManager.NavigateTo("/servicios/mis-servicios");
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { guardando = false; }
+    }
+
+    private async Task SubirFotoAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var archivo = args.File;
+            await using var stream = archivo.OpenReadStream(10 * 1024 * 1024);
+            using var memoria = new MemoryStream();
+            await stream.CopyToAsync(memoria);
+            await GuardarFotoAsync(archivo.Name, archivo.ContentType, memoria.ToArray());
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido añadir la foto: {ex.Message}"; }
+    }
+
+    private async Task CapturarFotoAsync()
+    {
+        try
+        {
+            var foto = await FormFactor.CapturePhotoAsync();
+            if (foto != null) await GuardarFotoAsync(foto.FileName, foto.ContentType, foto.Content);
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido abrir la cámara: {ex.Message}"; }
+    }
+
+    private async Task GuardarFotoAsync(string nombreArchivo, string? contentType, byte[] contenido)
+    {
+        var respuesta = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/fotos", new { NombreArchivo = nombreArchivo, ImagenBase64 = $"data:{contentType ?? "image/jpeg"};base64,{Convert.ToBase64String(contenido)}" });
+        if (!respuesta.IsSuccessStatusCode) throw new InvalidOperationException("No se ha podido guardar la foto.");
+        await CargarFotosAsync();
+    }
+
+    private async Task EliminarFotoAsync(int idFoto)
+    {
+        var respuesta = await Http.DeleteAsync($"api/solicitudes/{Id}/fotos/{idFoto}");
+        if (respuesta.IsSuccessStatusCode) { fotos.RemoveAll(f => f.Id == idFoto); fotosDataUri.Remove(idFoto); }
+        else errorMessage = "No se ha podido eliminar la foto.";
+    }
+
+    private void Volver() => NavigationManager.NavigateTo("/servicios/mis-servicios");
+    private async Task AbrirFotoOriginalAsync(int idFoto)
+    {
+        try
+        {
+            if (!esAplicacionNativa)
+            {
+                var url = new Uri(Http.BaseAddress!, $"api/solicitudes/{Id}/fotos/{idFoto}").AbsoluteUri;
+                var abierta = await JSRuntime.InvokeAsync<bool>("openPhotoWithLoading", url);
+                if (!abierta) errorMessage = "El navegador ha bloqueado la apertura de la foto.";
+                return;
+            }
+
+            fotoCargando = true;
+            fotoSeleccionadaDataUri = null;
+            await InvokeAsync(StateHasChanged);
+            var contenido = await Http.GetByteArrayAsync($"api/solicitudes/{Id}/fotos/{idFoto}");
+            fotoSeleccionadaDataUri = $"data:image/jpeg;base64,{Convert.ToBase64String(contenido)}";
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido abrir la foto: {ex.Message}"; }
+        finally { fotoCargando = false; }
+    }
+    private void CerrarFoto() { fotoCargando = false; fotoSeleccionadaDataUri = null; }
+    private async Task CargarFotosAsync()
+    {
+        fotos = await Http.GetFromJsonAsync<List<SolicitudFoto>>($"api/solicitudes/{Id}/fotos") ?? [];
+        fotosDataUri.Clear();
+        foreach (var foto in fotos)
+        {
+            try
+            {
+                var contenido = await Http.GetByteArrayAsync($"api/solicitudes/{Id}/fotos/{foto.Id}/miniatura");
+                fotosDataUri[foto.Id] = $"data:image/jpeg;base64,{Convert.ToBase64String(contenido)}";
+            }
+            catch { }
+        }
+    }
+    private string FotoDataUri(int idFoto) => fotosDataUri.TryGetValue(idFoto, out var uri) ? uri : string.Empty;
+    public void Dispose() => firmaReference?.Dispose();
+}

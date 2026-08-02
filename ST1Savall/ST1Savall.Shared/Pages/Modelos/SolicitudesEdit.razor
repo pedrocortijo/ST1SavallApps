@@ -38,6 +38,31 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="nuevoContenedorVisible"
+         HeaderText="Crear contenedor"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <div class="alert alert-info py-2 small">La solicitud actual se conserva sin guardar. Al crear el contenedor, se seleccionará automáticamente en <strong>@destinoNuevoContenedorDescripcion</strong>.</div>
+            @if (!string.IsNullOrWhiteSpace(errorNuevoContenedor))
+            {
+                <div class="alert alert-danger py-2 small">@errorNuevoContenedor</div>
+            }
+            <div class="mb-3"><label class="form-label">Nº de serie</label><DxTextBox @bind-Text="nuevoContenedor.NumSerie" NullText="Introduzca el número de serie" CssClass="w-100" /></div>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Tipo</label><DxComboBox Data="@tiposContenedor" TData="ContenedorTipo" TValue="int" TextFieldName="Descripcion" ValueFieldName="IdTipo" @bind-Value="nuevoContenedor.IdTipo" CssClass="w-100" NullText="Seleccione..." /></div>
+                <div class="col-md-6"><label class="form-label">Planta</label><DxComboBox Data="@plantas" TData="Planta" TValue="int" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="nuevoContenedor.IdPlanta" CssClass="w-100" NullText="Seleccione..." /></div>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100"><DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarNuevoContenedor" /><DxButton Text="Crear y seleccionar" RenderStyle="ButtonRenderStyle.Primary" Click="CrearNuevoContenedorAsync" /></div>
+    </FooterContentTemplate>
+</DxPopup>
+
 <DxPopup Visible="confirmacionCambioTareaVisible"
          VisibleChanged="OnConfirmacionVisibleChanged"
          HeaderText="Contenedores afectados"
@@ -518,8 +543,13 @@
                         </DxFormLayoutItem>
                     }
 
-                    <DxFormLayoutItem Caption="Observaciones para el conductor" ColSpanMd="12" BeginRow="true">
+                    <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12" BeginRow="true">
                         <DxTextBox @bind-Text="@solicitud.Observaciones" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Observaciones del conductor para la oficna" ColSpanMd="12" >
+                        <DxTextBox @bind-Text:get="@solicitud.ObservacionesConductor"
+                                   @bind-Text:set="@OnObservacionesConductorChanged" />
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="12" BeginRow="true">
@@ -535,7 +565,7 @@
                                     <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Contenedores</h6>
                                     <div class="row g-2">
                                     <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold text-muted small mb-1">Entrega [1] - Nº Serie</label>
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [1] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button></div>
                                         <DxComboBox Data="@contenedoresEntrega"
                                                     Enabled="@IsEntregaEnabled"
                                                     TData="Contenedor"
@@ -557,7 +587,7 @@
                                         </DxComboBox>
                                     </div>
                                     <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold text-muted small mb-1">Entrega [2] - Nº Serie</label>
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [2] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button></div>
                                         <DxComboBox Data="@contenedoresEntrega"
                                                     Enabled="@IsEntrega2Enabled"
                                                     TData="Contenedor"
@@ -581,7 +611,7 @@
                                     </div>
                                     <div class="row g-2">
                                     <div class="col-md-6 mb-2">
-                                        <label class="form-label fw-bold text-muted small mb-1">Retirada [1] - Nº Serie</label>
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [1] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoRecogida", "Retirada [1]")'>Nuevo</button></div>
                                         <DxComboBox Data="@contenedoresRecogida" Enabled="@IsRecogidaEnabled"
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
@@ -599,7 +629,7 @@
                                         </DxComboBox>
                                     </div>
                                     <div class="col-md-6 mb-2">
-                                            <label class="form-label fw-bold text-muted small mb-1">Retirada [2] - Nº Serie</label>
+                                            <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [2] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoAmbosRecogida", "Retirada [2]")'>Nuevo</button></div>
                                         <DxComboBox Data="@contenedoresRecogida" Enabled="@IsRecogida2Enabled"
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
@@ -649,28 +679,43 @@
                         </Template>
                     </DxFormLayoutItem>
 
-                    <!-- Grupo 4: Aplazamiento de tarea -->
+                    <!-- Grupo 4: Anulación de la tarea -->
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        Aplazamiento de tarea
+                        Anulación de la tarea
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Fecha Próxima Prevista" ColSpanMd="2" BeginRow="true">
+                    
+                        <DxFormLayoutItem Caption="Fecha Anulación" ColSpanMd="2" BeginRow="true">
                         <DxDateEdit Date="@solicitud.FechaPrevista"
                                     DateChanged="@((DateTime? val) => OnFechaPrevistaChanged(val))"
                                     DateExpression="@(() => solicitud.FechaPrevista)" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Motivo del aplazamiento" ColSpanMd="10">
-                        <DxComboBox Data="@motivosList"
-                                    TData="Motivo"
-                                    TValue="int?"
-                                    TextFieldName="DescripcionMotivo"
-                                    ValueFieldName="IdMotivo"
-                                    Value="@solicitud.MotivoReprogramacion"
-                                    ValueChanged="@((int? val) => OnMotivoReprogramacionChanged(val))"
-                                    ValueExpression="@(() => solicitud.MotivoReprogramacion)"
-                                    ClearButtonVisible="true"
-                                    SearchMode="ListSearchMode.AutoSearch"
-                                    SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                    NullText="Seleccione el motivo de aplazamiento..." />
+                        </DxFormLayoutItem>
+ 
+                        <DxFormLayoutItem Caption="Motivo de la anulación" ColSpanMd="10">
+                        <div class="d-flex gap-2">
+                            <DxComboBox Data="@motivosList"
+                                        TData="Motivo"
+                                        TValue="int?"
+                                        TextFieldName="DescripcionMotivo"
+                                        ValueFieldName="IdMotivo"
+                                        @bind-Value:get="@solicitud.MotivoReprogramacion"
+                                        @bind-Value:set="@OnMotivoReprogramacionChanged"
+                                        ClearButtonVisible="true"
+                                        SearchMode="ListSearchMode.AutoSearch"
+                                        SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                        NullText="Seleccione el motivo de aplazamiento..."
+                                        CssClass="flex-grow-1" />
+                            <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1"
+                                    title="Borrar motivo"
+                                    aria-label="Borrar firma" @onclick="() => OnMotivoReprogramacionChanged(null)">
+                                <i class="oi oi-trash"></i>
+                            </button>
+@* 
+                            <button type="button" class="btn btn-outline-danger" style="height: 32px; width: 38px;" title="Borrar motivo" aria-label="Borrar motivo"
+                                    @onclick="() => OnMotivoReprogramacionChanged(null)">
+                                <span aria-hidden="true" style="font-size: 1.35rem; line-height: 1;">&times;</span>
+                            </button>
+*@
+                        </div>
                     </DxFormLayoutItem>
 
                     <!-- Grupo 5: Ocupación de Vía Pública y firma -->
@@ -682,8 +727,7 @@
                                     <div class="row g-2">
                                         <div class="col-md-5 d-flex align-items-end mb-2"><DxCheckBox @bind-Checked:get="@solicitud.RequiereOVP" @bind-Checked:set="@OnRequiereOVPChanged" LabelPosition="LabelPosition.Right">Requiere Licencia OVP</DxCheckBox></div>
                                         <div class="col-md-7 mb-2"><label class="form-label fw-bold text-muted small mb-1">Nº Licencia</label><DxTextBox @bind-Text="@solicitud.NumLicenciaOVP" Enabled="@solicitud.RequiereOVP" /></div>
-                                        <div class="col-12 mb-2"><div class="row justify-content-end"><div class="col-md-4"><label class="form-label fw-bold text-muted small mb-1">Fecha Inicio OVP</label><DxDateEdit @bind-Date="@solicitud.FechaInicioOVP" Enabled="@solicitud.RequiereOVP" /></div></div></div>
-                                        <div class="col-12 mb-2"><div class="row justify-content-end"><div class="col-md-4"><label class="form-label fw-bold text-muted small mb-1">Fecha Finalización OVP</label><DxDateEdit @bind-Date="@solicitud.FechaFinOVP" Enabled="@solicitud.RequiereOVP" /></div></div></div>
+                                        <div class="col-12 mb-2"><div class="row justify-content-end g-2"><div class="col-md-4"><label class="form-label fw-bold text-muted small mb-1">Fecha Inicio OVP</label><DxDateEdit @bind-Date="@solicitud.FechaInicioOVP" Enabled="@solicitud.RequiereOVP" /></div><div class="col-md-4"><label class="form-label fw-bold text-muted small mb-1">Fecha Finalización OVP</label><DxDateEdit @bind-Date="@solicitud.FechaFinOVP" Enabled="@solicitud.RequiereOVP" /></div></div></div>
                                     </div>
                                 </div>
                                 <div class="col-md-5 ps-md-4">
@@ -695,7 +739,14 @@
                                         {
                                             <div class="col-12"><div class="alert alert-warning py-1 px-2 small mb-0">Antes de firmar, indique: @string.Join(", ", ContenedoresPendientesFirma).</div></div>
                                         }
-                                        <div class="col-12"><div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Firma</label><button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" title="Borrar firma" aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i class="oi oi-trash"></i></button></div><canvas @ref="firmaCanvas" class="w-100 border rounded bg-white" style="@EstiloLienzoFirma"></canvas></div>
+                                        <div class="col-12">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label fw-bold text-muted small mb-0">Firma</label>
+                                            <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" 
+                                                title="Borrar firma" 
+                                                aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i 
+                                                class="oi oi-trash"></i></button>
+                                            </div><canvas id="solicitudFirmaCanvas" @ref="firmaCanvas" class="w-100 border rounded bg-white" style="@EstiloLienzoFirma"></canvas></div>
                                     </div>
                                 </div>
                             </div>
@@ -744,6 +795,12 @@
     private List<Contenedor>? contenedoresList;
     private List<Solicitud>? solicitudesConContenedores;
     private List<Planta>? plantas;
+    private List<ContenedorTipo>? tiposContenedor;
+    private bool nuevoContenedorVisible;
+    private string? destinoNuevoContenedor;
+    private string destinoNuevoContenedorDescripcion = string.Empty;
+    private Contenedor nuevoContenedor = new();
+    private string? errorNuevoContenedor;
     private bool loading = true;
     private string? errorMessage;
     private string? motivoEstadoMessage;
@@ -897,6 +954,7 @@
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
+            tiposContenedor = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
             motivosList = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos");
             parametrosList = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
 
@@ -996,6 +1054,66 @@
         finally
         {
             loading = false;
+        }
+    }
+
+    private void AbrirNuevoContenedor(string destino, string descripcion)
+    {
+        destinoNuevoContenedor = destino;
+        destinoNuevoContenedorDescripcion = descripcion;
+        errorNuevoContenedor = null;
+        nuevoContenedor = new Contenedor
+        {
+            EstadoFisico = destino.Contains("Recogida", StringComparison.Ordinal) ? "Entregado" : "Disponible",
+            IdPlanta = IdPlantaConductor ?? plantas?.FirstOrDefault()?.IdPlanta ?? 0
+        };
+        nuevoContenedorVisible = true;
+    }
+
+    private void CancelarNuevoContenedor()
+    {
+        nuevoContenedorVisible = false;
+        errorNuevoContenedor = null;
+    }
+
+    private async Task CrearNuevoContenedorAsync()
+    {
+        nuevoContenedor.NumSerie = nuevoContenedor.NumSerie?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(nuevoContenedor.NumSerie) || nuevoContenedor.IdTipo <= 0 || nuevoContenedor.IdPlanta <= 0)
+        {
+            errorNuevoContenedor = "Indique el número de serie, el tipo y la planta del contenedor.";
+            return;
+        }
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/contenedores", nuevoContenedor);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorNuevoContenedor = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(errorNuevoContenedor))
+                    errorNuevoContenedor = "No se ha podido crear el contenedor.";
+                return;
+            }
+
+            contenedoresList = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores") ?? new List<Contenedor>();
+            if (solicitud is not null)
+            {
+                switch (destinoNuevoContenedor)
+                {
+                    case "CodigoEntrega": solicitud.CodigoEntrega = nuevoContenedor.NumSerie; break;
+                    case "CodigoAmbosEntrega": solicitud.CodigoAmbosEntrega = nuevoContenedor.NumSerie; break;
+                    case "CodigoRecogida": solicitud.CodigoRecogida = nuevoContenedor.NumSerie; break;
+                    case "CodigoAmbosRecogida": solicitud.CodigoAmbosRecogida = nuevoContenedor.NumSerie; break;
+                }
+            }
+
+            nuevoContenedorVisible = false;
+            errorNuevoContenedor = null;
+        }
+        catch (Exception ex)
+        {
+            errorNuevoContenedor = $"No se ha podido crear el contenedor: {ex.Message}";
         }
     }
 
@@ -1155,6 +1273,13 @@
             return;
         }
 
+        AplicarEstadoReprogramacion();
+    }
+
+    private void OnObservacionesConductorChanged(string? valor)
+    {
+        if (solicitud == null) return;
+        solicitud.ObservacionesConductor = valor;
         AplicarEstadoReprogramacion();
     }
 

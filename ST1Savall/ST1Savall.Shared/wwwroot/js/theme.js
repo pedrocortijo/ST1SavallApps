@@ -48,7 +48,13 @@ window.getTheme = function () {
     return "blazing-berry";
 };
 
+window.resolveSignatureCanvas = function (canvas) {
+    if (canvas && typeof canvas.getContext === 'function') return canvas;
+    return document.getElementById('solicitudFirmaCanvas');
+};
+
 window.initSignaturePad = function (canvas, dotnetHelper) {
+    canvas = window.resolveSignatureCanvas(canvas);
     if (!canvas) return;
     
     var ctx = canvas.getContext('2d');
@@ -170,6 +176,7 @@ window.initSignaturePad = function (canvas, dotnetHelper) {
 };
 
 window.clearSignaturePad = function (canvas) {
+    canvas = window.resolveSignatureCanvas(canvas);
     if (canvas && canvas._signatureCtx) {
         var ctx = canvas._signatureCtx;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -178,6 +185,7 @@ window.clearSignaturePad = function (canvas) {
 };
 
 window.setSignatureImage = function (canvas, imageData) {
+    canvas = window.resolveSignatureCanvas(canvas);
     if (!canvas || !canvas._signatureCtx || !imageData) return;
 
     var ctx = canvas._signatureCtx;
@@ -196,8 +204,32 @@ window.setSignatureImage = function (canvas, imageData) {
 };
 
 window.getSignatureImage = function (canvas) {
+    canvas = window.resolveSignatureCanvas(canvas);
     if (canvas) {
         return canvas.toDataURL();
     }
     return "";
+};
+
+window.openPhotoWithLoading = function (url) {
+    const popup = window.open("", "_blank");
+    if (!popup) return false;
+
+    popup.opener = null;
+    popup.document.title = "Cargando foto...";
+    popup.document.body.innerHTML = '<div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;color:#333"><div style="width:38px;height:38px;border:4px solid #d9e1ea;border-top-color:#0d6efd;border-radius:50%;animation:girar .8s linear infinite"></div><p>Cargando foto...</p></div><style>body{margin:0}@keyframes girar{to{transform:rotate(360deg)}}</style>';
+
+    const image = new popup.Image();
+    image.onload = function () {
+        popup.document.title = "Foto original";
+        popup.document.body.innerHTML = '';
+        popup.document.body.style.cssText = 'margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh';
+        image.style.cssText = 'max-width:100%;max-height:100vh;object-fit:contain';
+        popup.document.body.appendChild(image);
+    };
+    image.onerror = function () {
+        popup.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px">No se ha podido cargar la foto.</p>';
+    };
+    image.src = url;
+    return true;
 };

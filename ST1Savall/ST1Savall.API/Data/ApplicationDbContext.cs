@@ -25,6 +25,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<RutaCache> RutasCache { get; set; } = null!;
     public DbSet<Ausencia> Ausencias { get; set; } = null!;
     public DbSet<Motivo> Motivos { get; set; } = null!;
+    public DbSet<SolicitudFoto> SolicitudFotos { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -84,11 +85,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         foreach (var propertyName in new[]
         {
-            nameof(Solicitud.AlbaranPlanta), nameof(Solicitud.AlbaranSerieSage), nameof(Solicitud.AlbaranNumeroSage)
+            nameof(Solicitud.AlbaranPlanta), nameof(Solicitud.AlbaranSerieSage), nameof(Solicitud.AlbaranNumeroSage), nameof(Solicitud.TipoResiduo)
         })
         {
             builder.Entity<Solicitud>().Property<string?>(propertyName).IsUnicode(false);
         }
+
+        builder.Entity<SolicitudFoto>()
+            .HasIndex(f => new { f.IdSolicitud, f.FechaCreacion });
 
         foreach (var propertyName in new[]
         {

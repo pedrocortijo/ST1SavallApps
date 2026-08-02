@@ -26,5 +26,7 @@ namespace ST1Savall.Web.Services
             // En web la ubicación se solicita desde el navegador mediante JS interop.
             return Task.FromResult<DeviceLocation?>(null);
         }
+
+        public Task<CapturedPhoto?> CapturePhotoAsync() => Task.FromResult<CapturedPhoto?>(null);
     }
 }
