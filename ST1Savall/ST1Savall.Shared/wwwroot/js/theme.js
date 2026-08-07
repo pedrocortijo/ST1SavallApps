@@ -24,6 +24,10 @@ window.setTheme = function (themeName) {
     document.documentElement.className = "theme-" + themeName;
 };
 
+window.getViewportWidth = function () {
+    return window.innerWidth;
+};
+
 window.getTheme = function () {
     try {
         var localTheme = localStorage.getItem("theme");

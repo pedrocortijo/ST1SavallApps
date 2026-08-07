@@ -6,7 +6,7 @@ namespace ST1Savall.Shared.Data;
 
 public class ObraComunSage50
 {
-    [MaxLength(15)] public string Cif { get; set; } = string.Empty;
+    [MaxLength(16)] public string Cif { get; set; } = string.Empty;
     [MaxLength(8)] public string Cliente { get; set; } = string.Empty;
     [MaxLength(5)] public string Codigo { get; set; } = string.Empty;
     [MaxLength(13)] public string Codpost { get; set; } = string.Empty;
@@ -45,7 +45,7 @@ public class ObraComunSage50
     public bool? Terminada { get; set; }
     [MaxLength(2)] public string TipoIva { get; set; } = string.Empty;
     [MaxLength(15)] public string Usuario { get; set; } = string.Empty;
-    [MaxLength(2)] public string Vendedor { get; set; } = string.Empty;
+    [MaxLength(5)] public string Vendedor { get; set; } = string.Empty;
     public bool? Vista { get; set; }
     [MaxLength(4)] public string Zona { get; set; } = string.Empty;
 }

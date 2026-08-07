@@ -16,6 +16,10 @@ public class Contenedor
     public string NumSerie { get; set; } = string.Empty;
 
     [Required]
+    [MaxLength(20)]
+    public string CodigoArticulo { get; set; } = string.Empty;
+
+    [Required]
     public int IdTipo { get; set; }
 
     [ForeignKey("IdTipo")]
@@ -39,5 +43,3 @@ public class Contenedor
     [NotMapped]
     public string? ObraActual { get; set; }
 }
-
-

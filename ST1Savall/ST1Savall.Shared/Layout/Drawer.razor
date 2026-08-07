@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
+@inject IJSRuntime JSRuntime
 
 <DxDrawer PanelWidth="@Width"
           CssClass="@CssClass"
@@ -8,7 +9,7 @@
           IsOpen="@IsOpen"
           HeaderTemplate="@DrawerHeader"
           FooterTemplate="@DrawerFooter"
-          ApplyBackgroundShading="@IsAndroid"
+          ApplyBackgroundShading="@IsMobile"
           OpenCssClass="panel-open">
     <BodyTemplate>
         @DrawerBody
@@ -21,9 +22,11 @@
 @code {
     string Width => "240px";
     string CssClass => "navigation-drawer";
+    private bool isSmallScreen;
     bool IsAndroid => FormFactor.GetPlatform().StartsWith("Android", StringComparison.OrdinalIgnoreCase);
-    DrawerMode Mode => IsAndroid ? DrawerMode.Overlap : DrawerMode.Shrink;
-    bool IsOpen => IsAndroid ? ToggledSidebar : !ToggledSidebar;
+    bool IsMobile => IsAndroid || isSmallScreen;
+    DrawerMode Mode => IsMobile ? DrawerMode.Overlap : DrawerMode.Shrink;
+    bool IsOpen => IsMobile ? ToggledSidebar : !ToggledSidebar;
 
     [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
     public bool ToggledSidebar { get; set; }
@@ -31,4 +34,13 @@
     [Parameter] public RenderFragment? DrawerBody { get; set; }
     [Parameter] public RenderFragment? DrawerHeader { get; set; }
     [Parameter] public RenderFragment? DrawerFooter { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || IsAndroid)
+            return;
+
+        isSmallScreen = await JSRuntime.InvokeAsync<int>("getViewportWidth") <= 768;
+        StateHasChanged();
+    }
 }

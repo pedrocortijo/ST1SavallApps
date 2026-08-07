@@ -386,3 +386,25 @@ html.theme-fluent-dark .obra-resumen {
     background-color: #b7e4c7 !important;
     color: #0f5132 !important;
 }
+/* Los submenús de DxMenu se renderizan como emergentes fuera del drawer. */
+@media (max-width: 768px) {
+    .dxbl-menu-item-list {
+        z-index: 1200 !important;
+    }
+
+    .dxbl-dropdown,
+    .dxbl-popup,
+    .dxbl-listbox {
+        z-index: 1300 !important;
+    }
+
+    /* En móvil los submenús se muestran dentro del panel, no a su derecha. */
+    #sidebar .dxbl-menu-item-list .dxbl-menu-item-list {
+        display: block !important;
+        position: static !important;
+        width: auto !important;
+        min-width: 0 !important;
+        margin: 0 0 0 .75rem !important;
+        box-shadow: none !important;
+    }
+}

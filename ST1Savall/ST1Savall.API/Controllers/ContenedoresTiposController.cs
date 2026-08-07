@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ST1Savall.API.Data;
 using ST1Savall.Shared.Data;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace ST1Savall.API.Controllers;
 
@@ -13,23 +11,17 @@ public class ContenedoresTiposController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
-    public ContenedoresTiposController(ApplicationDbContext context)
-    {
-        _context = context;
-    }
+    public ContenedoresTiposController(ApplicationDbContext context) => _context = context;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ContenedorTipo>>> GetContenedoresTipos()
-    {
-        return await _context.ContenedoresTipos.ToListAsync();
-    }
+    public async Task<ActionResult<IEnumerable<ContenedorTipo>>> GetContenedoresTipos() =>
+        await _context.ContenedoresTipos.ToListAsync();
 
     [HttpGet("{id}")]
     public async Task<ActionResult<ContenedorTipo>> GetContenedorTipo(int id)
     {
         var tipo = await _context.ContenedoresTipos.FindAsync(id);
-        if (tipo == null) return NotFound();
-        return tipo;
+        return tipo == null ? NotFound() : tipo;
     }
 
     [HttpPost]
@@ -45,13 +37,11 @@ public class ContenedoresTiposController : ControllerBase
     {
         if (id != tipo.IdTipo) return BadRequest();
         _context.Entry(tipo).State = EntityState.Modified;
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
+        try { await _context.SaveChangesAsync(); }
         catch (DbUpdateConcurrencyException)
         {
-            if (!ContenedorTipoExists(id)) return NotFound();
+            if (!await _context.ContenedoresTipos.AnyAsync(e => e.IdTipo == id))
+                return NotFound();
             throw;
         }
         return NoContent();
@@ -65,10 +55,5 @@ public class ContenedoresTiposController : ControllerBase
         _context.ContenedoresTipos.Remove(tipo);
         await _context.SaveChangesAsync();
         return NoContent();
-    }
-
-    private bool ContenedorTipoExists(int id)
-    {
-        return _context.ContenedoresTipos.Any(e => e.IdTipo == id);
     }
 }

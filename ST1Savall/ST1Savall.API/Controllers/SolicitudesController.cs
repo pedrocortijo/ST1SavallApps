@@ -240,6 +240,82 @@ public class SolicitudesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id}/cancelar-inicio")]
+    public async Task<IActionResult> CancelarInicioSolicitud(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var estadoIniciado = parametro?.EstadoIniciado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("iniciado"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+        var estadoAsignado = parametro?.EstadoAdjudicado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("asignad") || e.Descripcion.Contains("adjudicad"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+
+        if (!estadoIniciado.HasValue || !estadoAsignado.HasValue)
+            return BadRequest(new { message = "No hay estados de servicio iniciado y asignado configurados." });
+        if (solicitud.Estado != estadoIniciado.Value)
+            return Conflict(new { message = "Solo se puede cancelar el inicio de un servicio iniciado." });
+
+        solicitud.Estado = estadoAsignado.Value;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPost("{id}/finalizar")]
+    public async Task<IActionResult> FinalizarSolicitud(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var estadoIniciado = parametro?.EstadoIniciado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("iniciado"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+        var estadoFinalizado = parametro?.EstadoFinalizado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("finalizado"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+
+        if (!estadoIniciado.HasValue || !estadoFinalizado.HasValue)
+            return BadRequest(new { message = "No hay estados de servicio iniciado y finalizado configurados." });
+        if (solicitud.Estado != estadoIniciado.Value)
+            return Conflict(new { message = "Solo se puede finalizar un servicio iniciado." });
+        var datosPendientes = new List<string>();
+        if (string.IsNullOrWhiteSpace(solicitud.FirmaPath) || !System.IO.File.Exists(solicitud.FirmaPath))
+            datosPendientes.Add("firma");
+        if (string.IsNullOrWhiteSpace(solicitud.FirmaNombre))
+            datosPendientes.Add("nombre del firmante");
+        if (string.IsNullOrWhiteSpace(solicitud.FirmaDni))
+            datosPendientes.Add("DNI del firmante");
+        if (string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta))
+            datosPendientes.Add("número de albarán de planta");
+
+        var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
+        if (tarea == null)
+            return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
+
+        if (tarea.Entrega1 && string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)) datosPendientes.Add("número de serie de Entrega [1]");
+        if (tarea.Entrega2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)) datosPendientes.Add("número de serie de Entrega [2]");
+        if (tarea.Recoger1 && string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)) datosPendientes.Add("número de serie de Retirada [1]");
+        if (tarea.Recoger2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)) datosPendientes.Add("número de serie de Retirada [2]");
+        if (datosPendientes.Count > 0)
+            return BadRequest(new { message = $"Debe indicar: {string.Join(", ", datosPendientes)}." });
+
+        solicitud.Estado = estadoFinalizado.Value;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpPut("{id}/datos-firma")]
     public async Task<IActionResult> ActualizarDatosFirma(int id, [FromBody] DatosFirmaSolicitudRequest datos)
     {

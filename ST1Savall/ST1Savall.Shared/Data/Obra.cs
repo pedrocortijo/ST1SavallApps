@@ -84,4 +84,6 @@ public class Obra
 
     [MaxLength(100)]
     public string? Encargado { get; set; }
+
+    public string? Observaciones { get; set; }
 }

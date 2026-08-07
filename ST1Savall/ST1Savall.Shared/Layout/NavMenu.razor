@@ -1,4 +1,35 @@
 <div id="sidebar">
+    <style>
+        #sidebar .mobile-navigation .mobile-menu-children a {
+            color: #ffffff !important;
+            text-decoration: none !important;
+        }
+        #sidebar .mobile-navigation .mobile-menu-children a:hover,
+        #sidebar .mobile-navigation .mobile-menu-children a.active {
+            color: #f59e0b !important;
+        }
+    </style>
+    @if (isSmallScreen && !isConductor)
+    {
+        <nav class="mobile-navigation">
+            <NavLink href="/" class="mobile-menu-link">Inicio</NavLink>
+            <button class="mobile-menu-group" @onclick="() => maestrosOpen = !maestrosOpen">Maestros <span>⌄</span></button>
+            @if (maestrosOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/contenedores">Contenedores</NavLink><NavLink href="/modelos/contenedores-tipos">Tipos de contenedores</NavLink><NavLink href="/modelos/obrasmnto">Obras</NavLink><NavLink href="/modelos/clientes">Clientes</NavLink><NavLink href="/modelos/estados">Estados</NavLink><NavLink href="/modelos/prioridades">Prioridades</NavLink><NavLink href="/modelos/tareas">Tareas</NavLink><NavLink href="/modelos/tareas-relaciones">Relaciones de tareas</NavLink><NavLink href="/modelos/poblaciones">Poblaciones</NavLink><NavLink href="/modelos/plantas">Plantas</NavLink><NavLink href="/modelos/motivos">Motivos</NavLink></div> }
+            <button class="mobile-menu-group" @onclick="() => laboralOpen = !laboralOpen">Laboral <span>⌄</span></button>
+            @if (laboralOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/operarios">Operarios</NavLink><NavLink href="/modelos/cargos">Cargos</NavLink><NavLink href="/laboral/usuarios">Usuarios</NavLink></div> }
+            <button class="mobile-menu-group" @onclick="() => serviciosOpen = !serviciosOpen">Servicios <span>⌄</span></button>
+            @if (serviciosOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/solicitudes">Solicitudes</NavLink><NavLink href="/servicios/mis-servicios">Mis servicios</NavLink><NavLink href="/servicios/asignacion-tareas">Asignación de tareas</NavLink><NavLink href="/servicios/informes">Informes</NavLink></div> }
+            <button class="mobile-menu-group" @onclick="() => configuracionOpen = !configuracionOpen">Configuración <span>⌄</span></button>
+            @if (configuracionOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/parametros">Parámetros</NavLink></div> }
+        </nav>
+    }
+    @if (isSmallScreen && isConductor)
+    {
+        <nav class="mobile-navigation">
+            <NavLink href="/servicios/mis-servicios" class="mobile-menu-link">Mis servicios</NavLink>
+            <button class="mobile-menu-group" @onclick="CerrarSesionAsync">Cerrar sesión</button>
+        </nav>
+    }
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu">
         <Items>
             @if (isConductor)
@@ -58,12 +89,24 @@
     
     <div class="theme-selector-container px-3 py-2 mt-4" style="border-top: 1px solid rgba(255,255,255,0.1);">
         <label class="text-white-50 small mb-1 d-block" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Tema Visual</label>
-        <DxComboBox Data="@availableThemes"
-                    TextFieldName="Name"
-                    ValueFieldName="Id"
-                    Value="@selectedTheme"
-                    ValueChanged="@((string t) => OnThemeChanged(t))"
-                    CssClass="w-100" />
+        @if (isSmallScreen)
+        {
+            <select class="form-select" value="@selectedTheme" @onchange="OnNativeThemeChanged">
+                @foreach (var theme in availableThemes)
+                {
+                    <option value="@theme.Id">@theme.Name</option>
+                }
+            </select>
+        }
+        else
+        {
+            <DxComboBox Data="@availableThemes"
+                        TextFieldName="Name"
+                        ValueFieldName="Id"
+                        Value="@selectedTheme"
+                        ValueChanged="@((string t) => OnThemeChanged(t))"
+                        CssClass="w-100" />
+        }
     </div>
 </div>
  
@@ -71,6 +114,8 @@
 @inject IJSRuntime JSRuntime
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ST1Savall.Shared.Services.IAuthService AuthService
+@inject NavigationManager NavigationManager
 @using System.Net.Http.Json
 @using ST1Savall.Shared.Data
  
@@ -88,6 +133,11 @@
     };
     private string selectedTheme = "blazing-berry";
     private bool isConductor;
+    private bool isSmallScreen;
+    private bool maestrosOpen;
+    private bool laboralOpen;
+    private bool serviciosOpen;
+    private bool configuracionOpen;
 
     protected override async Task OnInitializedAsync()
     {
@@ -125,6 +175,7 @@
                 // Reaplicar el tema al iniciar para sincronizar la hoja de estilos
                 // y la clase del elemento HTML, especialmente en la versión web.
                 await JSRuntime.InvokeVoidAsync("setTheme", selectedTheme);
+                isSmallScreen = await JSRuntime.InvokeAsync<int>("getViewportWidth") <= 768;
                 StateHasChanged();
             }
             catch
@@ -138,6 +189,15 @@
     {
         selectedTheme = theme;
         await JSRuntime.InvokeVoidAsync("setTheme", theme);
+    }
+
+    private Task OnNativeThemeChanged(ChangeEventArgs e) =>
+        OnThemeChanged(e.Value?.ToString() ?? selectedTheme);
+
+    private async Task CerrarSesionAsync()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/");
     }
 
     public class ThemeInfo

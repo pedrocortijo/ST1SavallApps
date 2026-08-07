@@ -31,6 +31,7 @@ var sageGestionConnectionString = builder.Configuration.GetConnectionString("Sag
     ?? throw new InvalidOperationException("Connection string 'SageGestionConnection' not found.");
 builder.Services.AddDbContext<SageGestionDbContext>(options =>
     options.UseSqlServer(sageGestionConnectionString));
+builder.Services.AddScoped<ArticulosSage50Service>();
 
 // Add SageComun DbContext
 var sageComunConnectionString = builder.Configuration.GetConnectionString("SageComunConnection") 

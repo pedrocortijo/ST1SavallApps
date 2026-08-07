@@ -142,9 +142,14 @@
 </div>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "edit")]
+    public int? EditPlantId { get; set; }
+
     private IGrid? grid;
     private List<Planta>? plantas;
     private string? errorMessage;
+    private bool editPlantHandled;
 
     // State for location update confirmation
     private bool showConfirmPopup = false;
@@ -155,6 +160,19 @@
     {
         await SetupHeadersAsync();
         await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (editPlantHandled || !EditPlantId.HasValue || grid == null || plantas == null)
+            return;
+
+        var planta = plantas.FirstOrDefault(p => p.IdPlanta == EditPlantId.Value);
+        if (planta == null)
+            return;
+
+        editPlantHandled = true;
+        await grid.StartEditDataItemAsync(planta);
     }
 
     private async Task SetupHeadersAsync()
@@ -372,7 +390,8 @@
 
         var latParam = planta.Latitud.HasValue ? $"&lat={planta.Latitud.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
         var lonParam = planta.Longitud.HasValue ? $"&lon={planta.Longitud.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
-        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(planta.Nombre ?? "Planta")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString("/modelos/plantas")}";
+        var backUrl = $"/modelos/plantas?edit={planta.IdPlanta}";
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(planta.Nombre ?? "Planta")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
         NavigationManager.NavigateTo(mapsUrl);
     }
 

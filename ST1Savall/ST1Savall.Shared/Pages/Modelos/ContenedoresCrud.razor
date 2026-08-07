@@ -210,10 +210,10 @@
                                     </div>
                                 </DxFormLayoutItem>
                             }
-                            <DxFormLayoutItem Caption="Número de Serie" ColSpanMd="5">
+                            <DxFormLayoutItem Caption="Número de Serie" ColSpanMd="4">
                                 <DxTextBox @bind-Text="@cont.NumSerie" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Tipo de Contenedor" ColSpanMd="7">
+                            <DxFormLayoutItem Caption="Tipo de Contenedor" ColSpanMd="8">
                                 <DxComboBox Data="@tipos"
                                             TextFieldName="Descripcion"
                                             ValueFieldName="IdTipo"
@@ -258,7 +258,7 @@
     private List<Planta> comboPlantas = new() { new Planta { IdPlanta = 0, Nombre = "Todas las plantas" } };
     private List<Contenedor>? filteredContenedores;
 
-    private int _selectedTipoId = 0;
+    private int _selectedTipoId;
     private int selectedTipoId
     {
         get => _selectedTipoId;
@@ -406,6 +406,14 @@
 
             FilterData();
             errorMessage = null;
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "No se puede conectar con el servicio de datos. Compruebe que ST1Savall.API está iniciado.";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se puede conectar con el servicio de datos. Compruebe que ST1Savall.API está iniciado.";
         }
         catch (Exception ex)
         {

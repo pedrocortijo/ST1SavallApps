@@ -11,9 +11,7 @@
             <h2 class="fw-bold text-primary mb-1">Tipos de Contenedores</h2>
             <p class="text-muted mb-0">Gestión de especificaciones y dimensiones de contenedores</p>
         </div>
-        <NavLink href="/" class="btn btn-outline-secondary btn-sm">
-            <i class="oi oi-arrow-left me-1"></i> Volver a Inicio
-        </NavLink>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
     </div>
 
     @if (errorMessage != null)
@@ -24,105 +22,50 @@
         </div>
     }
 
-    <div class="card shadow-sm">
-        <div class="card-body p-0">
-            @if (tipos == null)
-            {
-                <div class="p-5 text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Cargando...</span>
-                    </div>
-                    <p class="mt-2 text-muted mb-0">Cargando tipos...</p>
-                </div>
-            }
-            else
-            {
-                <DxGrid @ref="grid"
-                        Data="@tipos"
-                        KeyFieldName="IdTipo"
-                        EditMode="GridEditMode.PopupEditForm"
-                        EditModelSaving="OnEditModelSaving"
-                        DataItemDeleting="OnDataItemDeleting"
-                        CustomizeEditModel="Grid_CustomizeEditModel"
-                        PopupEditFormHeaderCssClass="bg-primary text-white"
-                        PopupEditFormHeaderText="Formulario - Tipo de Contenedor"
-                        PopupEditFormCssClass="crud-popup"
-                        PagerPosition="GridPagerPosition.Bottom"
-                        PageSize="20"
-                        AllowSort="true"
-                        ShowFilterRow="true"
-                        ShowSearchBox="true">
-                    <Columns>
-                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
-                            <HeaderTemplate>
-                                <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
-                                        @onclick="StartNewTipoAsync"
-                                        title="Nuevo Tipo de Contenedor">
-                                    <i class="oi oi-plus me-1"></i> Nuevo
-                                </button>
-                            </HeaderTemplate>
-                            <CellDisplayTemplate>
-                                @{
-                                    var tipo = (ContenedorTipo)context.DataItem;
-                                    <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" 
-                                                style="width: 32px; height: 32px;"
-                                                @onclick="() => grid?.StartEditDataItemAsync(tipo)" 
-                                                @onclick:stopPropagation
-                                                title="Editar">
-                                            <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center shadow-sm"
-                                                style="width: 32px; height: 32px;"
-                                                @onclick="() => DuplicateTipoAsync(tipo)"
-                                                @onclick:stopPropagation
-                                                title="Duplicar">
-                                            <i class="oi oi-document" style="font-size: 0.9rem;"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
-                                                style="width: 32px; height: 32px;"
-                                                @onclick="() => grid?.ShowDataItemDeleteConfirmation(tipo)" 
-                                                @onclick:stopPropagation
-                                                title="Eliminar">
-                                            <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
-                                        </button>
-                                    </div>
-                                }
-                            </CellDisplayTemplate>
-                        </DxGridCommandColumn>
-                        <DxGridDataColumn FieldName="IdTipo" Caption="Código" ReadOnly="true" Width="80px" />
-                        <DxGridDataColumn FieldName="Descripcion" Caption="Descripción" Width="25%" />
-                        <DxGridDataColumn FieldName="CapacidadMetrosCubicos" Caption="Capacidad (m³)" DisplayFormat="N2" />
-                        <DxGridDataColumn FieldName="LargoCm" Caption="Largo (cm)" DisplayFormat="N0" />
-                        <DxGridDataColumn FieldName="AnchoCm" Caption="Ancho (cm)" DisplayFormat="N0" />
-                        <DxGridDataColumn FieldName="AltoCm" Caption="Alto (cm)" DisplayFormat="N0" />
-                    </Columns>
-                    <EditFormTemplate Context="EditFormContext">
-                        @{
-                            var tipo = (ContenedorTipo)EditFormContext.EditModel;
-                        }
-                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
-                            <DxFormLayoutItem Caption="Descripción" ColSpanMd="12">
-                                <DxTextBox @bind-Text="@tipo.Descripcion" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Capacidad (m³)" ColSpanMd="6" BeginRow="true">
-                                <DxSpinEdit @bind-Value="@tipo.CapacidadMetrosCubicos" MinValue="0" MaxValue="1000" Increment="0.1m" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Largo (cm)" ColSpanMd="6">
-                                <DxSpinEdit @bind-Value="@tipo.LargoCm" MinValue="0" MaxValue="10000" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Ancho (cm)" ColSpanMd="6" BeginRow="true">
-                                <DxSpinEdit @bind-Value="@tipo.AnchoCm" MinValue="0" MaxValue="10000" />
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Alto (cm)" ColSpanMd="6">
-                                <DxSpinEdit @bind-Value="@tipo.AltoCm" MinValue="0" MaxValue="10000" />
-                            </DxFormLayoutItem>
-                        </DxFormLayout>
-                    </EditFormTemplate>
-                </DxGrid>
-            }
-        </div>
-    </div>
+    <div class="card shadow-sm"><div class="card-body p-0">
+        @if (tipos == null)
+        {
+            <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted mb-0">Cargando tipos...</p></div>
+        }
+        else
+        {
+            <DxGrid @ref="grid" Data="@tipos" KeyFieldName="IdTipo" EditMode="GridEditMode.PopupEditForm"
+                    EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" CustomizeEditModel="CustomizeEditModel"
+                    PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Formulario - Tipo de Contenedor"
+                    PopupEditFormCssClass="crud-popup" PagerPosition="GridPagerPosition.Bottom" PageSize="20"
+                    AllowSort="true" ShowFilterRow="true" ShowSearchBox="true">
+                <Columns>
+                    <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <HeaderTemplate><button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" @onclick="StartNewAsync"><i class="oi oi-plus me-1"></i> Nuevo</button></HeaderTemplate>
+                        <CellDisplayTemplate>
+                            @{ var tipo = (ContenedorTipo)context.DataItem; }
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => grid?.StartEditDataItemAsync(tipo)" @onclick:stopPropagation title="Editar"><i class="oi oi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-info" @onclick="() => DuplicateAsync(tipo)" @onclick:stopPropagation title="Duplicar"><i class="oi oi-document"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => grid?.ShowDataItemDeleteConfirmation(tipo)" @onclick:stopPropagation title="Eliminar"><i class="oi oi-trash"></i></button>
+                            </div>
+                        </CellDisplayTemplate>
+                    </DxGridCommandColumn>
+                    <DxGridDataColumn FieldName="IdTipo" Caption="Código" ReadOnly="true" Width="80px" />
+                    <DxGridDataColumn FieldName="Descripcion" Caption="Descripción" Width="25%" />
+                    <DxGridDataColumn FieldName="CapacidadMetrosCubicos" Caption="Capacidad (m³)" DisplayFormat="N2" />
+                    <DxGridDataColumn FieldName="LargoCm" Caption="Largo (cm)" DisplayFormat="N0" />
+                    <DxGridDataColumn FieldName="AnchoCm" Caption="Ancho (cm)" DisplayFormat="N0" />
+                    <DxGridDataColumn FieldName="AltoCm" Caption="Alto (cm)" DisplayFormat="N0" />
+                </Columns>
+                <EditFormTemplate Context="EditFormContext">
+                    @{ var tipo = (ContenedorTipo)EditFormContext.EditModel; }
+                    <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                        <DxFormLayoutItem Caption="Descripción" ColSpanMd="12"><DxTextBox @bind-Text="@tipo.Descripcion" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Capacidad (m³)" ColSpanMd="6" BeginRow="true"><DxSpinEdit @bind-Value="@tipo.CapacidadMetrosCubicos" MinValue="0" MaxValue="1000" Increment="0.1m" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Largo (cm)" ColSpanMd="6"><DxSpinEdit @bind-Value="@tipo.LargoCm" MinValue="0" MaxValue="10000" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Ancho (cm)" ColSpanMd="6" BeginRow="true"><DxSpinEdit @bind-Value="@tipo.AnchoCm" MinValue="0" MaxValue="10000" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Alto (cm)" ColSpanMd="6"><DxSpinEdit @bind-Value="@tipo.AltoCm" MinValue="0" MaxValue="10000" /></DxFormLayoutItem>
+                    </DxFormLayout>
+                </EditFormTemplate>
+            </DxGrid>
+        }
+    </div></div>
 </div>
 
 @code {
@@ -133,117 +76,56 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await SetupHeadersAsync();
-        await LoadDataAsync();
-    }
-
-    private async Task SetupHeadersAsync()
-    {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var token = authState.User.FindFirst("token")?.Value;
-        if (!string.IsNullOrEmpty(token))
-        {
-            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
+        if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        await LoadDataAsync();
     }
 
     private async Task LoadDataAsync()
     {
-        try
-        {
-            tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
-            errorMessage = null;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al cargar tipos de contenedores: {ex.Message}";
-        }
+        try { tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos"); errorMessage = null; }
+        catch (Exception ex) { errorMessage = $"Error al cargar tipos de contenedores: {ex.Message}"; }
     }
 
-    private async Task StartNewTipoAsync()
-    {
-        tipoToDuplicate = null;
-        if (grid is not null)
-        {
-            await grid.StartEditNewRowAsync();
-        }
-    }
+    private async Task StartNewAsync() { tipoToDuplicate = null; if (grid != null) await grid.StartEditNewRowAsync(); }
+    private async Task DuplicateAsync(ContenedorTipo tipo) { tipoToDuplicate = tipo; if (grid != null) await grid.StartEditNewRowAsync(); }
 
-    private async Task DuplicateTipoAsync(ContenedorTipo tipo)
+    private void CustomizeEditModel(GridCustomizeEditModelEventArgs e)
     {
-        tipoToDuplicate = tipo;
-        if (grid is not null)
-        {
-            await grid.StartEditNewRowAsync();
-        }
-    }
-
-    private void Grid_CustomizeEditModel(GridCustomizeEditModelEventArgs e)
-    {
-        if (!e.IsNew || tipoToDuplicate is null)
-        {
-            return;
-        }
-
-        var newTipo = (ContenedorTipo)e.EditModel;
-        newTipo.IdTipo = 0;
-        newTipo.Descripcion = $"{tipoToDuplicate.Descripcion} (Copia)";
-        newTipo.CapacidadMetrosCubicos = tipoToDuplicate.CapacidadMetrosCubicos;
-        newTipo.LargoCm = tipoToDuplicate.LargoCm;
-        newTipo.AnchoCm = tipoToDuplicate.AnchoCm;
-        newTipo.AltoCm = tipoToDuplicate.AltoCm;
+        if (!e.IsNew || tipoToDuplicate == null) return;
+        var nuevo = (ContenedorTipo)e.EditModel;
+        nuevo.Descripcion = $"{tipoToDuplicate.Descripcion} (Copia)";
+        nuevo.CapacidadMetrosCubicos = tipoToDuplicate.CapacidadMetrosCubicos;
+        nuevo.LargoCm = tipoToDuplicate.LargoCm;
+        nuevo.AnchoCm = tipoToDuplicate.AnchoCm;
+        nuevo.AltoCm = tipoToDuplicate.AltoCm;
         tipoToDuplicate = null;
     }
 
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
     {
-        var editModel = (ContenedorTipo)e.EditModel;
+        var tipo = (ContenedorTipo)e.EditModel;
         try
         {
-            await SetupHeadersAsync();
-            if (e.IsNew)
-            {
-                var response = await Http.PostAsJsonAsync("api/contenedorestipos", editModel);
-                if (!response.IsSuccessStatusCode)
-                {
-                    errorMessage = $"Error al crear tipo de contenedor: {response.ReasonPhrase}";
-                    return;
-                }
-            }
-            else
-            {
-                var response = await Http.PutAsJsonAsync($"api/contenedorestipos/{editModel.IdTipo}", editModel);
-                if (!response.IsSuccessStatusCode)
-                {
-                    errorMessage = $"Error al actualizar tipo de contenedor: {response.ReasonPhrase}";
-                    return;
-                }
-            }
+            var response = e.IsNew
+                ? await Http.PostAsJsonAsync("api/contenedorestipos", tipo)
+                : await Http.PutAsJsonAsync($"api/contenedorestipos/{tipo.IdTipo}", tipo);
+            if (!response.IsSuccessStatusCode) { errorMessage = $"No se ha podido guardar el tipo de contenedor: {response.ReasonPhrase}"; return; }
             await LoadDataAsync();
         }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al guardar: {ex.Message}";
-        }
+        catch (Exception ex) { errorMessage = $"Error al guardar: {ex.Message}"; }
     }
 
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
     {
-        var dataItem = (ContenedorTipo)e.DataItem;
+        var tipo = (ContenedorTipo)e.DataItem;
         try
         {
-            await SetupHeadersAsync();
-            var response = await Http.DeleteAsync($"api/contenedorestipos/{dataItem.IdTipo}");
-            if (!response.IsSuccessStatusCode)
-            {
-                errorMessage = $"Error al borrar tipo de contenedor: {response.ReasonPhrase}";
-                return;
-            }
+            var response = await Http.DeleteAsync($"api/contenedorestipos/{tipo.IdTipo}");
+            if (!response.IsSuccessStatusCode) { errorMessage = $"No se ha podido borrar el tipo de contenedor: {response.ReasonPhrase}"; return; }
             await LoadDataAsync();
         }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al borrar: {ex.Message}";
-        }
+        catch (Exception ex) { errorMessage = $"Error al borrar: {ex.Message}"; }
     }
 }

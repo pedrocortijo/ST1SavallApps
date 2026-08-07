@@ -63,7 +63,7 @@
                                 </button>
                             </div>
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Nombre" ColSpanMd="9">
+                        <DxFormLayoutItem Caption="Nombre" ColSpanMd="10">
                             <DxTextBox Text="@obra.Nombre" TextChanged="@((string valor) => obra.Nombre = LimitarTexto(valor, 50))" TextExpression="@(() => obra.Nombre)" BindValueMode="BindValueMode.OnInput" MaxLength="50" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
@@ -164,6 +164,14 @@
                                     <i class="oi oi-eye me-1"></i> Ver en Maps
                                 </button>
                             </div>
+                        </DxFormLayoutItem>
+
+                        <!-- Grupo Observaciones -->
+                        <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3 mt-4" BeginRow="true">
+                            Observaciones
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                            <DxMemo @bind-Text="@obra.Observacio" Rows="4" />
                         </DxFormLayoutItem>
 
                         <!-- Grupo 2: Datos del Cliente -->

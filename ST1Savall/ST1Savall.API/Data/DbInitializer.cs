@@ -16,6 +16,48 @@ public static class DbInitializer
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
 
+        // Mantener los artículos de Sage y restaurar la tabla local del CRUD de tipos.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Contenedores', 'CodigoArticulo') IS NULL
+            BEGIN
+                ALTER TABLE Contenedores
+                ADD CodigoArticulo NVARCHAR(20) NOT NULL CONSTRAINT DF_Contenedores_CodigoArticulo DEFAULT ('');
+            END;
+
+            IF OBJECT_ID('ContenedoresTipos', 'U') IS NULL
+            BEGIN
+                CREATE TABLE ContenedoresTipos (
+                    IdTipo INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    Descripcion NVARCHAR(50) NOT NULL,
+                    CapacidadMetrosCubicos DECIMAL(5,2) NULL,
+                    LargoCm INT NULL,
+                    AnchoCm INT NULL,
+                    AltoCm INT NULL
+                );
+            END;
+
+            IF NOT EXISTS (SELECT 1 FROM ContenedoresTipos)
+            BEGIN
+                INSERT INTO ContenedoresTipos (Descripcion, CapacidadMetrosCubicos, LargoCm, AnchoCm, AltoCm)
+                VALUES (N'Contenedor 5m³ con puerta', 5.00, 300, 180, 100),
+                       (N'Patera 3m³', 3.00, 250, 150, 80);
+            END;
+
+            -- SQL Server compila el lote antes de ejecutar ALTER TABLE. Usar SQL
+            -- dinámico evita que una base anterior falle al no tener aún IdTipo.
+            IF COL_LENGTH('Contenedores', 'IdTipo') IS NULL
+                EXEC(N'ALTER TABLE Contenedores ADD IdTipo INT NULL;');
+
+            DECLARE @TipoPredeterminado INT = (SELECT MIN(IdTipo) FROM ContenedoresTipos);
+            IF @TipoPredeterminado IS NOT NULL
+                EXEC sp_executesql N'UPDATE Contenedores SET IdTipo = @Tipo WHERE IdTipo IS NULL;',
+                    N'@Tipo INT', @Tipo = @TipoPredeterminado;
+
+            IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Contenedores_ContenedoresTipos_IdTipo')
+                EXEC(N'ALTER TABLE Contenedores ADD CONSTRAINT FK_Contenedores_ContenedoresTipos_IdTipo
+                    FOREIGN KEY (IdTipo) REFERENCES ContenedoresTipos(IdTipo);');
+        ");
+
         // Remove the retired shifts and employee-schedule schema from existing databases.
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'HorariosOperarios', N'U') IS NOT NULL DROP TABLE HorariosOperarios;
@@ -300,60 +342,6 @@ public static class DbInitializer
             END
         ");
 
-        // Renumber ContenedoresTipos starting from 1
-        await context.Database.ExecuteSqlRawAsync(@"
-            IF EXISTS (SELECT * FROM sysobjects WHERE name='ContenedoresTipos' and xtype='U')
-            BEGIN
-                IF OBJECT_ID('tempdb..#IdMap') IS NOT NULL DROP TABLE #IdMap;
-                
-                SELECT 
-                    IdTipo AS OldId, 
-                    ROW_NUMBER() OVER (ORDER BY IdTipo) AS NewId
-                INTO #IdMap
-                FROM ContenedoresTipos;
-
-                IF EXISTS (SELECT 1 FROM #IdMap WHERE OldId <> NewId)
-                BEGIN
-                    -- Temporarily disable foreign keys referencing ContenedoresTipos
-                    ALTER TABLE Contenedores NOCHECK CONSTRAINT ALL;
-
-                    -- Update Contenedores references
-                    UPDATE c
-                    SET c.IdTipo = m.NewId
-                    FROM Contenedores c
-                    INNER JOIN #IdMap m ON c.IdTipo = m.OldId;
-
-                    -- Save data to temporary table
-                    IF OBJECT_ID('tempdb..#TempTipos') IS NOT NULL DROP TABLE #TempTipos;
-                    
-                    SELECT Descripcion, CapacidadMetrosCubicos, LargoCm, AnchoCm, AltoCm, NewId
-                    INTO #TempTipos
-                    FROM ContenedoresTipos t
-                    INNER JOIN #IdMap m ON t.IdTipo = m.OldId;
-
-                    DELETE FROM ContenedoresTipos;
-
-                    SET IDENTITY_INSERT ContenedoresTipos ON;
-
-                    INSERT INTO ContenedoresTipos (IdTipo, Descripcion, CapacidadMetrosCubicos, LargoCm, AnchoCm, AltoCm)
-                    SELECT NewId, Descripcion, CapacidadMetrosCubicos, LargoCm, AnchoCm, AltoCm
-                    FROM #TempTipos;
-
-                    SET IDENTITY_INSERT ContenedoresTipos OFF;
-
-                    -- Drop temporary tables
-                    DROP TABLE #TempTipos;
-                    
-                    -- Enable foreign keys
-                    ALTER TABLE Contenedores CHECK CONSTRAINT ALL;
-                END
-
-                -- Reseed identity
-                DECLARE @MaxId INT = ISNULL((SELECT MAX(IdTipo) FROM ContenedoresTipos), 0);
-                DBCC CHECKIDENT ('ContenedoresTipos', RESEED, @MaxId);
-            END
-        ");
-
         try
         {
             // Create the EstadosSolicitud table if it doesn't exist
@@ -597,16 +585,6 @@ public static class DbInitializer
             {
                 await userManager.AddToRoleAsync(adminUser, "Administrador");
             }
-        }
-
-        // Seed some sample container types if empty
-        if (!await context.ContenedoresTipos.AnyAsync())
-        {
-            context.ContenedoresTipos.AddRange(
-                new ContenedorTipo { Descripcion = "Contenedor 5m³ con puerta", CapacidadMetrosCubicos = 5.00m, LargoCm = 300, AnchoCm = 180, AltoCm = 100 },
-                new ContenedorTipo { Descripcion = "Patera 3m³", CapacidadMetrosCubicos = 3.00m, LargoCm = 250, AnchoCm = 150, AltoCm = 80 }
-            );
-            await context.SaveChangesAsync();
         }
 
         // Seed some sample cargos if empty

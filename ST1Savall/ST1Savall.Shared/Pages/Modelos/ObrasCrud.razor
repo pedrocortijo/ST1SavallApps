@@ -226,6 +226,14 @@
                                  <DxTextBox Text="@o.Movil" TextChanged="@((string valor) => o.Movil = LimitarTexto(valor, 15))" TextExpression="@(() => o.Movil)" MaxLength="15" />
                              </DxFormLayoutItem>
 
+                            <!-- Grupo Observaciones -->
+                            <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                                Observaciones
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                                <DxMemo @bind-Text="@o.Observaciones" Rows="4" />
+                            </DxFormLayoutItem>
+
                             <!-- Grupo 2: Datos del Cliente -->
                             <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
                                 Datos del Cliente

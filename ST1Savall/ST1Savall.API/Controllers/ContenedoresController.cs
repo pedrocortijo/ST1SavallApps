@@ -21,12 +21,14 @@ public class ContenedoresController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Contenedor>>> GetContenedores()
     {
+        await EnsureTipoContenedorSchemaAsync();
         return await _context.Contenedores.Include(c => c.Tipo).Include(c => c.Planta).ToListAsync();
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Contenedor>> GetContenedor(int id)
     {
+        await EnsureTipoContenedorSchemaAsync();
         var contenedor = await _context.Contenedores.Include(c => c.Tipo).Include(c => c.Planta).FirstOrDefaultAsync(c => c.IdContenedor == id);
         if (contenedor == null) return NotFound();
         return contenedor;
@@ -35,7 +37,11 @@ public class ContenedoresController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Contenedor>> PostContenedor(Contenedor contenedor)
     {
+        await EnsureTipoContenedorSchemaAsync();
         contenedor.NumSerie = contenedor.NumSerie?.Trim() ?? string.Empty;
+        contenedor.CodigoArticulo = contenedor.CodigoArticulo?.Trim() ?? string.Empty;
+        if (!await _context.ContenedoresTipos.AnyAsync(t => t.IdTipo == contenedor.IdTipo))
+            return BadRequest(new { message = "Seleccione un tipo de contenedor válido." });
         if (await _context.Contenedores.AnyAsync(c => c.NumSerie == contenedor.NumSerie))
             return Conflict(new { message = $"El número de serie '{contenedor.NumSerie}' ya está registrado." });
 
@@ -58,8 +64,12 @@ public class ContenedoresController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> PutContenedor(int id, Contenedor contenedor)
     {
+        await EnsureTipoContenedorSchemaAsync();
         if (id != contenedor.IdContenedor) return BadRequest();
         contenedor.NumSerie = contenedor.NumSerie?.Trim() ?? string.Empty;
+        contenedor.CodigoArticulo = contenedor.CodigoArticulo?.Trim() ?? string.Empty;
+        if (!await _context.ContenedoresTipos.AnyAsync(t => t.IdTipo == contenedor.IdTipo))
+            return BadRequest(new { message = "Seleccione un tipo de contenedor válido." });
         if (await _context.Contenedores.AnyAsync(c => c.IdContenedor != id && c.NumSerie == contenedor.NumSerie))
             return Conflict(new { message = $"El número de serie '{contenedor.NumSerie}' ya pertenece a otro contenedor." });
 
@@ -90,51 +100,6 @@ public class ContenedoresController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("seed-random")]
-    public async Task<IActionResult> SeedRandom()
-    {
-        var random = new System.Random();
-        var tipos = await _context.ContenedoresTipos.ToListAsync();
-        var plantas = await _context.Plantas.ToListAsync();
-
-        if (tipos == null || !tipos.Any() || plantas == null || !plantas.Any())
-        {
-            return BadRequest("Se necesitan tipos de contenedores y plantas para crear contenedores.");
-        }
-
-        var estados = new[] { "Disponible", "Entregado", "En Reparacion", "Baja" };
-        var creados = 0;
-
-        for (int i = 0; i < 100; i++)
-        {
-            string numSerie;
-            do
-            {
-                numSerie = $"CONT-{random.Next(100000, 999999)}";
-            } while (await _context.Contenedores.AnyAsync(c => c.NumSerie == numSerie));
-
-            var tipo = tipos[random.Next(tipos.Count)];
-            var planta = plantas[random.Next(plantas.Count)];
-            var estado = estados[random.Next(estados.Length)];
-
-            var cont = new Contenedor
-            {
-                NumSerie = numSerie,
-                IdTipo = tipo.IdTipo,
-                IdPlanta = planta.IdPlanta,
-                EstadoFisico = estado,
-                UltimaRevision = DateOnly.FromDateTime(System.DateTime.Today.AddDays(-random.Next(0, 365))),
-                Observaciones = $"Contenedor de prueba {i + 1}"
-            };
-
-            _context.Contenedores.Add(cont);
-            creados++;
-        }
-
-        await _context.SaveChangesAsync();
-        return Ok($"Se han creado {creados} contenedores al azar.");
-    }
-
     private bool ContenedorExists(int id)
     {
         return _context.Contenedores.Any(e => e.IdContenedor == id);
@@ -149,4 +114,18 @@ public class ContenedoresController : ControllerBase
     {
         return _context.Contenedores.Any(e => e.IdContenedor != id && e.NumSerie == numSerie);
     }
+
+    private Task EnsureTipoContenedorSchemaAsync() =>
+        _context.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Contenedores', 'IdTipo') IS NULL
+                EXEC(N'ALTER TABLE Contenedores ADD IdTipo INT NULL;');
+
+            IF OBJECT_ID('ContenedoresTipos', 'U') IS NOT NULL
+            BEGIN
+                DECLARE @TipoPredeterminado INT = (SELECT MIN(IdTipo) FROM ContenedoresTipos);
+                IF @TipoPredeterminado IS NOT NULL
+                    EXEC sp_executesql N'UPDATE Contenedores SET IdTipo = @Tipo WHERE IdTipo IS NULL;',
+                        N'@Tipo INT', @Tipo = @TipoPredeterminado;
+            END;
+        ");
 }

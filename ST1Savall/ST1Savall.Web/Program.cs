@@ -36,7 +36,12 @@ builder.Services.AddAuthentication(options =>
 });
 
 // HTTP Client pointing to the REST API project
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
+builder.Services.AddScoped(sp => new HttpClient
+{
+    BaseAddress = new Uri("https://localhost:7284/"),
+    // Evita que una API detenida bloquee el circuito interactivo de Blazor.
+    Timeout = TimeSpan.FromSeconds(12)
+});
 
 builder.Services.AddScoped<ST1Savall.Web.Services.IPortalAccessRequestService, ST1Savall.Web.Services.PortalAccessRequestService>();
 builder.Services.AddScoped<ST1Savall.Shared.Services.IUserDisplayService, ST1Savall.Web.Services.ServerUserDisplayService>();

@@ -15,6 +15,7 @@ public class SageGestionDbContext : DbContext
     public DbSet<FpagSage50> Fpag { get; set; } = null!;
     public DbSet<ContlfCliSage50> ContlfCli { get; set; } = null!;
     public DbSet<TipoIvaSage50> TipoIva { get; set; } = null!;
+    public DbSet<ArticuloSage50> Articulos { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -272,6 +273,15 @@ public class SageGestionDbContext : DbContext
             entity.Property(t => t.TipoImp).HasColumnName("TIPO_IMP");
             entity.Property(t => t.Cero).HasColumnName("CERO");
             entity.Property(t => t.BInv).HasColumnName("B_INV");
+        });
+
+        modelBuilder.Entity<ArticuloSage50>(entity =>
+        {
+            entity.ToTable("articulo");
+            entity.HasKey(a => a.Codigo);
+            entity.Property(a => a.Codigo).HasColumnName("CODIGO").HasMaxLength(20).IsFixedLength();
+            entity.Property(a => a.Nombre).HasColumnName("NOMBRE").HasMaxLength(100).IsFixedLength();
+            entity.Property(a => a.Familia).HasColumnName("FAMILIA").HasMaxLength(5).IsFixedLength();
         });
     }
 }

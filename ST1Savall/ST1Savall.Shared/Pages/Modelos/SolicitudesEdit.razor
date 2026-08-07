@@ -53,7 +53,7 @@
             }
             <div class="mb-3"><label class="form-label">Nº de serie</label><DxTextBox @bind-Text="nuevoContenedor.NumSerie" NullText="Introduzca el número de serie" CssClass="w-100" /></div>
             <div class="row g-3">
-                <div class="col-md-6"><label class="form-label">Tipo</label><DxComboBox Data="@tiposContenedor" TData="ContenedorTipo" TValue="int" TextFieldName="Descripcion" ValueFieldName="IdTipo" @bind-Value="nuevoContenedor.IdTipo" CssClass="w-100" NullText="Seleccione..." /></div>
+                <div class="col-md-6"><label class="form-label">Tipo de contenedor</label><DxComboBox Data="@tiposContenedorLocales" TData="ContenedorTipo" TValue="int" TextFieldName="Descripcion" ValueFieldName="IdTipo" @bind-Value="nuevoContenedor.IdTipo" CssClass="w-100" NullText="Seleccione..." /></div>
                 <div class="col-md-6"><label class="form-label">Planta</label><DxComboBox Data="@plantas" TData="Planta" TValue="int" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="nuevoContenedor.IdPlanta" CssClass="w-100" NullText="Seleccione..." /></div>
             </div>
         </div>
@@ -565,20 +565,20 @@
                                     <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Contenedores</h6>
                                     <div class="row g-2">
                                     <div class="col-md-6 mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [1] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button></div>
-                                        <DxComboBox Data="@contenedoresEntrega"
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [1] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)" @onclick="LimpiarEntrega1">Borrar</button></span></div>
+                                        <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresEntrega"
                                                     Enabled="@IsEntregaEnabled"
                                                     TData="Contenedor"
                                                     TValue="string"
                                                     TextFieldName="NumSerie"
                                                     ValueFieldName="NumSerie"
-                                                    @bind-Value="@solicitud.CodigoEntrega"
-                                                    ClearButtonVisible="true"
+                                                    Value="@solicitud.CodigoEntrega"
+                                                    ValueChanged="CambiarEntrega1"
                                                     NullText="Seleccionar..."
                                                     NullValue="@((string?)null)"
                                                     SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                                    AllowUserInput="false">
+                                                    AllowUserInput="true">
                                             <Columns>
                                                 <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
                                                 <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
@@ -587,20 +587,20 @@
                                         </DxComboBox>
                                     </div>
                                     <div class="col-md-6 mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [2] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button></div>
-                                        <DxComboBox Data="@contenedoresEntrega"
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [2] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)" @onclick="LimpiarEntrega2">Borrar</button></span></div>
+                                        <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresEntrega"
                                                     Enabled="@IsEntrega2Enabled"
                                                     TData="Contenedor"
                                                     TValue="string"
                                                     TextFieldName="NumSerie"
                                                     ValueFieldName="NumSerie"
-                                                    @bind-Value="@solicitud.CodigoAmbosEntrega"
-                                                    ClearButtonVisible="true"
+                                                    Value="@solicitud.CodigoAmbosEntrega"
+                                                    ValueChanged="CambiarEntrega2"
                                                     NullText="Seleccionar..."
                                                     NullValue="@((string?)null)"
                                                     SearchMode="ListSearchMode.AutoSearch"
                                                     SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                                    AllowUserInput="false">
+                                                    AllowUserInput="true">
                                             <Columns>
                                                 <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
                                                 <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
@@ -611,16 +611,16 @@
                                     </div>
                                     <div class="row g-2">
                                     <div class="col-md-6 mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [1] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoRecogida", "Retirada [1]")'>Nuevo</button></div>
-                                        <DxComboBox Data="@contenedoresRecogida" Enabled="@IsRecogidaEnabled"
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [1] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoRecogida", "Retirada [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)" @onclick="LimpiarRecogida1">Borrar</button></span></div>
+                                        <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresRecogida" Enabled="@IsRecogidaEnabled"
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
-                                                    @bind-Value="@solicitud.CodigoRecogida"
-                                                    ClearButtonVisible="true"
+                                                    Value="@solicitud.CodigoRecogida"
+                                                    ValueChanged="CambiarRecogida1"
                                                     NullText="Seleccionar..."
                                                     NullValue="@((string?)null)"
                                                     SearchMode="ListSearchMode.AutoSearch"
-                                                    SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="false">
+                                                    SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="true">
                                             <Columns>
                                                 <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
                                                 <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
@@ -629,16 +629,16 @@
                                         </DxComboBox>
                                     </div>
                                     <div class="col-md-6 mb-2">
-                                            <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [2] - Nº Serie</label><button type="button" class="btn btn-link btn-sm p-0" @onclick='() => AbrirNuevoContenedor("CodigoAmbosRecogida", "Retirada [2]")'>Nuevo</button></div>
-                                        <DxComboBox Data="@contenedoresRecogida" Enabled="@IsRecogida2Enabled"
+                                            <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [2] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoAmbosRecogida", "Retirada [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)" @onclick="LimpiarRecogida2">Borrar</button></span></div>
+                                        <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresRecogida" Enabled="@IsRecogida2Enabled"
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
-                                                    @bind-Value="@solicitud.CodigoAmbosRecogida"
-                                                    ClearButtonVisible="true"
+                                                    Value="@solicitud.CodigoAmbosRecogida"
+                                                    ValueChanged="CambiarRecogida2"
                                                     NullText="Seleccionar..."
                                                     NullValue="@((string?)null)"
                                                     SearchMode="ListSearchMode.AutoSearch"
-                                                    SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="false">
+                                                    SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="true">
                                             <Columns>
                                                 <DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" />
                                                 <DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" />
@@ -795,10 +795,12 @@
     private List<Contenedor>? contenedoresList;
     private List<Solicitud>? solicitudesConContenedores;
     private List<Planta>? plantas;
-    private List<ContenedorTipo>? tiposContenedor;
+    private List<ArticuloSage50>? tiposContenedor;
+    private List<ContenedorTipo>? tiposContenedorLocales;
     private bool nuevoContenedorVisible;
     private string? destinoNuevoContenedor;
     private string destinoNuevoContenedorDescripcion = string.Empty;
+    private int selectorContenedorVersion;
     private Contenedor nuevoContenedor = new();
     private string? errorNuevoContenedor;
     private bool loading = true;
@@ -954,7 +956,8 @@
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
-            tiposContenedor = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
+            tiposContenedor = await Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50/contenedores");
+            tiposContenedorLocales = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
             motivosList = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos");
             parametrosList = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
 
@@ -1957,7 +1960,7 @@
             var cont = contenedoresList?.FirstOrDefault(c => c.NumSerie == serie);
             if (cont != null)
             {
-                tipo = cont.Tipo?.Descripcion ?? "Contenedor";
+                tipo = tiposContenedor?.FirstOrDefault(t => string.Equals(t.Codigo, cont.CodigoArticulo, StringComparison.OrdinalIgnoreCase))?.Descripcion ?? "Contenedor";
             }
         }
 
@@ -2061,6 +2064,40 @@
                 && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase))))
         .OrderBy(c => c.NumSerie)
         .ToList() ?? new List<Contenedor>();
+
+    // DxComboBox devuelve null al pulsar el botón de limpiar. Se asigna de forma
+    // explícita al modelo para que el valor anterior no reaparezca al cerrar la lista.
+    private void CambiarEntrega1(string? valor) => AsignarContenedor(valor, (s, v) => s.CodigoEntrega = v);
+    private void CambiarEntrega2(string? valor) => AsignarContenedor(valor, (s, v) => s.CodigoAmbosEntrega = v);
+    private void CambiarRecogida1(string? valor) => AsignarContenedor(valor, (s, v) => s.CodigoRecogida = v);
+    private void CambiarRecogida2(string? valor) => AsignarContenedor(valor, (s, v) => s.CodigoAmbosRecogida = v);
+
+    private void AsignarContenedor(string? valor, Action<Solicitud, string?> asignar)
+    {
+        if (solicitud is null) return;
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            asignar(solicitud, null);
+            return;
+        }
+
+        // El texto libre solo se admite si corresponde a un contenedor existente.
+        // Así se puede borrar con teclado sin guardar números de serie no válidos.
+        if (contenedoresList?.Any(c => string.Equals(c.NumSerie, valor, StringComparison.OrdinalIgnoreCase)) == true)
+            asignar(solicitud, valor);
+    }
+
+    private void LimpiarEntrega1() => LimpiarContenedor((s, v) => s.CodigoEntrega = v);
+    private void LimpiarEntrega2() => LimpiarContenedor((s, v) => s.CodigoAmbosEntrega = v);
+    private void LimpiarRecogida1() => LimpiarContenedor((s, v) => s.CodigoRecogida = v);
+    private void LimpiarRecogida2() => LimpiarContenedor((s, v) => s.CodigoAmbosRecogida = v);
+
+    private void LimpiarContenedor(Action<Solicitud, string?> asignar)
+    {
+        if (solicitud is null) return;
+        asignar(solicitud, null);
+        selectorContenedorVersion++;
+    }
 
     private List<Contenedor> contenedoresRecogida => contenedoresList?
         .Where(c => !EstaSeleccionadoParaEntrega(c)

@@ -84,13 +84,13 @@
 }
 
 ::deep .icon-user {
-    -webkit-mask-image: url("images/account/user.svg");
-    mask-image: url("images/account/user.svg");
+    -webkit-mask-image: url("/_content/ST1Savall.Shared/images/account/user.svg");
+    mask-image: url("/_content/ST1Savall.Shared/images/account/user.svg");
 }
 
 ::deep .docs-icon {
-    mask-image: url("images/doc.svg");
-    -webkit-mask-image: url("images/doc.svg");
+    mask-image: url("/_content/ST1Savall.Shared/images/doc.svg");
+    -webkit-mask-image: url("/_content/ST1Savall.Shared/images/doc.svg");
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     background-color: var(--dxbl-btn-color);
@@ -174,15 +174,31 @@
 }
 
 @media (max-width: 768px) {
+    ::deep .navigation-drawer.panel-open {
+        position: relative;
+        z-index: 1100;
+    }
+
     ::deep .navigation-drawer > .dxbl-drawer-panel {
         display: none;
     }
 
+    ::deep .navigation-drawer.panel-open > .dxbl-drawer-panel,
     ::deep .navigation-drawer.mobile > .dxbl-drawer-panel {
         display: flex;
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 1100;
+        max-width: min(85vw, 20rem);
+        pointer-events: auto;
     }
 
+    ::deep .navigation-drawer.panel-open > .dxbl-drawer-shading,
     ::deep .navigation-drawer.mobile > .dxbl-drawer-shading {
         display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1090;
+        pointer-events: none;
     }
 }

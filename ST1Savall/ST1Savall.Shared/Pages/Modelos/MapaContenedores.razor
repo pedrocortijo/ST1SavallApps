@@ -103,7 +103,7 @@
     private string BackText => !string.IsNullOrEmpty(QueryBackUrl) ? "Volver" : "Volver a Contenedores";
 
     private List<Contenedor>? contenedores;
-    private List<ContenedorTipo>? tipos;
+    private List<ArticuloSage50>? tipos;
     private List<Obra>? obras;
     private List<Solicitud>? solicitudesConContenedores;
     private bool isLoading = true;
@@ -192,7 +192,7 @@
                 return;
             }
 
-            tipos = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
+            tipos = await Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50/contenedores");
             contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores");
             obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
             
@@ -220,7 +220,7 @@
                         var (lat, lon, address) = GetCoordinatesAndAddress(sol);
                         if ((lat.HasValue && lon.HasValue) || !string.IsNullOrWhiteSpace(address))
                         {
-                            var tipoDesc = tipos?.FirstOrDefault(t => t.IdTipo == cont.IdTipo)?.Descripcion ?? "Contenedor";
+                            var tipoDesc = tipos?.FirstOrDefault(t => string.Equals(t.Codigo, cont.CodigoArticulo, StringComparison.OrdinalIgnoreCase))?.Descripcion ?? "Contenedor";
                             var nombreObra = sol.NombreObra ?? "Sin nombre";
                             var infoText = $"<div style='font-family: inherit; font-size: 0.9rem; line-height: 1.4;'><h6 style='margin: 0 0 5px 0; color: #0e7a52; font-weight: bold;'>{tipoDesc}</h6><strong>Nº Serie:</strong> {cont.NumSerie}<br/><strong>Obra:</strong> {nombreObra}<br/><strong>Dirección:</strong> {address}</div>";
                             var labelText = $"{tipoDesc} - Serie {cont.NumSerie} - {nombreObra}";

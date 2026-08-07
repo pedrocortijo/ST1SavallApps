@@ -70,7 +70,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasIndex(c => c.NumSerie)
             .IsUnique();
 
-        // Configure Decimals to avoid precision warning
         builder.Entity<ContenedorTipo>()
             .Property(ct => ct.CapacidadMetrosCubicos)
             .HasPrecision(5, 2);

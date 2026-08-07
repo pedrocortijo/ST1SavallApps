@@ -60,15 +60,41 @@
                     <div><div class="servicio-cliente">@servicio.NombreCliente</div><div class="servicio-direccion text-muted">@servicio.NombreObra</div><div class="servicio-direccion text-muted">@servicio.DireccionCliente, @servicio.PoblacionCliente</div></div>
                     <div class="servicio-tablet-actions">
                         <button class="btn btn-primary" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye me-1"></i>Ver servicio</button>
-                        <button class="btn btn-outline-success" disabled="@(iniciandoServicioId == servicio.IdSolicitud || EsServicioIniciado(servicio))" @onclick="() => IniciarServicioAsync(servicio.IdSolicitud)"><i class="oi oi-media-play me-1"></i>@(iniciandoServicioId == servicio.IdSolicitud ? "Iniciando..." : "Iniciar")</button>
-                        <button class="btn btn-outline-primary" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
-                        <button class="btn btn-outline-danger" @onclick='() => ShowPendingAction("Finalizar servicio")'><i class="oi oi-media-stop me-1"></i>Finalizar</button>
+                        <button class="btn @(EsServicioIniciado(servicio) ? "btn-outline-warning" : "btn-outline-success")"
+                                disabled="@(iniciandoServicioId == servicio.IdSolicitud)"
+                                @onclick="() => CambiarInicioServicioAsync(servicio)">
+                            <i class="@(EsServicioIniciado(servicio) ? "oi oi-x me-1" : "oi oi-media-play me-1")"></i>
+                            @(iniciandoServicioId == servicio.IdSolicitud ? "Actualizando..." : EsServicioIniciado(servicio) ? "Cancelar" : "Iniciar")
+                        </button>
+                        <button class="btn btn-outline-primary" disabled="@(!EsServicioIniciado(servicio))" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
+                        <button class="btn btn-outline-danger" disabled="@(!EsServicioIniciado(servicio) || finalizandoServicioId == servicio.IdSolicitud)" @onclick="() => FinalizarServicioAsync(servicio.IdSolicitud)">
+                            <i class="oi oi-media-stop me-1"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Finalizando..." : "Finalizar")
+                        </button>
                     </div>
                 </article>
             }
         </div>
     }
 </div>
+
+<DxPopup @bind-Visible="mensajePopupVisible"
+         HeaderText="No se puede finalizar el servicio"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-warning text-warning fs-3"></i>
+            <p class="mb-0">@mensajePopup</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => mensajePopupVisible = false" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
 
 @if (!string.IsNullOrWhiteSpace(pendingAction))
 {
@@ -80,6 +106,9 @@
     private bool loading = true;
     private string? errorMessage, pendingAction, userName, conductorNombre;
     private int? iniciandoServicioId;
+    private int? finalizandoServicioId;
+    private bool mensajePopupVisible;
+    private string? mensajePopup;
 
     protected override async Task OnInitializedAsync() => await LoadDataAsync();
 
@@ -124,6 +153,11 @@
     private static bool EsServicioIniciado(Solicitud servicio) =>
         servicio.EstadoDescripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true;
 
+    private Task CambiarInicioServicioAsync(Solicitud servicio) =>
+        EsServicioIniciado(servicio)
+            ? CancelarInicioServicioAsync(servicio.IdSolicitud)
+            : IniciarServicioAsync(servicio.IdSolicitud);
+
     private async Task IniciarServicioAsync(int idSolicitud)
     {
         iniciandoServicioId = idSolicitud;
@@ -148,6 +182,82 @@
         {
             iniciandoServicioId = null;
         }
+    }
+
+    private async Task CancelarInicioServicioAsync(int idSolicitud)
+    {
+        iniciandoServicioId = idSolicitud;
+        errorMessage = null;
+        try
+        {
+            var response = await Http.PostAsync($"api/solicitudes/{idSolicitud}/cancelar-inicio", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se ha podido cancelar el inicio del servicio.";
+                return;
+            }
+
+            pendingAction = "Inicio del servicio cancelado.";
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido cancelar el inicio del servicio: {ex.Message}";
+        }
+        finally
+        {
+            iniciandoServicioId = null;
+        }
+    }
+
+    private async Task FinalizarServicioAsync(int idSolicitud)
+    {
+        finalizandoServicioId = idSolicitud;
+        errorMessage = null;
+        try
+        {
+            var response = await Http.PostAsync($"api/solicitudes/{idSolicitud}/finalizar", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                mensajePopup = await ObtenerMensajeErrorAsync(response, "No se ha podido finalizar el servicio.");
+                mensajePopupVisible = true;
+                return;
+            }
+
+            pendingAction = "Servicio finalizado.";
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajePopup = $"No se ha podido finalizar el servicio: {ex.Message}";
+            mensajePopupVisible = true;
+        }
+        finally
+        {
+            finalizandoServicioId = null;
+        }
+    }
+
+    private sealed class ApiError
+    {
+        public string? Message { get; set; }
+    }
+
+    private static async Task<string> ObtenerMensajeErrorAsync(HttpResponseMessage response, string mensajePredeterminado)
+    {
+        var contenido = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var error = System.Text.Json.JsonSerializer.Deserialize<ApiError>(contenido,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (!string.IsNullOrWhiteSpace(error?.Message))
+                return error.Message;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+
+        return mensajePredeterminado;
     }
 
     private void ShowPendingAction(string action) => pendingAction = action;

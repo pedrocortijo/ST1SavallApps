@@ -43,67 +43,67 @@
 }
 
 ::deep .home-icon {
-    background-image: url("images/home.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/home.svg");
 }
 
 ::deep .weather-icon {
-    background-image: url("images/weather.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/weather.svg");
 }
 
 ::deep .counter-icon {
-    background-image: url("images/counter.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/counter.svg");
 }
 
 ::deep .settings-icon {
-    background-image: url("images/account/settings.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/account/settings.svg");
 }
 
 ::deep .log-in-icon {
-    background-image: url("images/account/log-in.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/account/log-in.svg");
 }
 
 ::deep .log-out-icon {
-    background-image: url("images/account/log-out.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/account/log-out.svg");
 }
 
 ::deep .user-icon {
-    background-image: url("images/account/user.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/account/user.svg");
 }
 
 ::deep .database-icon {
-    background-image: url("images/counter.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/counter.svg");
 }
 
 ::deep .solicitudes-icon {
-    background-image: url("images/doc.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/doc.svg");
 }
 
 ::deep .contenedores-icon {
-    background-image: url("images/counter.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/counter.svg");
 }
 
 ::deep .tipos-icon {
-    background-image: url("images/counter.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/counter.svg");
 }
 
 ::deep .obras-icon {
-    background-image: url("images/home.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/home.svg");
 }
 
 ::deep .operarios-icon {
-    background-image: url("images/account/user.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/account/user.svg");
 }
 
 ::deep .cargos-icon {
-    background-image: url("images/account/settings.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/account/settings.svg");
 }
 
 ::deep .status-icon {
-    background-image: url("images/weather.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/weather.svg");
 }
 
 ::deep .tareas-icon {
-    background-image: url("images/doc.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/doc.svg");
 }
 
 ::deep .doc-icon {
@@ -111,14 +111,94 @@
 }
 
 ::deep .chart-icon {
-    background-image: url("images/weather.svg");
+    background-image: url("/_content/ST1Savall.Shared/images/weather.svg");
 }
 
 @media (max-width: 768px) {
+    #sidebar:has(.mobile-navigation) ::deep .menu {
+        display: none;
+    }
+
+    .mobile-navigation {
+        display: flex;
+        flex-direction: column;
+        padding: .5rem 0;
+    }
+
+    .mobile-navigation a,
+    .mobile-menu-group {
+        color: var(--bs-white);
+        text-decoration: none;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        padding: .7rem 1rem;
+        font: inherit;
+    }
+
+    .mobile-menu-group {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .mobile-menu-children {
+        display: flex;
+        flex-direction: column;
+        margin: .25rem .75rem .5rem;
+        background: #f8fafc;
+        border: 1px solid #dbe3ec;
+        border-radius: .5rem;
+        box-shadow: 0 .35rem .9rem rgba(15, 23, 42, .12);
+        overflow: hidden;
+    }
+
+    .mobile-menu-children a {
+        padding-left: 2rem;
+        color: #334155;
+        border-bottom: 1px solid #e5eaf0;
+        font-size: .9rem;
+    }
+
+    .mobile-menu-children a:last-child {
+        border-bottom: 0;
+    }
+
+    .mobile-menu-children a.active,
+    .mobile-menu-children a:hover {
+        background: #e8f0f8;
+        color: #0f4c81;
+        font-weight: 600;
+    }
+
+    html.theme-blazing-dark .mobile-menu-children,
+    html.theme-fluent-dark .mobile-menu-children {
+        background: #1e293b;
+        border-color: #334155;
+        box-shadow: 0 .35rem .9rem rgba(0, 0, 0, .35);
+    }
+
+    #sidebar .mobile-navigation .mobile-menu-children a {
+        color: #ffffff !important;
+        border-bottom-color: #334155;
+    }
+
+    #sidebar .mobile-navigation .mobile-menu-children a.active,
+    #sidebar .mobile-navigation .mobile-menu-children a:hover {
+        background: #334155;
+        color: #f59e0b !important;
+    }
+
     #sidebar {
         min-width: inherit;
         max-width: inherit;
         display: block;
+        /* Los submenús de DxMenu se despliegan lateralmente. */
+        overflow: visible;
+    }
+
+    ::deep .menu .dxbl-menu-item-list {
+        z-index: 1200;
     }
 
     .logo {

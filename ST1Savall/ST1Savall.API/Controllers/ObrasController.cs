@@ -66,7 +66,8 @@ public class ObrasController : ControllerBase
                 Telefono = so.Telefono.Trim(),
                 Movil = so.Movil.Trim(),
                 Cliente = so.Cliente.Trim(),
-                Encargado = so.Encargado.Trim()
+                Encargado = so.Encargado.Trim(),
+                Observaciones = so.Observacio
             };
 
             var clientCode = (so.Cliente ?? "").Trim();
@@ -115,7 +116,8 @@ public class ObrasController : ControllerBase
             Telefono = so.Telefono.Trim(),
             Movil = so.Movil.Trim(),
             Cliente = so.Cliente.Trim(),
-            Encargado = so.Encargado.Trim()
+            Encargado = so.Encargado.Trim(),
+            Observaciones = so.Observacio
         };
 
         var clientCode = (so.Cliente ?? "").Trim();
@@ -190,6 +192,7 @@ public class ObrasController : ControllerBase
             Posicion = obra.Posicion ?? (obra.Visible == false ? 1 : 0),
             Vista = obra.Visible ?? true,
             Libre3 = obra.Nima ?? "",
+            Observacio = obra.Observaciones,
             Created = DateTime.Now,
             Modified = DateTime.Now,
             GuidId = Guid.NewGuid().ToString()
@@ -284,6 +287,7 @@ public class ObrasController : ControllerBase
         so.Posicion = obra.Posicion ?? (obra.Visible == false ? 1 : 0);
         so.Vista = obra.Visible ?? true;
         so.Libre3 = obra.Nima ?? "";
+        so.Observacio = obra.Observaciones;
         so.Modified = DateTime.Now;
 
         // Resolve client code
