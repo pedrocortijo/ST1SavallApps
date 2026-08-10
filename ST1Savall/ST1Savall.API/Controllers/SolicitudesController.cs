@@ -68,15 +68,12 @@ public class SolicitudesController : ControllerBase
     public async Task<ActionResult<IEnumerable<Solicitud>>> GetSolicitudesConContenedores()
     {
         var solicitudes = await _context.Solicitudes
-            .Where(s1 => s1.CodigoEntrega != null && s1.CodigoEntrega != "" && s1.Estado != 6)
-            .Where(s1 => !_context.Solicitudes.Any(s2 => 
-                s2.CodigoRecogida == s1.CodigoEntrega && 
-                s2.Estado != 6 && 
-                (
-                    (s2.FechaTarea ?? s2.FechaSolicitud ?? DateTime.MinValue) > (s1.FechaTarea ?? s1.FechaSolicitud ?? DateTime.MinValue) ||
-                    ((s2.FechaTarea ?? s2.FechaSolicitud ?? DateTime.MinValue) == (s1.FechaTarea ?? s1.FechaSolicitud ?? DateTime.MinValue) && s2.IdSolicitud > s1.IdSolicitud)
-                )
-            ))
+            .AsNoTracking()
+            .Where(s => s.Estado != 6 && (
+                !string.IsNullOrEmpty(s.CodigoEntrega) ||
+                !string.IsNullOrEmpty(s.CodigoAmbosEntrega) ||
+                !string.IsNullOrEmpty(s.CodigoRecogida) ||
+                !string.IsNullOrEmpty(s.CodigoAmbosRecogida)))
             .ToListAsync();
 
         return Ok(solicitudes);
@@ -292,14 +289,13 @@ public class SolicitudesController : ControllerBase
             return Conflict(new { message = "Solo se puede finalizar un servicio iniciado." });
         var datosPendientes = new List<string>();
         if (string.IsNullOrWhiteSpace(solicitud.FirmaPath) || !System.IO.File.Exists(solicitud.FirmaPath))
-            datosPendientes.Add("firma");
+            datosPendientes.Add("Firma");
         if (string.IsNullOrWhiteSpace(solicitud.FirmaNombre))
-            datosPendientes.Add("nombre del firmante");
+            datosPendientes.Add("Nombre del firmante");
         if (string.IsNullOrWhiteSpace(solicitud.FirmaDni))
             datosPendientes.Add("DNI del firmante");
-        if (string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta))
-            datosPendientes.Add("número de albarán de planta");
-
+        if (string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
+            datosPendientes.Add("Tipo de residuo");
         var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
         if (tarea == null)
             return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
@@ -309,9 +305,37 @@ public class SolicitudesController : ControllerBase
         if (tarea.Recoger1 && string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)) datosPendientes.Add("número de serie de Retirada [1]");
         if (tarea.Recoger2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)) datosPendientes.Add("número de serie de Retirada [2]");
         if (datosPendientes.Count > 0)
-            return BadRequest(new { message = $"Debe indicar: {string.Join(", ", datosPendientes)}." });
+            return BadRequest(new { message = $"Debe cumplimentar:{Environment.NewLine}{string.Join(Environment.NewLine, datosPendientes)}." });
 
         solicitud.Estado = estadoFinalizado.Value;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [HttpPost("{id}/cancelar-finalizacion")]
+    public async Task<IActionResult> CancelarFinalizacionSolicitud(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var estadoIniciado = parametro?.EstadoIniciado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("iniciado"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+        var estadoFinalizado = parametro?.EstadoFinalizado
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("finalizado"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync();
+
+        if (!estadoIniciado.HasValue || !estadoFinalizado.HasValue)
+            return BadRequest(new { message = "No hay estados de servicio iniciado y finalizado configurados." });
+        if (solicitud.Estado != estadoFinalizado.Value)
+            return Conflict(new { message = "Solo se puede cancelar la finalización de un servicio finalizado." });
+
+        solicitud.Estado = estadoIniciado.Value;
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -322,8 +346,24 @@ public class SolicitudesController : ControllerBase
         var solicitud = await _context.Solicitudes.FindAsync(id);
         if (solicitud == null) return NotFound();
 
+        var solicitudAnterior = new Solicitud
+        {
+            CodigoEntrega = solicitud.CodigoEntrega,
+            CodigoAmbosEntrega = solicitud.CodigoAmbosEntrega,
+            CodigoRecogida = solicitud.CodigoRecogida,
+            CodigoAmbosRecogida = solicitud.CodigoAmbosRecogida
+        };
+
         solicitud.AlbaranPlanta = datos.AlbaranPlanta?.Trim();
         solicitud.TipoResiduo = datos.TipoResiduo?.Trim();
+        solicitud.FirmaNombre = datos.FirmaNombre?.Trim();
+        solicitud.FirmaDni = datos.FirmaDni?.Trim();
+        solicitud.CodigoEntrega = datos.CodigoEntrega?.Trim();
+        solicitud.CodigoAmbosEntrega = datos.CodigoAmbosEntrega?.Trim();
+        solicitud.CodigoRecogida = datos.CodigoRecogida?.Trim();
+        solicitud.CodigoAmbosRecogida = datos.CodigoAmbosRecogida?.Trim();
+        await RestaurarEstadosContenedoresEliminados(solicitudAnterior, solicitud);
+        await ActualizarEstadosContenedores(solicitud);
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -567,6 +607,12 @@ public class SolicitudesController : ControllerBase
     {
         public string? AlbaranPlanta { get; init; }
         public string? TipoResiduo { get; init; }
+        public string? FirmaNombre { get; init; }
+        public string? FirmaDni { get; init; }
+        public string? CodigoEntrega { get; init; }
+        public string? CodigoAmbosEntrega { get; init; }
+        public string? CodigoRecogida { get; init; }
+        public string? CodigoAmbosRecogida { get; init; }
     }
 
     public sealed class FotoSolicitudRequest

@@ -463,6 +463,12 @@ namespace ST1Savall.API.Migrations
                     b.Property<int>("AvisoTiempoServicio")
                         .HasColumnType("int");
 
+                    b.Property<int>("DuracionOperacionServicioMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RedondeoHora")
+                        .HasColumnType("int");
+
                     b.Property<string>("Empresa")
                         .IsRequired()
                         .HasMaxLength(256)

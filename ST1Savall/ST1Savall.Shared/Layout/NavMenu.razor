@@ -1,4 +1,6 @@
 <div id="sidebar">
+    @* The responsive Drawer renders this single DxMenu on every device. *@
+    @*
     <style>
         #sidebar .mobile-navigation .mobile-menu-children a {
             color: #ffffff !important;
@@ -9,7 +11,7 @@
             color: #f59e0b !important;
         }
     </style>
-    @if (isSmallScreen && !isConductor)
+    @if (false && isSmallScreen && !isConductor)
     {
         <nav class="mobile-navigation">
             <NavLink href="/" class="mobile-menu-link">Inicio</NavLink>
@@ -18,18 +20,19 @@
             <button class="mobile-menu-group" @onclick="() => laboralOpen = !laboralOpen">Laboral <span>⌄</span></button>
             @if (laboralOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/operarios">Operarios</NavLink><NavLink href="/modelos/cargos">Cargos</NavLink><NavLink href="/laboral/usuarios">Usuarios</NavLink></div> }
             <button class="mobile-menu-group" @onclick="() => serviciosOpen = !serviciosOpen">Servicios <span>⌄</span></button>
-            @if (serviciosOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/solicitudes">Solicitudes</NavLink><NavLink href="/servicios/mis-servicios">Mis servicios</NavLink><NavLink href="/servicios/asignacion-tareas">Asignación de tareas</NavLink><NavLink href="/servicios/informes">Informes</NavLink></div> }
+            @if (serviciosOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/solicitudes">Solicitudes</NavLink><NavLink href="/servicios/asignacion-secuencial">Programación</NavLink><NavLink href="/servicios/mis-servicios">Mis servicios</NavLink><NavLink href="/servicios/asignacion-tareas">Asignación de tareas</NavLink><NavLink href="/servicios/informes">Informes</NavLink></div> }
             <button class="mobile-menu-group" @onclick="() => configuracionOpen = !configuracionOpen">Configuración <span>⌄</span></button>
             @if (configuracionOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/parametros">Parámetros</NavLink></div> }
         </nav>
     }
-    @if (isSmallScreen && isConductor)
+    @if (false && isSmallScreen && isConductor)
     {
         <nav class="mobile-navigation">
             <NavLink href="/servicios/mis-servicios" class="mobile-menu-link">Mis servicios</NavLink>
             <button class="mobile-menu-group" @onclick="CerrarSesionAsync">Cerrar sesión</button>
         </nav>
     }
+    *@
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu">
         <Items>
             @if (isConductor)
@@ -57,6 +60,7 @@
                     <DxMenuItem NavigateUrl="/modelos/poblaciones" Text="Poblaciones" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/plantas" Text="Plantas" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/motivos" Text="Motivos" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/modelos/camiones" Text="Camiones" CssClass="menu-item" IconCssClass="icon operarios-icon"></DxMenuItem>
                 </Items>
             </DxMenuItem>
 
@@ -71,6 +75,8 @@
             <DxMenuItem Text="Servicios" CssClass="menu-item" IconCssClass="icon doc-icon">
                 <Items>
                     <DxMenuItem NavigateUrl="/modelos/solicitudes" Text="Solicitudes" CssClass="menu-item" IconCssClass="icon solicitudes-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/planificacion" Text="Planificación" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/asignacion-secuencial" Text="Programación" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/mis-servicios" Text="Mis servicios" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/asignacion-tareas" Text="Asignación de tareas" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/informes" Text="Informes" CssClass="menu-item" IconCssClass="icon chart-icon"></DxMenuItem>
@@ -86,27 +92,33 @@
             }
         </Items>
     </DxMenu>
-    
+
+    <AuthorizeView>
+        <Authorized>
+            <div class="mobile-account-actions">
+                <NavLink href="@ManageUrl" class="mobile-account-link">
+                    <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="@context.User.Identity?.Name" RenderStyleMode="@ButtonRenderStyleMode.Text" IconCssClass="oi oi-person" />
+                </NavLink>
+                <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Cerrar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" IconCssClass="oi oi-account-logout" Click="CerrarSesionAsync" />
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="mobile-account-actions">
+                <NavLink href="login" class="mobile-account-link">
+                    <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Iniciar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" IconCssClass="oi oi-account-login" />
+                </NavLink>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+
     <div class="theme-selector-container px-3 py-2 mt-4" style="border-top: 1px solid rgba(255,255,255,0.1);">
         <label class="text-white-50 small mb-1 d-block" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Tema Visual</label>
-        @if (isSmallScreen)
-        {
-            <select class="form-select" value="@selectedTheme" @onchange="OnNativeThemeChanged">
-                @foreach (var theme in availableThemes)
-                {
-                    <option value="@theme.Id">@theme.Name</option>
-                }
-            </select>
-        }
-        else
-        {
-            <DxComboBox Data="@availableThemes"
-                        TextFieldName="Name"
-                        ValueFieldName="Id"
-                        Value="@selectedTheme"
-                        ValueChanged="@((string t) => OnThemeChanged(t))"
-                        CssClass="w-100" />
-        }
+        <DxComboBox Data="@availableThemes"
+                    TextFieldName="Name"
+                    ValueFieldName="Id"
+                    Value="@selectedTheme"
+                    ValueChanged="@((string t) => OnThemeChanged(t))"
+                    CssClass="w-100" />
     </div>
 </div>
  
@@ -120,7 +132,7 @@
 @using ST1Savall.Shared.Data
  
 @code {
-    private string ManageUrl => FormFactor.GetPlatform() == "Web" ? "login" : "settings";
+    private string ManageUrl => FormFactor.GetPlatform() == "Web" ? "Account/Manage" : "settings";
 
     private List<ThemeInfo> availableThemes = new()
     {
@@ -133,11 +145,6 @@
     };
     private string selectedTheme = "blazing-berry";
     private bool isConductor;
-    private bool isSmallScreen;
-    private bool maestrosOpen;
-    private bool laboralOpen;
-    private bool serviciosOpen;
-    private bool configuracionOpen;
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,7 +182,6 @@
                 // Reaplicar el tema al iniciar para sincronizar la hoja de estilos
                 // y la clase del elemento HTML, especialmente en la versión web.
                 await JSRuntime.InvokeVoidAsync("setTheme", selectedTheme);
-                isSmallScreen = await JSRuntime.InvokeAsync<int>("getViewportWidth") <= 768;
                 StateHasChanged();
             }
             catch
@@ -190,9 +196,6 @@
         selectedTheme = theme;
         await JSRuntime.InvokeVoidAsync("setTheme", theme);
     }
-
-    private Task OnNativeThemeChanged(ChangeEventArgs e) =>
-        OnThemeChanged(e.Value?.ToString() ?? selectedTheme);
 
     private async Task CerrarSesionAsync()
     {

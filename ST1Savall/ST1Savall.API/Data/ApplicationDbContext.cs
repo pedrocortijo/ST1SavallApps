@@ -13,6 +13,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Cargo> Cargos { get; set; } = null!;
     public DbSet<Operario> Operarios { get; set; } = null!;
+    public DbSet<Camion> Camiones { get; set; } = null!;
     public DbSet<ContenedorTipo> ContenedoresTipos { get; set; } = null!;
     public DbSet<Contenedor> Contenedores { get; set; } = null!;
     public DbSet<Solicitud> Solicitudes { get; set; } = null!;
@@ -51,6 +52,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Operario>()
             .Property(o => o.IdOperario)
             .UseIdentityColumn(0, 1);
+
+        builder.Entity<Camion>()
+            .HasIndex(c => c.Matricula)
+            .IsUnique();
+
+        builder.Entity<Camion>()
+            .HasIndex(c => c.UnidadWialonId)
+            .IsUnique()
+            .HasFilter("[UnidadWialonId] IS NOT NULL");
+
+        builder.Entity<Camion>()
+            .HasOne(c => c.Conductor)
+            .WithMany()
+            .HasForeignKey(c => c.IdConductor)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.Entity<Ausencia>()
             .HasOne(a => a.Conductor)

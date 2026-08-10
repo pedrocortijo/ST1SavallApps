@@ -7,7 +7,22 @@
 
 <PageTitle>Detalle de servicio</PageTitle>
 
-<div class="container-fluid py-0">
+<style>
+    .detalle-servicio .bg-light {
+        background-color: var(--bs-body-bg) !important;
+        color: var(--bs-body-color);
+        border-color: var(--bs-border-color) !important;
+    }
+
+    html.theme-blazing-dark .detalle-servicio .bg-light,
+    html.theme-fluent-dark .detalle-servicio .bg-light {
+        background-color: #1e1d32 !important;
+        color: #f8f9fa;
+        border-color: #8b8a9a !important;
+    }
+</style>
+
+<div class="container-fluid py-0 detalle-servicio">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div><h2 class="fw-bold text-primary mb-1">Detalle del servicio</h2>
             <p class="text-muted mb-0">Consulta de los datos asignados.</p>

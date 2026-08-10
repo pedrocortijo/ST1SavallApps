@@ -59,6 +59,7 @@ window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
     });
 
     var bounds = [];
+    var markerPositions = new Map();
     const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
     for (let i = 0; i < locations.length; i++) {
@@ -67,12 +68,14 @@ window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
         // Si no tiene coordenadas pero tiene dirección, la geocodificamos en tiempo real
         if ((!loc.lat || !loc.lon || loc.lat === 0) && loc.address) {
             try {
-                await delay(300);
+                // Nominatim establece un límite de una petición por segundo. En el mapa global
+                // se geocodifican varias obras seguidas; respetarlo evita que se descarte alguna.
+                await delay(1100);
                 
                 // Patrón de Cancelación: Si se inició una nueva inicialización en paralelo, abortamos esta ejecución
                 if (container && container._leafletMap !== map) return;
 
-                var response = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(loc.address) + '&limit=1');
+                var response = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(loc.address + ', España') + '&limit=1');
                 if (response.ok) {
                     var data = await response.json();
                     
@@ -82,6 +85,23 @@ window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
                     if (data && data.length > 0) {
                         loc.lat = parseFloat(data[0].lat);
                         loc.lon = parseFloat(data[0].lon);
+                    }
+                    else {
+                        // Las partidas y polígonos a veces no están indexados por su dirección
+                        // completa. Como respaldo, situamos la obra por municipio y código postal.
+                        var addressParts = loc.address.split(',').map(part => part.trim()).filter(Boolean);
+                        var fallbackAddress = addressParts.length > 1
+                            ? addressParts.slice(-2).join(', ') + ', España'
+                            : loc.address + ', España';
+                        await delay(1200);
+                        var fallbackResponse = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fallbackAddress) + '&limit=1');
+                        if (fallbackResponse.ok) {
+                            var fallbackData = await fallbackResponse.json();
+                            if (fallbackData && fallbackData.length > 0) {
+                                loc.lat = parseFloat(fallbackData[0].lat);
+                                loc.lon = parseFloat(fallbackData[0].lon);
+                            }
+                        }
                     }
                 }
             } catch (e) {
@@ -93,7 +113,13 @@ window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
         if (container && container._leafletMap !== map) return;
 
         if (loc.lat && loc.lon && loc.lat !== 0) {
-            var marker = L.marker([loc.lat, loc.lon], { icon: sabospaIcon }).addTo(map);
+            // Evita que dos obras con coordenadas idénticas oculten uno de los iconos.
+            var positionKey = `${Number(loc.lat).toFixed(6)},${Number(loc.lon).toFixed(6)}`;
+            var repetitions = markerPositions.get(positionKey) || 0;
+            markerPositions.set(positionKey, repetitions + 1);
+            var markerLat = Number(loc.lat) + (repetitions * 0.00012);
+            var markerLon = Number(loc.lon) + (repetitions * 0.00012);
+            var marker = L.marker([markerLat, markerLon], { icon: sabospaIcon }).addTo(map);
             var destination = loc.address && loc.address !== "Dirección no especificada"
                 ? loc.address
                 : `${loc.lat},${loc.lon}`;
@@ -104,10 +130,10 @@ window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
             if (locations.length === 1) {
                 marker.openPopup();
             }
-            bounds.push([loc.lat, loc.lon]);
+            bounds.push([markerLat, markerLon]);
             
             if (bounds.length === 1) {
-                map.setView([loc.lat, loc.lon], 13);
+                map.setView([markerLat, markerLon], 13);
             } else {
                 map.fitBounds(bounds, { padding: [50, 50] });
             }

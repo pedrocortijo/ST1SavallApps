@@ -113,7 +113,7 @@
 }
 
 ::deep .menu-button {
-    color: #ffffff !important;
+    color: #333333 !important;
 }
 
 ::deep .menu-button .icon {
@@ -130,6 +130,23 @@
 
 ::deep .menu-button:hover .icon {
     background-color: var(--dxbl-btn-hover-color) !important;
+}
+
+html.theme-blazing-dark ::deep .menu-button,
+html.theme-fluent-dark ::deep .menu-button {
+    color: #ffffff !important;
+}
+
+/* DxButton aplica el color al icono por separado; forzarlo evita que la
+   hamburguesa herede el gris oscuro en temas oscuros. */
+html.theme-blazing-dark ::deep .menu-button .oi,
+html.theme-fluent-dark ::deep .menu-button .oi,
+html.theme-blazing-dark ::deep .menu-button .oi::before,
+html.theme-fluent-dark ::deep .menu-button .oi::before,
+html.theme-blazing-dark ::deep .menu-button .dxbl-image,
+html.theme-fluent-dark ::deep .menu-button .dxbl-image {
+    color: #ffffff !important;
+    opacity: 1 !important;
 }
 
 ::deep .menu-button-nav:hover .icon {
@@ -163,42 +180,4 @@
 
 ::deep .navigation-drawer > .dxbl-drawer-panel {
     display: flex;
-}
-
-::deep .navigation-drawer.mobile > .dxbl-drawer-panel {
-    display: none;
-}
-
-::deep .navigation-drawer.mobile > .dxbl-drawer-shading {
-    display: none;
-}
-
-@media (max-width: 768px) {
-    ::deep .navigation-drawer.panel-open {
-        position: relative;
-        z-index: 1100;
-    }
-
-    ::deep .navigation-drawer > .dxbl-drawer-panel {
-        display: none;
-    }
-
-    ::deep .navigation-drawer.panel-open > .dxbl-drawer-panel,
-    ::deep .navigation-drawer.mobile > .dxbl-drawer-panel {
-        display: flex;
-        position: fixed;
-        inset: 0 auto 0 0;
-        z-index: 1100;
-        max-width: min(85vw, 20rem);
-        pointer-events: auto;
-    }
-
-    ::deep .navigation-drawer.panel-open > .dxbl-drawer-shading,
-    ::deep .navigation-drawer.mobile > .dxbl-drawer-shading {
-        display: block;
-        position: fixed;
-        inset: 0;
-        z-index: 1090;
-        pointer-events: none;
-    }
 }

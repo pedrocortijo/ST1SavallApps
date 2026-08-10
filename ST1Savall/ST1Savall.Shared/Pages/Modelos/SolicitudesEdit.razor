@@ -562,10 +562,10 @@
                             <div class="row g-4">
                                 <!-- Columna Izquierda: Contenedor -->
                                 <div class="col-md-6 border-end pe-md-4">
-                                    <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Contenedores</h6>
+                                    <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Núm. Series Contenedores</h6>
                                     <div class="row g-2">
                                     <div class="col-md-6 mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [1] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)" @onclick="LimpiarEntrega1">Borrar</button></span></div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)" @onclick="LimpiarEntrega1">Borrar</button></span></div>
                                         <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresEntrega"
                                                     Enabled="@IsEntregaEnabled"
                                                     TData="Contenedor"
@@ -587,7 +587,7 @@
                                         </DxComboBox>
                                     </div>
                                     <div class="col-md-6 mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [2] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)" @onclick="LimpiarEntrega2">Borrar</button></span></div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Entrega [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)" @onclick="LimpiarEntrega2">Borrar</button></span></div>
                                         <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresEntrega"
                                                     Enabled="@IsEntrega2Enabled"
                                                     TData="Contenedor"
@@ -611,7 +611,7 @@
                                     </div>
                                     <div class="row g-2">
                                     <div class="col-md-6 mb-2">
-                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [1] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoRecogida", "Retirada [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)" @onclick="LimpiarRecogida1">Borrar</button></span></div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoRecogida", "Retirada [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)" @onclick="LimpiarRecogida1">Borrar</button></span></div>
                                         <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresRecogida" Enabled="@IsRecogidaEnabled"
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
@@ -629,7 +629,7 @@
                                         </DxComboBox>
                                     </div>
                                     <div class="col-md-6 mb-2">
-                                            <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [2] - Nº Serie</label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoAmbosRecogida", "Retirada [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)" @onclick="LimpiarRecogida2">Borrar</button></span></div>
+                                            <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label fw-bold text-muted small mb-0">Retirada [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" @onclick='() => AbrirNuevoContenedor("CodigoAmbosRecogida", "Retirada [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)" @onclick="LimpiarRecogida2">Borrar</button></span></div>
                                         <DxComboBox @key="selectorContenedorVersion" Data="@contenedoresRecogida" Enabled="@IsRecogida2Enabled"
                                                     TData="Contenedor" TValue="string"
                                                     TextFieldName="NumSerie" ValueFieldName="NumSerie"
@@ -778,6 +778,9 @@
 
     [SupplyParameterFromQuery]
     public string? ContenedorCodigo { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
 
     [SupplyParameterFromQuery(Name = "mapLat")]
     public decimal? MapLat { get; set; }
@@ -998,7 +1001,7 @@
                     IdConductor = null, // Sin asignar por defecto
                     IdOperario = currentUserName, // Prefilled with login UserName
                     DuracionPlanificadaMinutos = null,
-                    DuracionOperacionMinutos = 30,
+                    DuracionOperacionMinutos = parametrosList?.FirstOrDefault()?.DuracionOperacionServicioMinutos ?? 0,
                     FechaHoraInicioPlanificada = null,
                     FechaHoraFinPlanificada = null
                 };
@@ -1068,7 +1071,7 @@
         nuevoContenedor = new Contenedor
         {
             EstadoFisico = destino.Contains("Recogida", StringComparison.Ordinal) ? "Entregado" : "Disponible",
-            IdPlanta = IdPlantaConductor ?? plantas?.FirstOrDefault()?.IdPlanta ?? 0
+            IdPlanta = IdPlantaOrigen ?? plantas?.FirstOrDefault()?.IdPlanta ?? 0
         };
         nuevoContenedorVisible = true;
     }
@@ -1597,7 +1600,12 @@
 
     private void GoBack()
     {
-        NavigationManager.NavigateTo("/modelos/solicitudes");
+        var destino = !string.IsNullOrWhiteSpace(ReturnUrl)
+            && ReturnUrl.StartsWith('/')
+            && !ReturnUrl.StartsWith("//")
+            ? ReturnUrl
+            : "/modelos/solicitudes";
+        NavigationManager.NavigateTo(destino);
     }
 
     private void DuplicarSolicitudActual()
@@ -2052,16 +2060,16 @@
         }
     }
 
-    private int? IdPlantaConductor => operarios?
-        .FirstOrDefault(o => o.IdOperario == solicitud?.IdConductor)?.IdPlanta;
+    private int? IdPlantaOrigen => solicitud?.IdPlantaOrigen;
 
     private List<Contenedor> contenedoresEntrega => contenedoresList?
         .Where(c => !EstaSeleccionadoParaRetirada(c)
             && (EsContenedorActual(c, solicitud?.CodigoEntrega)
             || EsContenedorActual(c, solicitud?.CodigoAmbosEntrega)
-            || (IdPlantaConductor.HasValue
-                && c.IdPlanta == IdPlantaConductor.Value
-                && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase))))
+            || (IdPlantaOrigen.HasValue
+                && c.IdPlanta == IdPlantaOrigen.Value
+                && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase)
+                && !EstaEntregadoActualmente(c.NumSerie))))
         .OrderBy(c => c.NumSerie)
         .ToList() ?? new List<Contenedor>();
 
@@ -2103,8 +2111,7 @@
         .Where(c => !EstaSeleccionadoParaEntrega(c)
             && (EsContenedorActual(c, solicitud?.CodigoRecogida)
             || EsContenedorActual(c, solicitud?.CodigoAmbosRecogida)
-            || (string.Equals(c.EstadoFisico, "Entregado", StringComparison.OrdinalIgnoreCase)
-                && EstaEntregadoEnObraSeleccionada(c))))
+            || EstaEntregadoEnObraSeleccionada(c)))
         .OrderBy(c => c.NumSerie)
         .ToList() ?? new List<Contenedor>();
 
@@ -2121,11 +2128,31 @@
         || EsContenedorActual(contenedor, solicitud?.CodigoAmbosRecogida);
 
     private bool EstaEntregadoEnObraSeleccionada(Contenedor contenedor) =>
-        solicitud?.IdCliente > 0
-        && solicitudesConContenedores?.Any(s =>
-            s.IdCliente == solicitud.IdCliente
-            && (string.Equals(s.CodigoEntrega, contenedor.NumSerie, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(s.CodigoAmbosEntrega, contenedor.NumSerie, StringComparison.OrdinalIgnoreCase))) == true;
+        UltimaEntregaVigente(contenedor.NumSerie)?.IdCliente == solicitud?.IdCliente;
+
+    private bool EstaEntregadoActualmente(string numeroSerie) => UltimaEntregaVigente(numeroSerie) is not null;
+
+    private Solicitud? UltimaEntregaVigente(string numeroSerie)
+    {
+        var ultimoMovimiento = solicitudesConContenedores?
+            .Where(s => CoincideNumeroSerie(s, numeroSerie))
+            .OrderBy(s => s.FechaTarea ?? s.FechaSolicitud ?? DateTime.MinValue)
+            .ThenBy(s => s.IdSolicitud)
+            .LastOrDefault();
+
+        return ultimoMovimiento is not null && EsEntrega(ultimoMovimiento, numeroSerie) ? ultimoMovimiento : null;
+    }
+
+    private static bool CoincideNumeroSerie(Solicitud solicitud, string numeroSerie) =>
+        EsEntrega(solicitud, numeroSerie) || EsRetirada(solicitud, numeroSerie);
+
+    private static bool EsEntrega(Solicitud solicitud, string numeroSerie) =>
+        string.Equals(solicitud.CodigoEntrega, numeroSerie, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(solicitud.CodigoAmbosEntrega, numeroSerie, StringComparison.OrdinalIgnoreCase);
+
+    private static bool EsRetirada(Solicitud solicitud, string numeroSerie) =>
+        string.Equals(solicitud.CodigoRecogida, numeroSerie, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(solicitud.CodigoAmbosRecogida, numeroSerie, StringComparison.OrdinalIgnoreCase);
 
     private Tarea? TareaSeleccionada => tareasList?
         .FirstOrDefault(t => t.IdTarea == solicitud?.IdTipoTarea);

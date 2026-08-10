@@ -292,6 +292,37 @@ html.theme-fluent-dark .text-muted {
     color: rgba(255, 255, 255, 0.6) !important;
 }
 
+.obra-cliente-nombre {
+    color: var(--bs-body-color, #212529);
+}
+
+.obra-cliente-detalle {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+html.theme-blazing-dark .obra-cliente-nombre,
+html.theme-fluent-dark .obra-cliente-nombre {
+    color: #ffffff;
+}
+
+html.theme-blazing-dark .obra-cliente-detalle,
+html.theme-fluent-dark .obra-cliente-detalle {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.prioridad-texto {
+    color: var(--bs-body-color, #212529);
+}
+
+.prioridad-alta { color: #dc3545; }
+.prioridad-media { color: #fd7e14; }
+.prioridad-baja { color: #198754; }
+
+html.theme-blazing-dark .prioridad-texto,
+html.theme-fluent-dark .prioridad-texto {
+    color: #ffffff;
+}
+
 /* Company Name and Menu Button adaptivity to light/dark themes */
 .company-name-label {
     color: #333333 !important; /* Default black for light themes */
@@ -310,7 +341,23 @@ html.theme-blazing-dark .menu-button,
 html.theme-fluent-dark .menu-button,
 html.theme-blazing-dark ::deep .menu-button,
 html.theme-fluent-dark ::deep .menu-button {
-    color: #ffffff !important; /* White for dark themes */
+    color: #ffffff !important;
+    background-color: #c96d00 !important;
+    border-radius: 6px;
+}
+
+/* El icono se renderiza dentro de DxButton y necesita una regla global propia. */
+.menu-toggle-icon,
+.menu-toggle-icon::before {
+    color: #333333 !important;
+    opacity: 1 !important;
+}
+
+html.theme-blazing-dark .menu-toggle-icon,
+html.theme-fluent-dark .menu-toggle-icon,
+html.theme-blazing-dark .menu-toggle-icon::before,
+html.theme-fluent-dark .menu-toggle-icon::before {
+    color: #ffffff !important;
 }
 
 /* Resumen de obra: contraste adaptado al tema activo. */
@@ -333,6 +380,41 @@ html.theme-fluent-dark .obra-resumen {
 
 .operarios-popup {
     width: 680px !important;
+}
+
+/* Los diálogos nunca deben desbordar la pantalla disponible. */
+.dxbl-popup {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: calc(100dvh - 2rem) !important;
+}
+
+.dxbl-popup-content,
+.dxbl-popup-body {
+    max-height: calc(100dvh - 9rem);
+    overflow-y: auto;
+}
+
+@media (max-width: 1024px) {
+    .crud-popup,
+    .operarios-popup {
+        min-width: 0 !important;
+        max-width: 90vw !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .dxbl-popup,
+    .crud-popup,
+    .operarios-popup {
+        min-width: 0 !important;
+        max-width: calc(100vw - 1.5rem) !important;
+        max-height: calc(100dvh - 1.5rem) !important;
+    }
+
+    .dxbl-popup-content,
+    .dxbl-popup-body {
+        max-height: calc(100dvh - 8rem);
+    }
 }
 
 .operario-inactivo,

@@ -11,7 +11,7 @@
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">Usuarios (AspNet Users)</h2>
+            <h2 class="fw-bold text-primary mb-1">Usuarios</h2>
             <p class="text-muted mb-0">Gestión de usuarios, fichas de personal, asignaciones y cambio de contraseñas</p>
         </div>
         <div>
@@ -187,7 +187,7 @@
                 <DxTextBox @bind-Text="@editPhone" NullText="Teléfono de contacto" CssClass="w-100" />
             </div>
             <div class="mb-3">
-                <label class="form-label fw-semibold small">Técnico / Puesto</label>
+                <label class="form-label fw-semibold small">Operario / Puesto</label>
                 <DxComboBox Data="@operarios" TData="Operario" TValue="string"
                             TextFieldName="Nombre" ValueFieldName="Nombre" @bind-Value="@editTecnico"
                             ClearButtonVisible="true" SearchMode="ListSearchMode.AutoSearch"

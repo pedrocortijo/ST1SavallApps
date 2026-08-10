@@ -1,7 +1,6 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject NavigationManager NavigationManager
-@inject ST1Savall.Shared.Services.IFormFactor FormFactor
-@inject IJSRuntime JSRuntime
 
 <DxDrawer PanelWidth="@Width"
           CssClass="@CssClass"
@@ -9,7 +8,9 @@
           IsOpen="@IsOpen"
           HeaderTemplate="@DrawerHeader"
           FooterTemplate="@DrawerFooter"
-          ApplyBackgroundShading="@IsMobile"
+          ApplyBackgroundShading="@isXSmallScreen"
+          CloseOnEscape="@isXSmallScreen"
+          CloseOnTargetContentClick="@isXSmallScreen"
           OpenCssClass="panel-open">
     <BodyTemplate>
         @DrawerBody
@@ -19,28 +20,50 @@
     </TargetContent>
 </DxDrawer>
 
+<DxLayoutBreakpoint DeviceSize="DeviceSize.XSmall"
+                    IsActive="@isXSmallScreen"
+                    IsActiveChanged="OnBreakpointChanged" />
+
 @code {
     string Width => "240px";
     string CssClass => "navigation-drawer";
-    private bool isSmallScreen;
-    bool IsAndroid => FormFactor.GetPlatform().StartsWith("Android", StringComparison.OrdinalIgnoreCase);
-    bool IsMobile => IsAndroid || isSmallScreen;
-    DrawerMode Mode => IsMobile ? DrawerMode.Overlap : DrawerMode.Shrink;
-    bool IsOpen => IsMobile ? ToggledSidebar : !ToggledSidebar;
-
-    [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
-    public bool ToggledSidebar { get; set; }
+    private bool isXSmallScreen;
+    // El panel de navegación arranca cerrado; se abre desde el botón de menú.
+    private bool isOpen;
+    DrawerMode Mode => isXSmallScreen ? DrawerMode.Overlap : DrawerMode.Shrink;
+    bool IsOpen { get => isOpen; set => isOpen = value; }
     [Parameter] public RenderFragment? DrawerTarget { get; set; }
     [Parameter] public RenderFragment? DrawerBody { get; set; }
     [Parameter] public RenderFragment? DrawerHeader { get; set; }
     [Parameter] public RenderFragment? DrawerFooter { get; set; }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnInitialized()
     {
-        if (!firstRender || IsAndroid)
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnBreakpointChanged(bool isActive)
+    {
+        isXSmallScreen = isActive;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (!isXSmallScreen)
             return;
 
-        isSmallScreen = await JSRuntime.InvokeAsync<int>("getViewportWidth") <= 768;
-        StateHasChanged();
+        isOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public Task ToggleAsync()
+    {
+        IsOpen = !IsOpen;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

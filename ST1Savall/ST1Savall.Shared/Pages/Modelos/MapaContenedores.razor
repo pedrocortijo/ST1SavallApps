@@ -214,7 +214,7 @@
 
                 foreach (var cont in entregados)
                 {
-                    var sol = solicitudesConContenedores?.FirstOrDefault(s => s.CodigoEntrega == cont.NumSerie);
+                    var sol = ObtenerSolicitudEntregaActual(cont.NumSerie);
                     if (sol != null)
                     {
                         var (lat, lon, address) = GetCoordinatesAndAddress(sol);
@@ -290,6 +290,24 @@
 
         return "Dirección no especificada";
     }
+
+    private Solicitud? ObtenerSolicitudEntregaActual(string? numeroSerie)
+    {
+        if (string.IsNullOrWhiteSpace(numeroSerie) || solicitudesConContenedores == null)
+        {
+            return null;
+        }
+
+        return solicitudesConContenedores
+            .Where(s => CoincideNumeroSerie(s.CodigoEntrega, numeroSerie) ||
+                        CoincideNumeroSerie(s.CodigoAmbosEntrega, numeroSerie))
+            .OrderByDescending(s => s.FechaTarea ?? s.FechaSolicitud ?? DateTime.MinValue)
+            .ThenByDescending(s => s.IdSolicitud)
+            .FirstOrDefault();
+    }
+
+    private static bool CoincideNumeroSerie(string? codigo, string numeroSerie) =>
+        string.Equals(codigo?.Trim(), numeroSerie.Trim(), StringComparison.OrdinalIgnoreCase);
 
     public class MapLocation
     {

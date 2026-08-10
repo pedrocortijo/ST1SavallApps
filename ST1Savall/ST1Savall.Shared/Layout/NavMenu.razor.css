@@ -34,6 +34,10 @@
     color: var(--bs-white);
 }
 
+.mobile-account-actions {
+    display: none;
+}
+
 ::deep .icon {
     width: 1rem;
     height: 1rem;
@@ -112,6 +116,27 @@
 
 ::deep .chart-icon {
     background-image: url("/_content/ST1Savall.Shared/images/weather.svg");
+}
+
+@media (max-width: 768px) {
+    .mobile-account-actions {
+        display: flex;
+        flex-direction: column;
+        gap: .25rem;
+        margin: 1rem 0 0;
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, .2);
+    }
+
+    .mobile-account-link {
+        text-decoration: none;
+    }
+
+    .mobile-account-actions ::deep .dxbl-btn {
+        justify-content: flex-start;
+        width: 100%;
+        color: var(--bs-white);
+    }
 }
 
 @media (max-width: 768px) {

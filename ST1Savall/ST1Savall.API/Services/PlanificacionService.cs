@@ -33,6 +33,9 @@ public class PlanificacionService
             solicitud.FechaTarea = solicitud.FechaHoraInicioPlanificada.Value.Date;
         }
 
+        var redondeoHora = await ObtenerRedondeoHoraAsync();
+        solicitud.FechaHoraInicioPlanificada = RedondearAlIntervalo(solicitud.FechaHoraInicioPlanificada.Value, redondeoHora);
+
         var duracion = solicitud.DuracionPlanificadaMinutos.GetValueOrDefault();
         if (duracion <= 0 && solicitud.FechaHoraFinPlanificada > solicitud.FechaHoraInicioPlanificada)
             duracion = (int)Math.Ceiling((solicitud.FechaHoraFinPlanificada.Value - solicitud.FechaHoraInicioPlanificada.Value).TotalMinutes);
@@ -40,7 +43,7 @@ public class PlanificacionService
             return "La duración planificada debe ser mayor que cero.";
 
         solicitud.DuracionPlanificadaMinutos = duracion;
-        solicitud.FechaHoraFinPlanificada = solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(duracion);
+        solicitud.FechaHoraFinPlanificada = RedondearAlIntervalo(solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(duracion), redondeoHora);
         solicitud.HoraLlegada = solicitud.FechaHoraInicioPlanificada;
 
         if (!solicitud.IdConductor.HasValue)
@@ -106,7 +109,8 @@ public class PlanificacionService
         var inicioJornada = operario.InicioJornada == TimeSpan.Zero ? new TimeSpan(8, 0, 0) : operario.InicioJornada;
         var finJornada = operario.FinJornada == TimeSpan.Zero ? new TimeSpan(17, 0, 0) : operario.FinJornada;
 
-        var candidato = RedondearAlCuartoDeHora(desde);
+        var redondeoHora = await ObtenerRedondeoHoraAsync();
+        var candidato = RedondearAlIntervalo(desde, redondeoHora);
         if (candidato.TimeOfDay < inicioJornada)
         {
             candidato = candidato.Date + inicioJornada;
@@ -120,7 +124,7 @@ public class PlanificacionService
                 candidato = candidato.Date + inicioJornada;
             }
 
-            var fin = candidato.AddMinutes(duracionMinutos);
+            var fin = RedondearAlIntervalo(candidato.AddMinutes(duracionMinutos), redondeoHora);
             if (fin.TimeOfDay > finJornada || candidato.TimeOfDay >= finJornada)
             {
                 candidato = candidato.Date.AddDays(1) + inicioJornada;
@@ -139,7 +143,7 @@ public class PlanificacionService
             if (string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) &&
                 operario.InactivoHasta.HasValue && candidato <= operario.InactivoHasta.Value)
             {
-                candidato = RedondearAlCuartoDeHora(operario.InactivoHasta.Value.AddTicks(1));
+                candidato = RedondearAlIntervalo(operario.InactivoHasta.Value.AddTicks(1), redondeoHora);
                 continue;
             }
 
@@ -151,7 +155,7 @@ public class PlanificacionService
                 .FirstOrDefaultAsync();
             if (ocupado != null)
             {
-                candidato = RedondearAlCuartoDeHora(ocupado.Fin);
+                candidato = RedondearAlIntervalo(ocupado.Fin, redondeoHora);
                 continue;
             }
 
@@ -159,7 +163,7 @@ public class PlanificacionService
             if (error == null)
                 return new PlanificacionHueco { Disponible = true, Inicio = candidato, Fin = fin };
 
-            candidato = candidato.AddMinutes(15);
+            candidato = candidato.AddMinutes(redondeoHora);
         }
 
         return new PlanificacionHueco { Mensaje = "No se encontró un hueco disponible dentro de la jornada laboral en los próximos 90 días." };
@@ -179,9 +183,17 @@ public class PlanificacionService
         ? string.Empty
         : $" por {operario.MotivoInactividad}";
 
-    private static DateTime RedondearAlCuartoDeHora(DateTime value)
+    private async Task<int> ObtenerRedondeoHoraAsync()
     {
-        var minutos = (int)Math.Ceiling(value.TimeOfDay.TotalMinutes / 15d) * 15;
-        return value.Date.AddMinutes(minutos);
+        var redondeoHora = await _context.Parametros.AsNoTracking()
+            .Select(p => p.RedondeoHora)
+            .FirstOrDefaultAsync();
+        return redondeoHora > 0 ? redondeoHora : 5;
+    }
+
+    private static DateTime RedondearAlIntervalo(DateTime value, int intervaloMinutos)
+    {
+        var intervalo = TimeSpan.FromMinutes(intervaloMinutos > 0 ? intervaloMinutos : 5).Ticks;
+        return new DateTime((value.Ticks + intervalo - 1) / intervalo * intervalo, value.Kind);
     }
 }

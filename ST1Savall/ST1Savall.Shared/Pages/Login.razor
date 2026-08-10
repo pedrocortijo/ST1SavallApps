@@ -28,7 +28,7 @@
         </div>
     }
 
-    <EditForm Model="@input" OnValidSubmit="HandleLogin">
+    <EditForm Model="@input" OnValidSubmit="HandleLogin" FormName="login-form">
         <DataAnnotationsValidator />
         <ValidationSummary class="text-danger small mb-3" />
 
@@ -43,7 +43,7 @@
         </div>
 
         <div class="d-grid gap-2 pt-1">
-            <DxButton SubmitFormOnClick="true" Text="Entrar" RenderStyle="ButtonRenderStyle.Primary" CssClass="w-100 py-2" />
+            <DxButton Click="HandleLogin" Text="Entrar" RenderStyle="ButtonRenderStyle.Primary" CssClass="w-100 py-2" />
         </div>
     </EditForm>
 </div>

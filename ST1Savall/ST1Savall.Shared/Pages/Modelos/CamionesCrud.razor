@@ -1,0 +1,142 @@
+@page "/modelos/camiones"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Camiones</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Camiones</h2>
+            <p class="text-muted mb-0">Identificación de camiones y asignación de conductores.</p>
+        </div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
+    </div>
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Cerrar"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            @if (camiones is null || conductores is null)
+            {
+                <div class="p-5 text-center"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted mb-0">Cargando camiones...</p></div>
+            }
+            else
+            {
+                <DxGrid @ref="grid" Data="@camiones" KeyFieldName="IdCamion"
+                        EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting"
+                        PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Formulario - Camión" PopupEditFormCssClass="crud-popup"
+                        PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar camión...">
+                    <Columns>
+                        <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate>
+                                <button type="button" class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" @onclick="() => grid?.StartEditNewRowAsync()" title="Nuevo camión"><i class="oi oi-plus me-1"></i> Nuevo</button>
+                            </HeaderTemplate>
+                            <CellDisplayTemplate>
+                                @{ var camion = (Camion)context.DataItem; }
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm" style="width:32px;height:32px" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(camion)" @onclick:stopPropagation><i class="oi oi-pencil"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" style="width:32px;height:32px" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(camion)" @onclick:stopPropagation><i class="oi oi-trash"></i></button>
+                                </div>
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="Matricula" Caption="Matrícula" Width="130px" />
+                        <DxGridDataColumn FieldName="Descripcion" Caption="Descripción" Width="250px" />
+                        <DxGridDataColumn FieldName="UnidadWialonId" Caption="Unidad Wialon" Width="160px" />
+                        <DxGridDataColumn FieldName="IdConductor" Caption="Conductor" Width="220px">
+                            <CellDisplayTemplate>
+                                @{ var camion = (Camion)context.DataItem; }
+                                @conductores.FirstOrDefault(c => c.IdOperario == camion.IdConductor)?.Nombre
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="90px" />
+                    </Columns>
+                    <EditFormTemplate Context="editContext">
+                        @{ var camion = (Camion)editContext.EditModel; }
+                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                            <DxFormLayoutItem Caption="Matrícula" ColSpanMd="6" BeginRow="true"><DxTextBox @bind-Text="camion.Matricula" /></DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Descripción" ColSpanMd="6"><DxTextBox @bind-Text="camion.Descripcion" /></DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Conductor asignado" ColSpanMd="6" BeginRow="true"><DxComboBox Data="@conductores" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="camion.IdConductor" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="ID de unidad Wialon" ColSpanMd="6"><DxTextBox @bind-Text="camion.UnidadWialonId" /></DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12" BeginRow="true"><DxCheckBox @bind-Checked="camion.Activo" LabelPosition="LabelPosition.Right">Camión activo</DxCheckBox></DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<Camion>? camiones;
+    private List<Operario>? conductores;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupHeadersAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task SetupHeadersAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            camiones = await Http.GetFromJsonAsync<List<Camion>>("api/camiones") ?? [];
+            conductores = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? [];
+            errorMessage = null;
+        }
+        catch (Exception ex) { errorMessage = $"Error al cargar camiones: {ex.Message}"; camiones ??= []; conductores ??= []; }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var camion = (Camion)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = e.IsNew
+                ? await Http.PostAsJsonAsync("api/camiones", camion)
+                : await Http.PutAsJsonAsync($"api/camiones/{camion.IdCamion}", camion);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync<ApiMessage>();
+                errorMessage = error?.Message ?? $"Error al guardar el camión: {response.ReasonPhrase}";
+                e.Cancel = true;
+                return;
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { errorMessage = $"Error al guardar el camión: {ex.Message}"; e.Cancel = true; }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var camion = (Camion)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/camiones/{camion.IdCamion}");
+            if (!response.IsSuccessStatusCode) { errorMessage = $"Error al eliminar el camión: {response.ReasonPhrase}"; e.Cancel = true; return; }
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { errorMessage = $"Error al eliminar el camión: {ex.Message}"; e.Cancel = true; }
+    }
+
+    private sealed class ApiMessage { public string? Message { get; set; } }
+}

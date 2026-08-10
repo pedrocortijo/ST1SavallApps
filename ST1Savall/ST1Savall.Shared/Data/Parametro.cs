@@ -36,6 +36,10 @@ public class Parametro
 
     public int AvisoTiempoServicio { get; set; }
 
+    public int RedondeoHora { get; set; } = 5;
+
+    public int DuracionOperacionServicioMinutos { get; set; } = 30;
+
     public int AvisoTiempoContenedor { get; set; }
 
     [MaxLength(255)]

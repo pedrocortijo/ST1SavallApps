@@ -9,7 +9,7 @@
 @inject HttpClient Http
 
 <div class="page">
-    <Drawer DrawerHeader="drawerHeader">
+    <Drawer @ref="drawer" DrawerHeader="drawerHeader">
         <DrawerBody>
             <div class="w-100">
                 <NavMenu></NavMenu>
@@ -17,19 +17,19 @@
         </DrawerBody>
         <DrawerTarget>
             <div class="nav-buttons-container align-items-center">
-                <NavLink href="@UrlGenerator.GetUrl(new Uri(NavigationManager.Uri).LocalPath, !ToggledSidebar)">
-                    <DxButton RenderStyle="@ButtonRenderStyle.Secondary" 
-                    RenderStyleMode="@ButtonRenderStyleMode.Text" 
-                    CssClass="menu-button" 
-                    IconCssClass="oi oi-menu" style="font-size: 1.25rem;"></DxButton>
-                </NavLink>
+                <DxButton RenderStyle="@ButtonRenderStyle.Secondary"
+                          RenderStyleMode="@ButtonRenderStyleMode.Text"
+                          CssClass="menu-button"
+                          IconCssClass="oi oi-menu menu-toggle-icon"
+                          Click="ToggleNavigationAsync"
+                          style="font-size: 1.25rem;" />
                 <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" 
                 style="font-size: 1.1rem; letter-spacing: 0.5px;">@companyName</span>
                 
                 @if (new Uri(NavigationManager.Uri).LocalPath != "/") 
                 {
                     <NavLink 
-                        href="@UrlGenerator.GetUrl("/", ToggledSidebar)" 
+                        href="/"
                         class="button-link hidden">
                                 <DxButton RenderStyle="@ButtonRenderStyle.Dark" 
                                 Text="Volver al inicio" 
@@ -40,13 +40,13 @@
                 }
                 <AuthorizeView>
                     <Authorized>
-                        <NavLink href="@UrlGenerator.GetUrl(ManageUrl, ToggledSidebar)" class="button-link menubutton-float-end display-desktop">
+                        <NavLink href="@ManageUrl" class="button-link menubutton-float-end display-desktop">
                                     <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="@context.User.Identity?.Name" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-person"></DxButton>
                         </NavLink>
                         <DxButton RenderStyle="@ButtonRenderStyle.Dark" Click="HandleLogout" Text="Cerrar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav display-desktop" IconCssClass="oi oi-account-logout"></DxButton>
                     </Authorized>
                     <NotAuthorized>
-                        <NavLink href="@UrlGenerator.GetUrl(LoginUrl, ToggledSidebar)" class="button-link menubutton-float-end display-desktop">
+                        <NavLink href="@LoginUrl" class="button-link menubutton-float-end display-desktop">
                                     <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Iniciar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-account-login"></DxButton>
                         </NavLink>
                     </NotAuthorized>
@@ -79,8 +79,9 @@
         await AuthService.LogoutAsync();
         NavigationManager.NavigateTo("/");
     }
-    [SupplyParameterFromQuery(Name = UrlGenerator.ToggleSidebarName)]
-    public bool ToggledSidebar { get; set; }
+    private Task ToggleNavigationAsync() => drawer?.ToggleAsync() ?? Task.CompletedTask;
+
+    private Drawer? drawer;
 
     private RenderFragment drawerHeader => @<div class="navigation-drawer-header d-flex align-items-center justify-content-center px-3 py-2 w-100 bg-white" style="border-radius: 8px; border-bottom: 2px solid #fc9e32;">
         <img class="logo" src="images/logo-savall.jpg" alt="JOSE SAVALL RONDA" style="max-height: 48px; object-fit: contain;" />

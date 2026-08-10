@@ -15,7 +15,7 @@
 <style>
     .firma-pagina { max-width: 900px; margin: 0 auto; }
     .firma-cabecera { gap: 12px; }
-    .firma-canvas { height: 115px; touch-action: none; }
+    .firma-canvas { display: block; position: relative; z-index: 2; width: 100%; height: 115px; touch-action: none; pointer-events: auto !important; -webkit-user-select: none; user-select: none; }
     .firma-fotos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .firma-foto { position: relative; aspect-ratio: 1; border: 1px solid var(--bs-border-color); border-radius: 10px; overflow: hidden; background: #fff; }
     .firma-miniatura { width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
@@ -33,6 +33,31 @@
     .firma-acciones .btn { min-height: 44px; }
     @@media (max-width: 700px) { .firma-fotos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .firma-cabecera { align-items: stretch !important; } }
 </style>
+
+<DxPopup @bind-Visible="nuevoContenedorVisible"
+         HeaderText="Crear contenedor"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <div class="alert alert-info py-2 small">Al crear el contenedor se seleccionará automáticamente en <strong>@destinoNuevoContenedorDescripcion</strong>.</div>
+            @if (!string.IsNullOrWhiteSpace(errorNuevoContenedor))
+            {
+                <div class="alert alert-danger py-2 small">@errorNuevoContenedor</div>
+            }
+            <div class="mb-3"><label class="form-label">Nº de serie</label><DxTextBox @bind-Text="nuevoContenedor.NumSerie" NullText="Introduzca el número de serie" CssClass="w-100" /></div>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Tipo de contenedor</label><DxComboBox Data="@tiposContenedor" TData="ContenedorTipo" TValue="int" TextFieldName="Descripcion" ValueFieldName="IdTipo" @bind-Value="nuevoContenedor.IdTipo" CssClass="w-100" NullText="Seleccione..." /></div>
+                <div class="col-md-6"><label class="form-label">Planta</label><DxComboBox Data="@plantas" TData="Planta" TValue="int" TextFieldName="Nombre" ValueFieldName="IdPlanta" @bind-Value="nuevoContenedor.IdPlanta" CssClass="w-100" NullText="Seleccione..." /></div>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100"><DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarNuevoContenedor" /><DxButton Text="Crear y seleccionar" RenderStyle="ButtonRenderStyle.Primary" Click="CrearNuevoContenedorAsync" /></div>
+    </FooterContentTemplate>
+</DxPopup>
 
 <div class="container-fluid py-0 firma-pagina">
     <div class="d-flex justify-content-between align-items-center firma-cabecera mb-3">
@@ -52,25 +77,35 @@
     {
         <div class="card shadow-sm border-0"><div class="card-body p-3 p-md-4">
             <div class="row g-2 mb-3">
-                <div class="col-4"><label class="form-label small fw-bold">Nº solicitud</label><input class="form-control" value="@solicitud.IdSolicitud" readonly /></div>
-                <div class="col-8"><label class="form-label small fw-bold">Fecha servicio</label><input class="form-control" value="@FechaServicio" readonly /></div>
-                <div class="col-12"><label class="form-label small fw-bold">Obra</label><input class="form-control" value="@solicitud.NombreObra" readonly /></div>
-                <div class="col-12"><label class="form-label small fw-bold">Dirección de la obra</label><input class="form-control" value="@($"{solicitud.DireccionCliente}, {solicitud.PoblacionCliente}")" readonly /></div>
+                    <div class="col-4"><label class="form-label small fw-bold">Nº solicitud</label><DxTextBox Text="@solicitud.IdSolicitud.ToString()" ReadOnly="true" CssClass="w-100" /></div>
+                <div class="col-8"><label class="form-label small fw-bold">Fecha servicio</label><DxTextBox Text="@FechaServicio" ReadOnly="true" CssClass="w-100" /></div>
+                <div class="col-12"><label class="form-label small fw-bold">Obra</label><DxTextBox Text="@solicitud.NombreObra" ReadOnly="true" CssClass="w-100" /></div>
+                    <div class="col-12"><label class="form-label small fw-bold">Dirección de la obra</label><DxTextBox Text="@($"{solicitud.DireccionCliente}, {solicitud.PoblacionCliente}")" ReadOnly="true" CssClass="w-100" /></div>
             </div>
 
-            <div class="row g-2 border-top pt-3 mb-3">
-                <div class="col-md-6"><label class="form-label small fw-bold">Albarán planta</label><input class="form-control" @bind="solicitud.AlbaranPlanta" maxlength="20" /></div>
-                <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><input class="form-control" @bind="solicitud.TipoResiduo" maxlength="150" /></div>
-            </div>
+            <section class="border-top pt-3 mb-3">
+                <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Núm. de serie de contenedores</h3>
+                <div class="row g-2">
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega1 != true)" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoEntrega))" @onclick="() => solicitud.CodigoEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoEntrega" Enabled="@(tarea?.Entrega1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega2 != true)" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega2 != true || string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega))" @onclick="() => solicitud.CodigoAmbosEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoAmbosEntrega" Enabled="@(tarea?.Entrega2 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Retirada [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="true">Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Recoger1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoRecogida))" @onclick="() => solicitud.CodigoRecogida = null">Borrar</button></span></div><DxComboBox Data="@contenedoresRetirada" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoRecogida" Enabled="@(tarea?.Recoger1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Retirada [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="true">Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Recoger2 != true || string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida))" @onclick="() => solicitud.CodigoAmbosRecogida = null">Borrar</button></span></div><DxComboBox Data="@contenedoresRetirada" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoAmbosRecogida" Enabled="@(tarea?.Recoger2 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
+                </div>
+            </section>
+
+                <div class="row g-2 border-top pt-3 mb-3">
+                    <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" TData="ArticuloSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Nombre" @bind-Value="solicitud.TipoResiduo" CssClass="w-100" NullText="Seleccione el tipo de residuo..." /></div>
+                    <div class="col-md-6"><label class="form-label small fw-bold">Albarán de planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div>
+                </div>
 
             <section class="border-top pt-3">
                 <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Firma de solicitud</h3>
                 <div class="row g-2">
-                    <div class="col-7"><label class="form-label small fw-bold">Nombre firmante</label><input class="form-control" @bind="solicitud.FirmaNombre" placeholder="Nombre y apellidos" maxlength="50" /></div>
-                    <div class="col-5"><label class="form-label small fw-bold">DNI</label><input class="form-control" @bind="solicitud.FirmaDni" placeholder="DNI" maxlength="25" /></div>
+                    <div class="col-7"><label class="form-label small fw-bold">Nombre firmante</label><DxTextBox @bind-Text="solicitud.FirmaNombre" NullText="Nombre y apellidos" MaxLength="50" CssClass="w-100" /></div>
+                    <div class="col-5"><label class="form-label small fw-bold">DNI</label><DxTextBox @bind-Text="solicitud.FirmaDni" NullText="DNI" MaxLength="25" CssClass="w-100" /></div>
                     <div class="col-12">
                         <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label small fw-bold mb-0">Firma</label><button type="button" class="btn btn-outline-danger" title="Borrar firma" aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i class="oi oi-trash"></i></button></div>
-                        <canvas id="firmaSolicitudCanvas" @ref="firmaCanvas" class="w-100 border rounded bg-white firma-canvas"></canvas>
+                        <canvas id="firmaSolicitudCanvas" class="w-100 border rounded bg-white firma-canvas"></canvas>
                     </div>
                 </div>
             </section>
@@ -107,13 +142,24 @@
 @code {
     [Parameter] public int Id { get; set; }
     private Solicitud? solicitud;
+    private Tarea? tarea;
+    private List<ArticuloSage50> tiposResiduo = [];
+    private List<Contenedor> contenedores = [];
+    private List<Solicitud> solicitudesConContenedores = [];
+    private List<ContenedorTipo> tiposContenedor = [];
+    private List<Planta> plantas = [];
+    private bool nuevoContenedorVisible;
+    private string? destinoNuevoContenedor;
+    private string destinoNuevoContenedorDescripcion = string.Empty;
+    private Contenedor nuevoContenedor = new();
+    private string? errorNuevoContenedor;
     private List<SolicitudFoto> fotos = [];
     private readonly Dictionary<int, string> fotosDataUri = [];
     private string? fotoSeleccionadaDataUri;
-    private ElementReference firmaCanvas;
     private DotNetObjectReference<Firma>? firmaReference;
     private string? firmaImagenBase64, errorMessage;
     private bool loading = true, guardando, firmaInicializada, firmaModificada, firmaEliminada, firmaPendienteDeMostrar, fotoCargando;
+    private int intentosInicializacionFirma;
     private bool esAplicacionNativa;
     private string FechaServicio => solicitud?.FechaTarea?.ToString("dd/MM/yyyy") ?? string.Empty;
 
@@ -127,6 +173,12 @@
             if (!string.IsNullOrWhiteSpace(token)) Http.DefaultRequestHeaders.Authorization = new("Bearer", token);
             solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id}");
             if (solicitud is null) { errorMessage = "No se ha encontrado la solicitud."; return; }
+            tarea = (await Http.GetFromJsonAsync<List<Tarea>>("api/tareas"))?.FirstOrDefault(t => t.IdTarea == solicitud.IdTipoTarea);
+            tiposResiduo = await Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50/contenedores") ?? [];
+            contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores") ?? [];
+            solicitudesConContenedores = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes/con-contenedores") ?? [];
+            tiposContenedor = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos") ?? [];
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? [];
             await CargarFotosAsync();
             if (!string.IsNullOrWhiteSpace(solicitud.FirmaPath))
             {
@@ -144,12 +196,20 @@
         if (!firmaInicializada && solicitud is not null)
         {
             firmaReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initSignaturePad", firmaCanvas, firmaReference);
-            firmaInicializada = true;
+            firmaInicializada = await JSRuntime.InvokeAsync<bool>("initSignaturePad", "firmaSolicitudCanvas", firmaReference);
+            if (!firmaInicializada)
+            {
+                firmaReference.Dispose();
+                if (++intentosInicializacionFirma < 3)
+                {
+                    await Task.Delay(100);
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
         }
         if (firmaInicializada && firmaPendienteDeMostrar && !string.IsNullOrWhiteSpace(firmaImagenBase64))
         {
-            await JSRuntime.InvokeVoidAsync("setSignatureImage", firmaCanvas, firmaImagenBase64);
+            await JSRuntime.InvokeVoidAsync("setSignatureImage", "firmaSolicitudCanvas", firmaImagenBase64);
             firmaPendienteDeMostrar = false;
         }
     }
@@ -159,7 +219,7 @@
 
     private async Task LimpiarFirmaAsync()
     {
-        await JSRuntime.InvokeVoidAsync("clearSignaturePad", firmaCanvas);
+        await JSRuntime.InvokeVoidAsync("clearSignaturePad", "firmaSolicitudCanvas");
         firmaImagenBase64 = null; firmaModificada = false; firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
         if (solicitud is not null) { solicitud.FirmaNombre = null; solicitud.FirmaDni = null; }
     }
@@ -170,7 +230,17 @@
         guardando = true; errorMessage = null;
         try
         {
-            var datos = await Http.PutAsJsonAsync($"api/solicitudes/{Id}/datos-firma", new { solicitud.AlbaranPlanta, solicitud.TipoResiduo });
+            var datos = await Http.PutAsJsonAsync($"api/solicitudes/{Id}/datos-firma", new
+            {
+                solicitud.AlbaranPlanta,
+                solicitud.TipoResiduo,
+                solicitud.FirmaNombre,
+                solicitud.FirmaDni,
+                solicitud.CodigoEntrega,
+                solicitud.CodigoAmbosEntrega,
+                solicitud.CodigoRecogida,
+                solicitud.CodigoAmbosRecogida
+            });
             if (!datos.IsSuccessStatusCode) throw new InvalidOperationException("No se han podido guardar los datos del albarán.");
             if (firmaEliminada) await Http.DeleteAsync($"api/solicitudes/{Id}/firma");
             if (firmaModificada && !string.IsNullOrWhiteSpace(firmaImagenBase64))
@@ -179,7 +249,7 @@
                 if (!firma.IsSuccessStatusCode) throw new InvalidOperationException("No se ha podido guardar la firma.");
             }
             firmaModificada = false; firmaEliminada = false;
-            NavigationManager.NavigateTo("/servicios/mis-servicios");
+            Volver();
         }
         catch (Exception ex) { errorMessage = ex.Message; }
         finally { guardando = false; }
@@ -222,7 +292,10 @@
         else errorMessage = "No se ha podido eliminar la foto.";
     }
 
-    private void Volver() => NavigationManager.NavigateTo("/servicios/mis-servicios");
+    private void Volver() => NavigationManager.NavigateTo(
+        solicitud?.IdConductor is int idConductor
+            ? $"/servicios/mis-servicios?conductor={idConductor}"
+            : "/servicios/mis-servicios");
     private async Task AbrirFotoOriginalAsync(int idFoto)
     {
         try
@@ -261,4 +334,120 @@
     }
     private string FotoDataUri(int idFoto) => fotosDataUri.TryGetValue(idFoto, out var uri) ? uri : string.Empty;
     public void Dispose() => firmaReference?.Dispose();
+    private void AbrirNuevoContenedor(string destino, string descripcion)
+    {
+        destinoNuevoContenedor = destino;
+        destinoNuevoContenedorDescripcion = descripcion;
+        errorNuevoContenedor = null;
+        nuevoContenedor = new Contenedor
+        {
+            EstadoFisico = destino.Contains("Recogida", StringComparison.Ordinal) ? "Entregado" : "Disponible",
+            IdPlanta = plantas.FirstOrDefault()?.IdPlanta ?? 0
+        };
+        nuevoContenedorVisible = true;
+    }
+
+    private void CancelarNuevoContenedor()
+    {
+        nuevoContenedorVisible = false;
+        errorNuevoContenedor = null;
+    }
+
+    private async Task CrearNuevoContenedorAsync()
+    {
+        nuevoContenedor.NumSerie = nuevoContenedor.NumSerie?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(nuevoContenedor.NumSerie) || nuevoContenedor.IdTipo <= 0 || nuevoContenedor.IdPlanta <= 0)
+        {
+            errorNuevoContenedor = "Indique el número de serie, el tipo y la planta del contenedor.";
+            return;
+        }
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/contenedores", nuevoContenedor);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorNuevoContenedor = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(errorNuevoContenedor))
+                    errorNuevoContenedor = "No se ha podido crear el contenedor.";
+                return;
+            }
+
+            contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores") ?? [];
+            if (solicitud is not null)
+            {
+                switch (destinoNuevoContenedor)
+                {
+                    case "CodigoEntrega": solicitud.CodigoEntrega = nuevoContenedor.NumSerie; break;
+                    case "CodigoAmbosEntrega": solicitud.CodigoAmbosEntrega = nuevoContenedor.NumSerie; break;
+                    case "CodigoRecogida": solicitud.CodigoRecogida = nuevoContenedor.NumSerie; break;
+                    case "CodigoAmbosRecogida": solicitud.CodigoAmbosRecogida = nuevoContenedor.NumSerie; break;
+                }
+            }
+
+            nuevoContenedorVisible = false;
+            errorNuevoContenedor = null;
+        }
+        catch (Exception ex)
+        {
+            errorNuevoContenedor = $"No se ha podido crear el contenedor: {ex.Message}";
+        }
+    }
+
+    private List<Contenedor> contenedoresEntrega => contenedores
+        .Where(c => !EstaSeleccionadoParaRetirada(c)
+            && (EsContenedorActual(c, solicitud?.CodigoEntrega)
+                || EsContenedorActual(c, solicitud?.CodigoAmbosEntrega)
+                || (solicitud?.IdPlantaOrigen == c.IdPlanta
+                    && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase)
+                    && !EstaEntregadoActualmente(c.NumSerie))))
+        .OrderBy(c => c.NumSerie)
+        .ToList();
+
+    private List<Contenedor> contenedoresRetirada => contenedores
+        .Where(c => !EstaSeleccionadoParaEntrega(c)
+            && (EsContenedorActual(c, solicitud?.CodigoRecogida)
+            || EsContenedorActual(c, solicitud?.CodigoAmbosRecogida)
+            || EstaEntregadoEnObraActual(c)))
+        .OrderBy(c => c.NumSerie)
+        .ToList();
+
+    private static bool EsContenedorActual(Contenedor contenedor, string? codigoSeleccionado) =>
+        !string.IsNullOrWhiteSpace(codigoSeleccionado)
+        && string.Equals(contenedor.NumSerie, codigoSeleccionado, StringComparison.OrdinalIgnoreCase);
+
+    private bool EstaSeleccionadoParaEntrega(Contenedor contenedor) =>
+        EsContenedorActual(contenedor, solicitud?.CodigoEntrega)
+        || EsContenedorActual(contenedor, solicitud?.CodigoAmbosEntrega);
+
+    private bool EstaSeleccionadoParaRetirada(Contenedor contenedor) =>
+        EsContenedorActual(contenedor, solicitud?.CodigoRecogida)
+        || EsContenedorActual(contenedor, solicitud?.CodigoAmbosRecogida);
+
+    private bool EstaEntregadoEnObraActual(Contenedor contenedor) =>
+        UltimaEntregaVigente(contenedor.NumSerie)?.IdCliente == solicitud?.IdCliente;
+
+    private bool EstaEntregadoActualmente(string numeroSerie) => UltimaEntregaVigente(numeroSerie) is not null;
+
+    private Solicitud? UltimaEntregaVigente(string numeroSerie)
+    {
+        var ultimoMovimiento = solicitudesConContenedores
+            .Where(s => CoincideNumeroSerie(s, numeroSerie))
+            .OrderBy(s => s.FechaTarea ?? s.FechaSolicitud ?? DateTime.MinValue)
+            .ThenBy(s => s.IdSolicitud)
+            .LastOrDefault();
+
+        return ultimoMovimiento is not null && EsEntrega(ultimoMovimiento, numeroSerie) ? ultimoMovimiento : null;
+    }
+
+    private static bool CoincideNumeroSerie(Solicitud solicitud, string numeroSerie) =>
+        EsEntrega(solicitud, numeroSerie) || EsRetirada(solicitud, numeroSerie);
+
+    private static bool EsEntrega(Solicitud solicitud, string numeroSerie) =>
+        string.Equals(solicitud.CodigoEntrega, numeroSerie, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(solicitud.CodigoAmbosEntrega, numeroSerie, StringComparison.OrdinalIgnoreCase);
+
+    private static bool EsRetirada(Solicitud solicitud, string numeroSerie) =>
+        string.Equals(solicitud.CodigoRecogida, numeroSerie, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(solicitud.CodigoAmbosRecogida, numeroSerie, StringComparison.OrdinalIgnoreCase);
 }

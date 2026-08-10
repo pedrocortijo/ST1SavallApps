@@ -16,6 +16,24 @@ public static class DbInitializer
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
 
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'Camiones', N'U') IS NULL
+            BEGIN
+                CREATE TABLE Camiones (
+                    IdCamion INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    Matricula NVARCHAR(20) NOT NULL,
+                    Descripcion NVARCHAR(100) NULL,
+                    UnidadWialonId NVARCHAR(50) NULL,
+                    IdConductor INT NULL,
+                    Activo BIT NOT NULL CONSTRAINT DF_Camiones_Activo DEFAULT (1),
+                    CONSTRAINT FK_Camiones_Operarios_IdConductor FOREIGN KEY (IdConductor)
+                        REFERENCES Operarios(IdOperario) ON DELETE SET NULL
+                );
+                CREATE UNIQUE INDEX IX_Camiones_Matricula ON Camiones(Matricula);
+                CREATE UNIQUE INDEX IX_Camiones_UnidadWialonId ON Camiones(UnidadWialonId) WHERE UnidadWialonId IS NOT NULL;
+            END;
+        ");
+
         // Mantener los artículos de Sage y restaurar la tabla local del CRUD de tipos.
         await context.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('Contenedores', 'CodigoArticulo') IS NULL
@@ -98,6 +116,14 @@ public static class DbInitializer
                 IF COL_LENGTH('Parametros', 'AvisoTiempoServicio') IS NULL
                     ALTER TABLE Parametros ADD AvisoTiempoServicio INT NOT NULL
                         CONSTRAINT DF_Parametros_AvisoTiempoServicio DEFAULT (0);
+
+                IF COL_LENGTH('Parametros', 'RedondeoHora') IS NULL
+                    ALTER TABLE Parametros ADD RedondeoHora INT NOT NULL
+                        CONSTRAINT DF_Parametros_RedondeoHora DEFAULT (5);
+
+                IF COL_LENGTH('Parametros', 'DuracionOperacionServicioMinutos') IS NULL
+                    ALTER TABLE Parametros ADD DuracionOperacionServicioMinutos INT NOT NULL
+                        CONSTRAINT DF_Parametros_DuracionOperacionServicioMinutos DEFAULT (30);
 
                 IF COL_LENGTH('Parametros', 'AvisoTiempoContenedor') IS NULL
                     ALTER TABLE Parametros ADD AvisoTiempoContenedor INT NOT NULL

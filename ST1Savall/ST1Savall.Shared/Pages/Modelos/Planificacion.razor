@@ -52,6 +52,9 @@
     .scheduler-card-body::-webkit-scrollbar-thumb:hover {
         background: #0b5ed7 !important;
     }
+    .scheduler-tooltip-title {
+        margin-right: auto;
+    }
 </style>
 
 <div class="container-fluid py-0">
@@ -62,7 +65,7 @@
         </div>
         <div class="d-flex gap-2">
             <NavLink href="/servicios/asignacion-secuencial" class="btn btn-warning text-dark btn-sm fw-bold">
-                <i class="oi oi-bolt me-1"></i> Asignación Secuencial
+                <i class="oi oi-bolt me-1"></i> Programación
             </NavLink>
             <button class="btn btn-outline-primary btn-sm" @onclick="LoadDataAsync">
                 <i class="oi oi-reload me-1"></i> Actualizar
@@ -131,10 +134,13 @@
                              AllowDragAppointmentBetweenResources="false"
                              Height="650px"
                              Width="100%">
+                    <AppointmentTooltipHeaderTemplate>
+                        <span class="scheduler-tooltip-title">Servicio</span>
+                        <DxSchedulerCloseAppointmentButton />
+                    </AppointmentTooltipHeaderTemplate>
                     <Views>
-                        <DxSchedulerDayView />
-                        <DxSchedulerWorkWeekView />
-                        <DxSchedulerTimelineView />
+                        <DxSchedulerDayView ShowWorkTimeOnly="true" WorkTime="@intervaloJornadaCalendario" />
+                        <DxSchedulerWorkWeekView ShowWorkTimeOnly="true" WorkTime="@intervaloJornadaCalendario" />
                     </Views>
                 </DxScheduler>
             </div>
@@ -181,6 +187,7 @@
     private List<Operario> conductores = [];
     private List<EstadoSolicitud> estados = [];
     private DxSchedulerDataStorage schedulerDataStorage = new();
+    private DxSchedulerTimeSpanRange intervaloJornadaCalendario = new(TimeSpan.FromHours(8), TimeSpan.FromHours(17));
 
     protected override async Task OnInitializedAsync()
     {
@@ -215,6 +222,7 @@
                 )
                 .OrderBy(o => o.Nombre)
                 .ToList();
+            ActualizarIntervaloJornadaCalendario();
             estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
 
             foreach (var solicitud in solicitudes)
@@ -259,5 +267,21 @@
         }
     }
 
-    private void EditarSolicitud(int id) => NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}");
+    private void ActualizarIntervaloJornadaCalendario()
+    {
+        var inicios = conductores
+            .Where(c => c.InicioJornada != TimeSpan.Zero)
+            .Select(c => c.InicioJornada)
+            .ToList();
+        var finales = conductores
+            .Where(c => c.FinJornada != TimeSpan.Zero)
+            .Select(c => c.FinJornada)
+            .ToList();
+
+        var inicio = inicios.Count > 0 ? inicios.Min() : TimeSpan.FromHours(8);
+        var fin = finales.Count > 0 ? finales.Max() : TimeSpan.FromHours(17);
+        intervaloJornadaCalendario = new DxSchedulerTimeSpanRange(inicio, fin > inicio ? fin : TimeSpan.FromHours(17));
+    }
+
+    private void EditarSolicitud(int id) => NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}?returnUrl={Uri.EscapeDataString("/servicios/planificacion")}");
 }

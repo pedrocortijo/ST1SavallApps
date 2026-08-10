@@ -54,12 +54,13 @@ window.getTheme = function () {
 
 window.resolveSignatureCanvas = function (canvas) {
     if (canvas && typeof canvas.getContext === 'function') return canvas;
-    return document.getElementById('solicitudFirmaCanvas');
+    if (typeof canvas === 'string') return document.getElementById(canvas);
+    return document.getElementById('firmaSolicitudCanvas') || document.getElementById('solicitudFirmaCanvas');
 };
 
 window.initSignaturePad = function (canvas, dotnetHelper) {
     canvas = window.resolveSignatureCanvas(canvas);
-    if (!canvas) return;
+    if (!canvas) return false;
     
     var ctx = canvas.getContext('2d');
     var drawing = false;
@@ -90,93 +91,89 @@ window.initSignaturePad = function (canvas, dotnetHelper) {
     
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
-    
-    // Mouse events
-    canvas.addEventListener('mousedown', function (e) {
-        drawing = true;
+
+    // Pointer Events funcionan de igual forma en tableta (dedo o lápiz), ratón y WebView.
+    canvas.style.touchAction = 'none';
+
+    function getPoint(event) {
         var rect = canvas.getBoundingClientRect();
-        lastX = e.clientX - rect.left;
-        lastY = e.clientY - rect.top;
-        
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function finishDrawing() {
+        if (!drawing) return;
+        drawing = false;
+        if (dotnetHelper) dotnetHelper.invokeMethodAsync('OnSignatureChanged', canvas.toDataURL());
+    }
+
+    canvas.addEventListener('pointerdown', function (event) {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        var point = getPoint(event);
+        drawing = true;
+        lastX = point.x;
+        lastY = point.y;
+        // Algunos WebView de Android no implementan la captura de puntero.
+        if (canvas.setPointerCapture) {
+            try { canvas.setPointerCapture(event.pointerId); } catch (_) { }
+        }
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
+        event.preventDefault();
     });
-    
-    canvas.addEventListener('mousemove', function (e) {
+
+    canvas.addEventListener('pointermove', function (event) {
         if (!drawing) return;
-        var rect = canvas.getBoundingClientRect();
-        var x = e.clientX - rect.left;
-        var y = e.clientY - rect.top;
-        
-        ctx.lineTo(x, y);
+        var point = getPoint(event);
+        ctx.lineTo(point.x, point.y);
         ctx.stroke();
-        
-        lastX = x;
-        lastY = y;
+        lastX = point.x;
+        lastY = point.y;
+        event.preventDefault();
     });
-    
-    canvas.addEventListener('mouseup', function () {
-        if (drawing) {
-            drawing = false;
-            if (dotnetHelper) {
-                dotnetHelper.invokeMethodAsync('OnSignatureChanged', canvas.toDataURL());
-            }
-        }
+
+    canvas.addEventListener('pointerup', function (event) {
+        finishDrawing();
+        if (canvas.hasPointerCapture && canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        event.preventDefault();
     });
-    
-    canvas.addEventListener('mouseleave', function () {
-        if (drawing) {
-            drawing = false;
-            if (dotnetHelper) {
-                dotnetHelper.invokeMethodAsync('OnSignatureChanged', canvas.toDataURL());
-            }
-        }
-    });
-    
-    // Touch events
-    canvas.addEventListener('touchstart', function (e) {
-        if (e.targetTouches.length === 1) {
-            var touch = e.targetTouches[0];
-            var rect = canvas.getBoundingClientRect();
-            lastX = touch.clientX - rect.left;
-            lastY = touch.clientY - rect.top;
-            drawing = true;
-            
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
-    canvas.addEventListener('touchmove', function (e) {
+    canvas.addEventListener('pointercancel', finishDrawing);
+
+    // Respaldo para Android WebView que expone eventos touch pero no Pointer Events
+    // sobre el elemento canvas.
+    document.addEventListener('touchstart', function (event) {
+        if (drawing || event.touches.length !== 1) return;
+        var touch = event.touches[0];
+        var bounds = canvas.getBoundingClientRect();
+        if (touch.clientX < bounds.left || touch.clientX > bounds.right || touch.clientY < bounds.top || touch.clientY > bounds.bottom) return;
+        var point = getPoint(touch);
+        drawing = true;
+        lastX = point.x;
+        lastY = point.y;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        event.preventDefault();
+    }, { capture: true, passive: false });
+
+    document.addEventListener('touchmove', function (event) {
+        if (!drawing || event.touches.length !== 1) return;
+        var touch = event.touches[0];
+        var point = getPoint(touch);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        lastX = point.x;
+        lastY = point.y;
+        event.preventDefault();
+    }, { capture: true, passive: false });
+
+    document.addEventListener('touchend', function (event) {
         if (!drawing) return;
-        if (e.targetTouches.length === 1) {
-            var touch = e.targetTouches[0];
-            var rect = canvas.getBoundingClientRect();
-            var x = touch.clientX - rect.left;
-            var y = touch.clientY - rect.top;
-            
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            
-            lastX = x;
-            lastY = y;
-            e.preventDefault();
-        }
-    }, { passive: false });
-    
-    canvas.addEventListener('touchend', function (e) {
-        if (drawing) {
-            drawing = false;
-            if (dotnetHelper) {
-                dotnetHelper.invokeMethodAsync('OnSignatureChanged', canvas.toDataURL());
-            }
-            e.preventDefault();
-        }
-    }, { passive: false });
+        finishDrawing();
+        event.preventDefault();
+    }, { capture: true, passive: false });
     
     canvas._signatureCtx = ctx;
     canvas._signatureResize = resizeCanvas;
+    return true;
 };
 
 window.clearSignaturePad = function (canvas) {

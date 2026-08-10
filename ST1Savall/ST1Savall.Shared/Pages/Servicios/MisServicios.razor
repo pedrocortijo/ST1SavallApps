@@ -9,10 +9,9 @@
 
 <style>
     .mis-servicios-header { gap: 16px; }
+    .mis-servicios-filtros { justify-content: flex-end; }
     .servicios-asignados-titulo { font-size: 1.1rem; }
-    .servicios-asignados-conductor { color: #000000; }
-    html.theme-blazing-dark .servicios-asignados-conductor,
-    html.theme-fluent-dark .servicios-asignados-conductor { color: #ffc107; }
+    .servicios-asignados-conductor { min-width: 220px; }
     .mis-servicios-refresh { min-height: 44px; min-width: 120px; }
     .servicios-tablet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .servicio-tablet-card { border: 1px solid var(--bs-border-color, #d8dce1); border-left: 5px solid #0d6efd; border-radius: 12px; padding: 16px; min-height: 225px; display: flex; flex-direction: column; gap: 12px; }
@@ -21,17 +20,35 @@
     .servicio-tablet-card .servicio-cliente { font-size: 1rem; font-weight: 600; }
     .servicio-tablet-card .servicio-direccion { font-size: .9rem; }
     .servicio-estado-iniciado { background-color: #198754 !important; color: #ffffff !important; font-size: 1.15rem; padding: .5rem .8rem; }
+    .servicio-estado-finalizado { background-color: #dc3545 !important; color: #ffffff !important; font-size: 1.15rem; padding: .5rem .8rem; }
+    .servicio-estado-asignado { background-color: #fff200 !important; color: #1f1f1f !important; font-size: 1.15rem; padding: .5rem .8rem; }
+    .servicio-ruta { font-size: 1.15rem; padding: .5rem .8rem; line-height: 1.2; }
     .servicio-tablet-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
     .servicio-tablet-actions .btn { min-height: 44px; font-weight: 600; }
-    @@media (max-width: 700px) { .servicios-tablet-grid { grid-template-columns: 1fr; } .mis-servicios-header { align-items: stretch !important; } }
+    @@media (max-width: 700px) { .servicios-tablet-grid { grid-template-columns: 1fr; } .mis-servicios-header { align-items: stretch !important; } .mis-servicios-filtros { justify-content: flex-start; } }
 </style>
 
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mis-servicios-header mb-3">
         <div>
-            <h2 class="fw-bold text-primary mb-1 servicios-asignados-titulo">Servicios asignados a: <span class="servicios-asignados-conductor">@(conductorNombre ?? "...")</span></h2>
+            <div class="d-flex align-items-center gap-2">
+                <label for="conductorSeleccionado" class="fw-bold text-primary mb-0">Conductor:</label>
+                <DxComboBox Data="@conductoresConServiciosHoy"
+                            TextFieldName="Nombre"
+                            ValueFieldName="IdOperario"
+                            Value="@conductorSeleccionadoId"
+                            ValueChanged="@((int? idConductor) => CambiarConductorAsync(idConductor))"
+                            Enabled="@(!conductorDelLogin)"
+                            NullText="Seleccione un conductor..."
+                            InputId="conductorSeleccionado"
+                            CssClass="servicios-asignados-conductor" />
+            </div>
         </div>
         <button class="btn btn-outline-secondary mis-servicios-refresh" @onclick="LoadDataAsync"><i class="oi oi-reload me-1"></i>Actualizar</button>
+    </div>
+    <div class="mis-servicios-filtros d-flex flex-wrap gap-3 mb-3">
+        <div class="form-check form-switch mb-0"><input id="pendientesAnteriores" class="form-check-input" type="checkbox" role="switch" checked="@mostrarPendientesAnteriores" @onchange="CambiarPendientesAnterioresAsync" /><label class="form-check-label small" for="pendientesAnteriores">Sin finalizar anteriores</label></div>
+        <div class="form-check form-switch mb-0"><input id="verFinalizados" class="form-check-input" type="checkbox" role="switch" checked="@mostrarFinalizados" @onchange="CambiarFinalizadosAsync" /><label class="form-check-label small" for="verFinalizados">Finalizados</label></div>
     </div>
 
     @if (!string.IsNullOrWhiteSpace(errorMessage))
@@ -42,9 +59,9 @@
     {
         <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Cargando servicios...</p></div>
     }
-    else if (!string.IsNullOrWhiteSpace(userName) && servicios.Count == 0)
+    else if (conductorSeleccionadoId.HasValue && servicios.Count == 0)
     {
-        <div class="alert alert-info">No hay servicios asignados a <strong>@userName</strong>.</div>
+        <div class="alert alert-info">No hay servicios asignados al conductor seleccionado.</div>
     }
     else
     {
@@ -54,21 +71,29 @@
                 <article class="servicio-tablet-card">
                     <div class="d-flex justify-content-between align-items-start gap-2">
                         <div><div class="small text-muted">Servicio #@servicio.IdSolicitud · @servicio.FechaTarea?.ToString("dd/MM/yyyy")</div><div class="servicio-hora">@(servicio.FechaHoraInicioPlanificada?.ToString("HH:mm") ?? "Sin hora")</div></div>
-                        <span class="badge @(EsServicioIniciado(servicio) ? "servicio-estado-iniciado" : "text-bg-secondary")">@servicio.EstadoDescripcion</span>
+                        <div class="d-flex align-items-center gap-2">
+                            @if (ObtenerUrlRuta(servicio) is { } urlRuta)
+                            {
+                                <a href="@urlRuta" target="_blank" rel="noopener noreferrer" class="btn btn-outline-info servicio-ruta" title="Cómo llegar desde el origen" aria-label="Cómo llegar desde el origen" @onclick:stopPropagation><i class="oi oi-map-marker"></i></a>
+                            }
+                            <span class="badge @(EsServicioIniciado(servicio) ? "servicio-estado-iniciado" : EsServicioFinalizado(servicio) ? "servicio-estado-finalizado" : EsServicioAsignado(servicio) ? "servicio-estado-asignado" : "text-bg-secondary")">@servicio.EstadoDescripcion</span>
+                        </div>
                     </div>
                     <div class="servicio-tarea">@servicio.TipoTareaDescripcion</div>
                     <div><div class="servicio-cliente">@servicio.NombreCliente</div><div class="servicio-direccion text-muted">@servicio.NombreObra</div><div class="servicio-direccion text-muted">@servicio.DireccionCliente, @servicio.PoblacionCliente</div></div>
                     <div class="servicio-tablet-actions">
-                        <button class="btn btn-primary" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye me-1"></i>Ver servicio</button>
+                        <button class="btn btn-primary" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye me-1"></i>Mostrar</button>
                         <button class="btn @(EsServicioIniciado(servicio) ? "btn-outline-warning" : "btn-outline-success")"
-                                disabled="@(iniciandoServicioId == servicio.IdSolicitud)"
+                                disabled="@(EsServicioFinalizado(servicio) || iniciandoServicioId == servicio.IdSolicitud)"
                                 @onclick="() => CambiarInicioServicioAsync(servicio)">
                             <i class="@(EsServicioIniciado(servicio) ? "oi oi-x me-1" : "oi oi-media-play me-1")"></i>
                             @(iniciandoServicioId == servicio.IdSolicitud ? "Actualizando..." : EsServicioIniciado(servicio) ? "Cancelar" : "Iniciar")
                         </button>
                         <button class="btn btn-outline-primary" disabled="@(!EsServicioIniciado(servicio))" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
-                        <button class="btn btn-outline-danger" disabled="@(!EsServicioIniciado(servicio) || finalizandoServicioId == servicio.IdSolicitud)" @onclick="() => FinalizarServicioAsync(servicio.IdSolicitud)">
-                            <i class="oi oi-media-stop me-1"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Finalizando..." : "Finalizar")
+                        <button class="btn @(EsServicioFinalizado(servicio) ? "btn-outline-warning" : "btn-outline-danger")"
+                                disabled="@(!EsServicioIniciado(servicio) && !EsServicioFinalizado(servicio) || finalizandoServicioId == servicio.IdSolicitud)"
+                                @onclick="() => CambiarFinalizacionServicioAsync(servicio)">
+                            <i class="@(EsServicioFinalizado(servicio) ? "oi oi-x me-1" : "oi oi-media-stop me-1")"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Actualizando..." : EsServicioFinalizado(servicio) ? "Cancelar" : "Finalizar")
                         </button>
                     </div>
                 </article>
@@ -86,7 +111,7 @@
     <BodyContentTemplate>
         <div class="py-2 d-flex align-items-center gap-3">
             <i class="oi oi-warning text-warning fs-3"></i>
-            <p class="mb-0">@mensajePopup</p>
+            <p class="mb-0" style="white-space: pre-line;">@mensajePopup</p>
         </div>
     </BodyContentTemplate>
     <FooterContentTemplate>
@@ -96,19 +121,22 @@
     </FooterContentTemplate>
 </DxPopup>
 
-@if (!string.IsNullOrWhiteSpace(pendingAction))
-{
-    <div class="alert alert-info position-fixed bottom-0 end-0 m-4 shadow">@pendingAction estará disponible al incorporar las reglas de negocio.<button class="btn-close ms-3" @onclick="() => pendingAction = null"></button></div>
-}
-
 @code {
+    [SupplyParameterFromQuery(Name = "conductor")]
+    public int? ConductorDeRetornoId { get; set; }
+
     private readonly List<Solicitud> servicios = [];
     private bool loading = true;
-    private string? errorMessage, pendingAction, userName, conductorNombre;
+    private string? errorMessage, userName;
+    private List<Operario> conductoresConServiciosHoy = [];
+    private int? conductorSeleccionadoId;
+    private bool conductorDelLogin;
     private int? iniciandoServicioId;
     private int? finalizandoServicioId;
     private bool mensajePopupVisible;
     private string? mensajePopup;
+    private bool mostrarPendientesAnteriores = true;
+    private bool mostrarFinalizados;
 
     protected override async Task OnInitializedAsync() => await LoadDataAsync();
 
@@ -126,15 +154,41 @@
             var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
             var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
             var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
-            var conductor = operarios.FirstOrDefault(o => string.Equals(o.Nombre,
-                users.FirstOrDefault(u => string.Equals(u.Email, userName, StringComparison.OrdinalIgnoreCase))?.Tecnico,
-                StringComparison.OrdinalIgnoreCase));
-            var conductorId = conductor?.IdOperario;
-            conductorNombre = conductor?.Nombre;
+            var tecnicoDelLogin = users.FirstOrDefault(u => string.Equals(u.Email, userName, StringComparison.OrdinalIgnoreCase))?.Tecnico;
+            var operarioDelLogin = operarios.FirstOrDefault(o => string.Equals(o.Nombre, tecnicoDelLogin, StringComparison.OrdinalIgnoreCase));
+            conductorDelLogin = string.Equals(operarioDelLogin?.Cargo?.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase);
+
+            conductoresConServiciosHoy = operarios
+                .Where(o => solicitudes.Any(s =>
+                    s.IdConductor == o.IdOperario
+                    && (s.FechaTarea?.Date == DateTime.Today
+                        || (s.FechaTarea?.Date < DateTime.Today && !EsServicioFinalizado(s, estados)))))
+                .OrderBy(o => o.Nombre)
+                .ToList();
+
+            if (conductorDelLogin)
+            {
+                conductorSeleccionadoId = operarioDelLogin!.IdOperario;
+            }
+            else if (ConductorDeRetornoId.HasValue && conductoresConServiciosHoy.Any(o => o.IdOperario == ConductorDeRetornoId.Value))
+            {
+                conductorSeleccionadoId = ConductorDeRetornoId.Value;
+            }
+            else if (conductorSeleccionadoId.HasValue && !conductoresConServiciosHoy.Any(o => o.IdOperario == conductorSeleccionadoId.Value))
+            {
+                conductorSeleccionadoId = null;
+            }
+
             servicios.Clear();
             servicios.AddRange(solicitudes.Where(s =>
-                    s.IdConductor == conductorId
-                    && s.FechaTarea?.Date == DateTime.Today)
+                    s.IdConductor == conductorSeleccionadoId
+                    && (mostrarFinalizados
+                        ? s.FechaTarea?.Date == DateTime.Today
+                            && EsServicioFinalizado(s, estados)
+                        : !EsServicioFinalizado(s, estados)
+                            && (s.FechaTarea?.Date == DateTime.Today
+                                || (mostrarPendientesAnteriores
+                                    && s.FechaTarea?.Date < DateTime.Today))))
                 .OrderBy(s => s.FechaHoraInicioPlanificada ?? DateTime.MaxValue)
                 .ThenBy(s => s.IdSolicitud));
             foreach (var s in servicios)
@@ -147,16 +201,67 @@
         catch (Exception ex) { errorMessage = $"No se han podido cargar los servicios: {ex.Message}"; }
         finally { loading = false; }
     }
+
+    private async Task CambiarPendientesAnterioresAsync(ChangeEventArgs args)
+    {
+        mostrarPendientesAnteriores = args.Value is bool valor && valor;
+        await LoadDataAsync();
+    }
+
+    private async Task CambiarFinalizadosAsync(ChangeEventArgs args)
+    {
+        mostrarFinalizados = args.Value is bool valor && valor;
+        await LoadDataAsync();
+    }
+
+    private async Task CambiarConductorAsync(int? idConductor)
+    {
+        if (conductorDelLogin)
+            return;
+
+        conductorSeleccionadoId = idConductor;
+        await LoadDataAsync();
+    }
+
     private void OpenServicio(int id) => NavigationManager.NavigateTo($"/servicios/mis-servicios/{id}");
-    private void AbrirFirma(int id) => NavigationManager.NavigateTo($"/servicios/mis-servicios/{id}/firma");
+    private void AbrirFirma(int id) => NavigationManager.NavigateTo(
+        conductorSeleccionadoId.HasValue
+            ? $"/servicios/mis-servicios/{id}/firma?conductor={conductorSeleccionadoId.Value}"
+            : $"/servicios/mis-servicios/{id}/firma");
 
     private static bool EsServicioIniciado(Solicitud servicio) =>
         servicio.EstadoDescripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool EsServicioFinalizado(Solicitud servicio) =>
+        servicio.EstadoDescripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool EsServicioFinalizado(Solicitud servicio, IEnumerable<EstadoSolicitud> estados) =>
+        estados.FirstOrDefault(estado => estado.IdEstado == servicio.Estado)?.Descripcion
+            ?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool EsServicioAsignado(Solicitud servicio) =>
+        servicio.EstadoDescripcion?.Contains("asignado", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string? ObtenerUrlRuta(Solicitud servicio)
+    {
+        var destino = servicio.LatitudObra.HasValue && servicio.LongitudObra.HasValue
+            ? $"{servicio.LatitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{servicio.LongitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+            : string.Join(", ", new[] { servicio.DireccionCliente, servicio.PoblacionCliente }.Where(valor => !string.IsNullOrWhiteSpace(valor)));
+
+        return string.IsNullOrWhiteSpace(destino)
+            ? null
+            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(destino)}";
+    }
 
     private Task CambiarInicioServicioAsync(Solicitud servicio) =>
         EsServicioIniciado(servicio)
             ? CancelarInicioServicioAsync(servicio.IdSolicitud)
             : IniciarServicioAsync(servicio.IdSolicitud);
+
+    private Task CambiarFinalizacionServicioAsync(Solicitud servicio) =>
+        EsServicioFinalizado(servicio)
+            ? CancelarFinalizacionServicioAsync(servicio.IdSolicitud)
+            : FinalizarServicioAsync(servicio.IdSolicitud);
 
     private async Task IniciarServicioAsync(int idSolicitud)
     {
@@ -171,7 +276,6 @@
                 return;
             }
 
-            pendingAction = "Servicio iniciado.";
             await LoadDataAsync();
         }
         catch (Exception ex)
@@ -197,7 +301,6 @@
                 return;
             }
 
-            pendingAction = "Inicio del servicio cancelado.";
             await LoadDataAsync();
         }
         catch (Exception ex)
@@ -224,13 +327,37 @@
                 return;
             }
 
-            pendingAction = "Servicio finalizado.";
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             mensajePopup = $"No se ha podido finalizar el servicio: {ex.Message}";
             mensajePopupVisible = true;
+        }
+        finally
+        {
+            finalizandoServicioId = null;
+        }
+    }
+
+    private async Task CancelarFinalizacionServicioAsync(int idSolicitud)
+    {
+        finalizandoServicioId = idSolicitud;
+        errorMessage = null;
+        try
+        {
+            var response = await Http.PostAsync($"api/solicitudes/{idSolicitud}/cancelar-finalizacion", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se ha podido cancelar la finalización del servicio.";
+                return;
+            }
+
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido cancelar la finalización del servicio: {ex.Message}";
         }
         finally
         {
@@ -260,5 +387,4 @@
         return mensajePredeterminado;
     }
 
-    private void ShowPendingAction(string action) => pendingAction = action;
 }

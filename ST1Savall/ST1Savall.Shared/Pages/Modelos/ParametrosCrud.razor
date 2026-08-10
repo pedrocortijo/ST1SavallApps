@@ -117,8 +117,14 @@
                             </DxTabPage>
                             <DxTabPage Text="Estados/otros">
                                 <DxFormLayout CssClass="w-100 p-3">
-                                    <DxFormLayoutItem Caption="Tolerancia para inicio servicio (minu.)" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Tolerancia aviso inicio y fin servicio (minu.)" ColSpanMd="12">
                                         <DxSpinEdit @bind-Value="parametro.AvisoTiempoServicio" MinValue="0" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Redondeo de hora de servicio (minu.)" ColSpanMd="12">
+                                        <DxSpinEdit @bind-Value="parametro.RedondeoHora" MinValue="1" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Tolerancia (+) sobre la duración del servicio (minu.)" ColSpanMd="12">
+                                        <DxSpinEdit @bind-Value="parametro.DuracionOperacionServicioMinutos" MinValue="0" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Aviso días antelación contenedor OVP" ColSpanMd="12">
                                         <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />

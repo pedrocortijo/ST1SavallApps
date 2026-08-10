@@ -293,6 +293,22 @@
                         ColumnResizeMode="GridColumnResizeMode.ColumnsContainer"
                         CustomizeElement="@OnCustomizeElement">
                     <Columns>
+                        <DxGridCommandColumn Width="48px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <CellDisplayTemplate>
+                                @{
+                                    var sol = (Solicitud)context.DataItem;
+                                    <button type="button"
+                                            class="btn btn-sm btn-warning d-flex align-items-center justify-content-center shadow-sm"
+                                            style="width: 32px; height: 32px;"
+                                            title="Editar solicitud"
+                                            aria-label="Editar solicitud"
+                                            @onclick="() => EditarSolicitud(sol.IdSolicitud)"
+                                            @onclick:stopPropagation>
+                                        <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                    </button>
+                                }
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
                         <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
                             <CellDisplayTemplate>
                                 @{
@@ -541,12 +557,12 @@
                 <DxGrid Data="@GetNotificacionesServicios()" KeyFieldName="IdSolicitud" PageSize="20" ShowSearchBox="true" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
                     <Columns>
                         <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="60px" />
-                        <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="110px" />
+                            <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio pre." DisplayFormat="HH:mm" Width="80px" TextAlignment="GridTextAlignment.Center" />
                         <DxGridDataColumn FieldName="ConductorNombre" Caption="Operario" Width="130px" />
-                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="220px" />
-                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
+                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="300px" />
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="300px" />
                         <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado actual" Width="140px" />
-                        <DxGridDataColumn Caption="Acciones" Width="105px" AllowSort="false">
+                        <DxGridDataColumn Caption="Acciones" Width="105px" AllowSort="false" TextAlignment="GridTextAlignment.Center">
                             <CellDisplayTemplate>
                                 @{
                                     var solicitud = (Solicitud)context.DataItem;

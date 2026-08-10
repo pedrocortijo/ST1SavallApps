@@ -86,7 +86,7 @@ public class UsersController : ControllerBase
         var result = await _userManager.CreateAsync(newUser, dto.Password);
         if (!result.Succeeded)
         {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            var errors = FormatearErroresIdentity(result.Errors);
             return BadRequest(new { Message = $"No se pudo crear el usuario: {errors}" });
         }
 
@@ -132,7 +132,7 @@ public class UsersController : ControllerBase
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            var errors = FormatearErroresIdentity(result.Errors);
             return BadRequest(new { Message = $"Error al actualizar usuario: {errors}" });
         }
 
@@ -157,7 +157,7 @@ public class UsersController : ControllerBase
 
         if (!result.Succeeded)
         {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            var errors = FormatearErroresIdentity(result.Errors);
             return BadRequest(new { Message = $"No se pudo cambiar la contraseña: {errors}" });
         }
 
@@ -174,10 +174,30 @@ public class UsersController : ControllerBase
         var result = await _userManager.DeleteAsync(user);
         if (!result.Succeeded)
         {
-            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            var errors = FormatearErroresIdentity(result.Errors);
             return BadRequest(new { Message = $"No se pudo eliminar el usuario: {errors}" });
         }
 
         return NoContent();
     }
+
+    private static string FormatearErroresIdentity(IEnumerable<IdentityError> errores) =>
+        string.Join("; ", errores.Select(TraducirErrorIdentity));
+
+    private static string TraducirErrorIdentity(IdentityError error) => error.Code switch
+    {
+        "PasswordTooShort" => "La contraseña debe tener al menos 6 caracteres.",
+        "PasswordRequiresNonAlphanumeric" => "La contraseña debe contener al menos un carácter especial.",
+        "PasswordRequiresDigit" => "La contraseña debe contener al menos un número.",
+        "PasswordRequiresLower" => "La contraseña debe contener al menos una letra minúscula.",
+        "PasswordRequiresUpper" => "La contraseña debe contener al menos una letra mayúscula.",
+        "PasswordRequiresUniqueChars" => "La contraseña debe contener suficientes caracteres distintos.",
+        "PasswordMismatch" => "La contraseña indicada no es correcta.",
+        "DuplicateUserName" => "El nombre de usuario ya está en uso.",
+        "DuplicateEmail" => "El correo electrónico ya está en uso.",
+        "InvalidEmail" => "El correo electrónico no es válido.",
+        "InvalidUserName" => "El nombre de usuario no es válido.",
+        "UserAlreadyHasPassword" => "El usuario ya tiene una contraseña asignada.",
+        _ => "No se ha podido completar la operación solicitada."
+    };
 }

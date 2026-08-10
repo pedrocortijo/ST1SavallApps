@@ -44,7 +44,7 @@
     {
         <div class="card shadow-sm mb-4">
             <div class="card-body p-4">
-                <EditForm Model="@obra" OnValidSubmit="GuardarAsync" Context="editFormContext">
+                <EditForm Model="@obra" OnValidSubmit="GuardarAsync" Context="editFormContext" FormName="obra-form">
                     <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
                         <!-- Grupo 1: Datos Generales -->
                         <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
@@ -555,25 +555,21 @@
             errorMessage = null;
             await SetupHeadersAsync();
             var obrasExistentes = await Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50") ?? [];
-            var codigosExistentes = obrasExistentes
+            var ultimoCodigo = obrasExistentes
                 .Select(o => o.Codigo?.Trim())
-                .Where(codigo => !string.IsNullOrEmpty(codigo))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            for (var intento = 0; intento < 100; intento++)
-            {
-                var candidato = System.Security.Cryptography.RandomNumberGenerator
-                    .GetInt32(10000, 100000)
-                    .ToString(System.Globalization.CultureInfo.InvariantCulture);
+                .Where(codigo => int.TryParse(codigo, out _))
+                .Select(codigo => int.Parse(codigo!))
+                .DefaultIfEmpty(0)
+                .Max();
 
-                if (!codigosExistentes.Contains(candidato))
-                {
-                    obra.Codigo = candidato;
-                    await InvokeAsync(StateHasChanged);
-                    return;
-                }
+            if (ultimoCodigo >= 99999)
+            {
+                errorMessage = "No se puede generar un código de obra superior a 99999.";
+                return;
             }
 
-            errorMessage = "No se ha podido generar un codigo de obra libre. Vuelva a intentarlo.";
+            obra.Codigo = (ultimoCodigo + 1).ToString().PadLeft(5, '0');
+            await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
         {
