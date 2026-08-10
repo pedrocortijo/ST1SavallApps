@@ -250,11 +250,13 @@
     private string? ObtenerUrlRuta(Solicitud servicio)
     {
         var plantaOrigen = plantas.FirstOrDefault(planta => planta.IdPlanta == servicio.IdPlantaOrigen);
-        var origen = ObtenerDireccion(
-            plantaOrigen?.Direccion,
-            plantaOrigen?.Poblacion,
-            plantaOrigen?.CodigoPostal)
-            ?? ObtenerUbicacion(plantaOrigen?.Latitud, plantaOrigen?.Longitud)
+        // Google interpreta esta calle como otra dirección en Benidorm. Las
+        // coordenadas de la planta identifican inequívocamente su acceso real.
+        var origen = ObtenerUbicacion(plantaOrigen?.Latitud, plantaOrigen?.Longitud)
+            ?? ObtenerDireccion(
+                plantaOrigen?.Direccion,
+                plantaOrigen?.Poblacion,
+                plantaOrigen?.CodigoPostal)
             ?? ObtenerUbicacion(servicio.LatitudOrigen, servicio.LongitudOrigen);
         var destino = servicio.LatitudObra.HasValue && servicio.LongitudObra.HasValue
             ? $"{servicio.LatitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{servicio.LongitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
