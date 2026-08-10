@@ -26,7 +26,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div><h2 class="fw-bold text-primary mb-1">Detalle del servicio</h2>
             <p class="text-muted mb-0">Consulta de los datos asignados.</p>
-            </div><button class="btn btn-outline-secondary btn-sm" @onclick='() => NavigationManager.NavigateTo("/servicios/mis-servicios")'><i class="oi oi-arrow-left me-1"></i>Volver</button>
+            </div><button class="btn btn-outline-secondary btn-sm" @onclick="Volver"><i class="oi oi-arrow-left me-1"></i>Volver</button>
             </div>
     @if (loading) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div> }
     else if (!string.IsNullOrWhiteSpace(errorMessage)) { <div class="alert alert-danger">@errorMessage</div> }
@@ -49,8 +49,47 @@
 
 @code {
     [Parameter] public int Id { get; set; }
+    [SupplyParameterFromQuery(Name = "conductor")]
+    public int? ConductorSeleccionadoId { get; set; }
     private Solicitud? solicitud; private bool loading = true; private string? errorMessage, tarea, conductor, estado, motivo;
     private List<Planta> plantas = [];
-    protected override async Task OnInitializedAsync() { try { var state = await AuthStateProvider.GetAuthenticationStateAsync(); var user = state.User.Identity?.Name; solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id}"); var operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? []; var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? []; var conductorId = operarios.FirstOrDefault(o => string.Equals(o.Nombre, users.FirstOrDefault(u => string.Equals(u.Email, user, StringComparison.OrdinalIgnoreCase))?.Tecnico, StringComparison.OrdinalIgnoreCase))?.IdOperario; if (solicitud is null || solicitud.IdConductor != conductorId || solicitud.FechaTarea?.Date != DateTime.Today) { solicitud = null; errorMessage = "No tiene acceso a este servicio."; return; } var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? []; var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? []; var motivos = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos") ?? []; plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? []; conductor = operarios.FirstOrDefault(x => x.IdOperario == solicitud.IdConductor)?.Nombre; tarea = tareas.FirstOrDefault(x => x.IdTarea == solicitud.IdTipoTarea)?.NombreTarea; estado = estados.FirstOrDefault(x => x.IdEstado == solicitud.Estado)?.Descripcion; motivo = motivos.FirstOrDefault(x => x.IdMotivo == solicitud.MotivoReprogramacion)?.DescripcionMotivo; } catch(Exception ex) { errorMessage = ex.Message; } finally { loading = false; } }
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = state.User.Identity?.Name;
+            solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id}");
+            var operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? [];
+            var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
+            var tecnicoDelLogin = users.FirstOrDefault(u => string.Equals(u.Email, user, StringComparison.OrdinalIgnoreCase))?.Tecnico;
+            var operarioDelLogin = operarios.FirstOrDefault(o => string.Equals(o.Nombre, tecnicoDelLogin, StringComparison.OrdinalIgnoreCase));
+            var esConductor = string.Equals(operarioDelLogin?.Cargo?.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase);
+            var conductorAutorizado = esConductor ? operarioDelLogin?.IdOperario : ConductorSeleccionadoId;
+
+            if (solicitud is null || !conductorAutorizado.HasValue || solicitud.IdConductor != conductorAutorizado.Value)
+            {
+                solicitud = null;
+                errorMessage = "No tiene acceso a este servicio.";
+                return;
+            }
+
+            var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
+            var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
+            var motivos = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos") ?? [];
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? [];
+            conductor = operarios.FirstOrDefault(x => x.IdOperario == solicitud.IdConductor)?.Nombre;
+            tarea = tareas.FirstOrDefault(x => x.IdTarea == solicitud.IdTipoTarea)?.NombreTarea;
+            estado = estados.FirstOrDefault(x => x.IdEstado == solicitud.Estado)?.Descripcion;
+            motivo = motivos.FirstOrDefault(x => x.IdMotivo == solicitud.MotivoReprogramacion)?.DescripcionMotivo;
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { loading = false; }
+    }
+
+    private void Volver() => NavigationManager.NavigateTo(
+        ConductorSeleccionadoId.HasValue
+            ? $"/servicios/mis-servicios?conductor={ConductorSeleccionadoId.Value}"
+            : "/servicios/mis-servicios");
     private string Planta(int? id) => plantas.FirstOrDefault(x => x.IdPlanta == id)?.Nombre ?? "-";
 }

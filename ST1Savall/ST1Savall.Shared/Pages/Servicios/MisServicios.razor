@@ -223,7 +223,10 @@
         await LoadDataAsync();
     }
 
-    private void OpenServicio(int id) => NavigationManager.NavigateTo($"/servicios/mis-servicios/{id}");
+    private void OpenServicio(int id) => NavigationManager.NavigateTo(
+        conductorSeleccionadoId.HasValue
+            ? $"/servicios/mis-servicios/{id}?conductor={conductorSeleccionadoId.Value}"
+            : $"/servicios/mis-servicios/{id}");
     private void AbrirFirma(int id) => NavigationManager.NavigateTo(
         conductorSeleccionadoId.HasValue
             ? $"/servicios/mis-servicios/{id}/firma?conductor={conductorSeleccionadoId.Value}"
