@@ -250,12 +250,11 @@
     private string? ObtenerUrlRuta(Solicitud servicio)
     {
         var plantaOrigen = plantas.FirstOrDefault(planta => planta.IdPlanta == servicio.IdPlantaOrigen);
-        var origen = ObtenerUbicacion(
-            plantaOrigen?.Latitud,
-            plantaOrigen?.Longitud,
+        var origen = ObtenerDireccion(
             plantaOrigen?.Direccion,
             plantaOrigen?.Poblacion,
             plantaOrigen?.CodigoPostal)
+            ?? ObtenerUbicacion(plantaOrigen?.Latitud, plantaOrigen?.Longitud)
             ?? ObtenerUbicacion(servicio.LatitudOrigen, servicio.LongitudOrigen);
         var destino = servicio.LatitudObra.HasValue && servicio.LongitudObra.HasValue
             ? $"{servicio.LatitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{servicio.LongitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
@@ -275,6 +274,12 @@
 
         var texto = string.Join(", ", direccion.Where(valor => !string.IsNullOrWhiteSpace(valor)));
         return string.IsNullOrWhiteSpace(texto) ? null : texto;
+    }
+
+    private static string? ObtenerDireccion(params string?[] partes)
+    {
+        var direccion = string.Join(", ", partes.Where(valor => !string.IsNullOrWhiteSpace(valor)));
+        return string.IsNullOrWhiteSpace(direccion) ? null : direccion;
     }
 
     private Task CambiarInicioServicioAsync(Solicitud servicio) =>
