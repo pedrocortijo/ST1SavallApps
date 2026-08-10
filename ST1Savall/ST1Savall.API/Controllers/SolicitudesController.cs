@@ -296,6 +296,8 @@ public class SolicitudesController : ControllerBase
             datosPendientes.Add("DNI del firmante");
         if (string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
             datosPendientes.Add("Tipo de residuo");
+        if (string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta))
+            datosPendientes.Add("número de albarán de planta");
         var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
         if (tarea == null)
             return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });

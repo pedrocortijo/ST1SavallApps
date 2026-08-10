@@ -289,10 +289,20 @@
             ? CancelarInicioServicioAsync(servicio.IdSolicitud)
             : IniciarServicioAsync(servicio.IdSolicitud);
 
-    private Task CambiarFinalizacionServicioAsync(Solicitud servicio) =>
-        EsServicioFinalizado(servicio)
-            ? CancelarFinalizacionServicioAsync(servicio.IdSolicitud)
-            : FinalizarServicioAsync(servicio.IdSolicitud);
+    private Task CambiarFinalizacionServicioAsync(Solicitud servicio)
+    {
+        if (EsServicioFinalizado(servicio))
+            return CancelarFinalizacionServicioAsync(servicio.IdSolicitud);
+
+        if (string.IsNullOrWhiteSpace(servicio.AlbaranPlanta))
+        {
+            mensajePopup = "Antes de finalizar, introduzca el número de albarán de la planta en la pantalla Firma.";
+            mensajePopupVisible = true;
+            return Task.CompletedTask;
+        }
+
+        return FinalizarServicioAsync(servicio.IdSolicitud);
+    }
 
     private async Task IniciarServicioAsync(int idSolicitud)
     {
