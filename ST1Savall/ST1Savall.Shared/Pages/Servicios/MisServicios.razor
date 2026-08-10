@@ -129,6 +129,7 @@
     private bool loading = true;
     private string? errorMessage, userName;
     private List<Operario> conductoresConServiciosHoy = [];
+    private List<Planta> plantas = [];
     private int? conductorSeleccionadoId;
     private bool conductorDelLogin;
     private int? iniciandoServicioId;
@@ -154,6 +155,7 @@
             var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
             var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
             var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
+            plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? [];
             var tecnicoDelLogin = users.FirstOrDefault(u => string.Equals(u.Email, userName, StringComparison.OrdinalIgnoreCase))?.Tecnico;
             var operarioDelLogin = operarios.FirstOrDefault(o => string.Equals(o.Nombre, tecnicoDelLogin, StringComparison.OrdinalIgnoreCase));
             conductorDelLogin = string.Equals(operarioDelLogin?.Cargo?.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase);
@@ -245,15 +247,34 @@
     private static bool EsServicioAsignado(Solicitud servicio) =>
         servicio.EstadoDescripcion?.Contains("asignado", StringComparison.OrdinalIgnoreCase) == true;
 
-    private static string? ObtenerUrlRuta(Solicitud servicio)
+    private string? ObtenerUrlRuta(Solicitud servicio)
     {
+        var plantaOrigen = plantas.FirstOrDefault(planta => planta.IdPlanta == servicio.IdPlantaOrigen);
+        var origen = ObtenerUbicacion(
+            plantaOrigen?.Latitud,
+            plantaOrigen?.Longitud,
+            plantaOrigen?.Direccion,
+            plantaOrigen?.Poblacion,
+            plantaOrigen?.CodigoPostal)
+            ?? ObtenerUbicacion(servicio.LatitudOrigen, servicio.LongitudOrigen);
         var destino = servicio.LatitudObra.HasValue && servicio.LongitudObra.HasValue
             ? $"{servicio.LatitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{servicio.LongitudObra.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
             : string.Join(", ", new[] { servicio.DireccionCliente, servicio.PoblacionCliente }.Where(valor => !string.IsNullOrWhiteSpace(valor)));
 
-        return string.IsNullOrWhiteSpace(destino)
+        return string.IsNullOrWhiteSpace(origen) || string.IsNullOrWhiteSpace(destino)
             ? null
-            : $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(destino)}";
+            : $"https://www.google.com/maps/dir/?api=1&origin={Uri.EscapeDataString(origen)}&destination={Uri.EscapeDataString(destino)}&travelmode=driving";
+    }
+
+    private static string? ObtenerUbicacion(decimal? latitud, decimal? longitud, params string?[] direccion)
+    {
+        if (latitud.HasValue && longitud.HasValue)
+        {
+            return $"{latitud.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{longitud.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        }
+
+        var texto = string.Join(", ", direccion.Where(valor => !string.IsNullOrWhiteSpace(valor)));
+        return string.IsNullOrWhiteSpace(texto) ? null : texto;
     }
 
     private Task CambiarInicioServicioAsync(Solicitud servicio) =>
