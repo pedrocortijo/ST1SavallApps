@@ -1481,7 +1481,8 @@
                 solicitud.LongitudObra = solicitud.Longitud;
             }
 
-            if (TieneDatosRutaCompletos() && !await CalcularRutaAsync(false))
+            var servicioFinalizado = EsEstadoFinalizado(estadoInicial ?? 0) || EsEstadoFinalizado(solicitud.Estado);
+            if (!servicioFinalizado && TieneDatosRutaCompletos() && !await CalcularRutaAsync(false))
                 return false;
 
             solicitud.FechaActualizacion = DateTime.Now;

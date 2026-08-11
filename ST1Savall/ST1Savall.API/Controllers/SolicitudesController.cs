@@ -161,8 +161,13 @@ public class SolicitudesController : ControllerBase
         if (!string.Equals(solicitudAnterior.ObservacionesConductor, solicitud.ObservacionesConductor, StringComparison.Ordinal))
             solicitud.NotificacionInicioVisualizada = false;
 
-        var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
-        if (errorRuta != null) return errorRuta;
+        // La ruta de un servicio finalizado es histórica. Al editarlo no se debe
+        // consultar Mapbox ni sustituir sus datos de planificación.
+        if (solicitudAnterior.Estado != idFinalizado && solicitud.Estado != idFinalizado)
+        {
+            var errorRuta = await CalcularRutaAutomaticamenteAsync(solicitud);
+            if (errorRuta != null) return errorRuta;
+        }
 
         var errorPlanificacion = await _planificacionService.PrepararYValidarAsync(solicitud);
         if (errorPlanificacion != null)
