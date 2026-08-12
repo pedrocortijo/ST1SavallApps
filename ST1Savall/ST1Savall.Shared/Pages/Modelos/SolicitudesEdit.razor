@@ -647,6 +647,20 @@
                                         </DxComboBox>
                                     </div>
                                     </div>
+                                    <div class="row g-2 mt-1">
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold text-muted small mb-1">Tipo de residuo</label>
+                                            <DxComboBox Data="@(tiposContenedor?.OrderBy(articulo => articulo.Nombre) ?? Enumerable.Empty<ArticuloSage50>())"
+                                                        TData="ArticuloSage50"
+                                                        TValue="string"
+                                                        TextFieldName="Descripcion"
+                                                        ValueFieldName="Codigo"
+                                                        @bind-Value="solicitud.TipoResiduo"
+                                                        NullText="Seleccione el tipo de residuo..."
+                                                        SearchMode="ListSearchMode.AutoSearch"
+                                                        SearchFilterCondition="ListSearchFilterCondition.Contains" />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Columna Derecha: Localización GPS -->
