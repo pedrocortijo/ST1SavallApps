@@ -302,15 +302,19 @@ public class SolicitudesController : ControllerBase
             datosPendientes.Add("Nombre del firmante");
         if (string.IsNullOrWhiteSpace(solicitud.FirmaDni))
             datosPendientes.Add("DNI del firmante");
-        if (string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
-            datosPendientes.Add("Tipo de residuo");
-        else if (!await _articulosSage50Service.EsArticuloContenedorAsync(solicitud.TipoResiduo))
-            return BadRequest(new { message = "El tipo de residuo debe ser un código de artículo válido de Sage 50." });
         if (string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta))
             datosPendientes.Add("número de albarán de planta");
         var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
         if (tarea == null)
             return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
+
+        if (tarea.Recoger1 || tarea.Recoger2)
+        {
+            if (string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
+                datosPendientes.Add("Tipo de residuo");
+            else if (!await _articulosSage50Service.EsArticuloContenedorAsync(solicitud.TipoResiduo))
+                return BadRequest(new { message = "El tipo de residuo debe ser un código de artículo válido de Sage 50." });
+        }
 
         if (tarea.Entrega1 && string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)) datosPendientes.Add("número de serie de Entrega [1]");
         if (tarea.Entrega2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)) datosPendientes.Add("número de serie de Entrega [2]");
