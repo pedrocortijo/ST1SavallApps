@@ -16,10 +16,24 @@ public class SageGestionDbContext : DbContext
     public DbSet<ContlfCliSage50> ContlfCli { get; set; } = null!;
     public DbSet<TipoIvaSage50> TipoIva { get; set; } = null!;
     public DbSet<ArticuloSage50> Articulos { get; set; } = null!;
+    public DbSet<AlbaranVentaSage50> AlbaranesVenta { get; set; } = null!;
+    public DbSet<LineaAlbaranVentaSage50> LineasAlbaranesVenta { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AlbaranVentaSage50>(entity =>
+        {
+            entity.ToTable("c_albven");
+            entity.HasKey(a => new { a.EMPRESA, a.NUMERO, a.LETRA });
+        });
+
+        modelBuilder.Entity<LineaAlbaranVentaSage50>(entity =>
+        {
+            entity.ToTable("d_albven");
+            entity.HasKey(a => new { a.EMPRESA, a.NUMERO, a.LETRA, a.LINIA });
+        });
 
         modelBuilder.Entity<ClienteSage50>(entity =>
         {
