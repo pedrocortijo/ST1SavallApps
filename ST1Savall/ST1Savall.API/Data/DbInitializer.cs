@@ -317,7 +317,7 @@ public static class DbInitializer
                 IF COL_LENGTH('Solicitudes', 'AlbaranNumeroSage') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranNumeroSage VARCHAR(10) NULL;
                 IF COL_LENGTH('Solicitudes', 'TipoResiduo') IS NULL
-                    ALTER TABLE Solicitudes ADD TipoResiduo VARCHAR(150) NULL;
+                    ALTER TABLE Solicitudes ADD TipoResiduo VARCHAR(8) NULL;
                 IF OBJECT_ID('SolicitudFotos', 'U') IS NULL
                 BEGIN
                     CREATE TABLE SolicitudFotos (
@@ -352,6 +352,37 @@ public static class DbInitializer
                 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Entrega1' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Entrega1 BIT NOT NULL;
                 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Entrega2' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Entrega2 BIT NOT NULL;
             END
+        ");
+
+        // Desde agosto de 2026 TipoResiduo conserva el código del artículo Sage,
+        // no su descripción. Convertimos los valores históricos antes de acortar la columna.
+        var articulosResiduo = await sageGestionContext.Articulos.AsNoTracking()
+            .Where(a => (a.Familia.Trim() == "00002" || a.Familia.Trim() == "00003")
+                && !string.IsNullOrWhiteSpace(a.Nombre))
+            .Select(a => new { Codigo = a.Codigo.Trim(), Nombre = a.Nombre.Trim() })
+            .ToListAsync();
+        var codigosPorNombre = articulosResiduo
+            .Where(a => a.Codigo.Length <= 8)
+            .GroupBy(a => a.Nombre, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.Single().Codigo, StringComparer.OrdinalIgnoreCase);
+        var solicitudesConResiduoAnterior = await context.Solicitudes
+            .Where(s => !string.IsNullOrEmpty(s.TipoResiduo) && s.TipoResiduo.Length > 8)
+            .ToListAsync();
+        foreach (var solicitud in solicitudesConResiduoAnterior)
+        {
+            var descripcion = solicitud.TipoResiduo!.Trim();
+            if (!codigosPorNombre.TryGetValue(descripcion, out var codigo))
+                throw new InvalidOperationException($"No se ha podido convertir el tipo de residuo histórico de la solicitud #{solicitud.IdSolicitud}: '{descripcion}'.");
+            solicitud.TipoResiduo = codigo;
+        }
+        if (solicitudesConResiduoAnterior.Count > 0)
+            await context.SaveChangesAsync();
+
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Solicitudes', 'TipoResiduo') IS NOT NULL
+               AND EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Solicitudes') AND name = 'TipoResiduo' AND max_length <> 8)
+                ALTER TABLE Solicitudes ALTER COLUMN TipoResiduo VARCHAR(8) NULL;
         ");
 
         // Create TareasRelaciones table if it does not exist (in case DB already existed)

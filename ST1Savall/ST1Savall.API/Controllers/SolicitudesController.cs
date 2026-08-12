@@ -19,15 +19,18 @@ public class SolicitudesController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly PlanificacionService _planificacionService;
     private readonly CalculoRutaSolicitudService _calculoRutaService;
+    private readonly ArticulosSage50Service _articulosSage50Service;
 
     public SolicitudesController(
         ApplicationDbContext context,
         PlanificacionService planificacionService,
-        CalculoRutaSolicitudService calculoRutaService)
+        CalculoRutaSolicitudService calculoRutaService,
+        ArticulosSage50Service articulosSage50Service)
     {
         _context = context;
         _planificacionService = planificacionService;
         _calculoRutaService = calculoRutaService;
+        _articulosSage50Service = articulosSage50Service;
     }
 
     [HttpPost("calcular-ruta")]
@@ -301,6 +304,8 @@ public class SolicitudesController : ControllerBase
             datosPendientes.Add("DNI del firmante");
         if (string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
             datosPendientes.Add("Tipo de residuo");
+        else if (!await _articulosSage50Service.EsArticuloContenedorAsync(solicitud.TipoResiduo))
+            return BadRequest(new { message = "El tipo de residuo debe ser un código de artículo válido de Sage 50." });
         if (string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta))
             datosPendientes.Add("número de albarán de planta");
         var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
@@ -363,6 +368,9 @@ public class SolicitudesController : ControllerBase
 
         solicitud.AlbaranPlanta = datos.AlbaranPlanta?.Trim();
         solicitud.TipoResiduo = datos.TipoResiduo?.Trim();
+        if (!string.IsNullOrWhiteSpace(solicitud.TipoResiduo)
+            && !await _articulosSage50Service.EsArticuloContenedorAsync(solicitud.TipoResiduo))
+            return BadRequest(new { message = "El tipo de residuo seleccionado no corresponde a un artículo válido de Sage 50." });
         solicitud.FirmaNombre = datos.FirmaNombre?.Trim();
         solicitud.FirmaDni = datos.FirmaDni?.Trim();
         solicitud.CodigoEntrega = datos.CodigoEntrega?.Trim();

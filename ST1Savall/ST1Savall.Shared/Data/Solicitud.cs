@@ -38,7 +38,8 @@ public class Solicitud
     [MaxLength(10)]
     public string? AlbaranNumeroSage { get; set; }
 
-    [MaxLength(150)]
+    [MaxLength(8)]
+    [Column(TypeName = "varchar(8)")]
     public string? TipoResiduo { get; set; }
 
     [MaxLength(20)]
