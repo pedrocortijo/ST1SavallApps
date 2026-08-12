@@ -61,16 +61,15 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
         return CreatedAtAction(nameof(GetAlbaran), new { empresa = datos.Empresa, numero = datos.Numero, serie = datos.Serie }, datos);
     }
 
-    [HttpPut("{empresa}/{numero}/{serie}")]
-    public async Task<IActionResult> PutAlbaran(string empresa, string numero, string serie, AlbaranVentaEdicion datos)
+    [HttpPut]
+    public async Task<IActionResult> PutAlbaran(AlbaranVentaEdicion datos)
     {
-        if (!CoincideClave(datos, empresa, numero, serie)) return BadRequest(new { message = "La clave del albarán no se puede modificar." });
         var error = await ValidarYNormalizarAsync(datos, false);
         if (error is not null) return BadRequest(new { message = error });
 
-        var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a => a.EMPRESA == empresa && a.NUMERO == numero && a.LETRA == serie);
+        var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a => a.EMPRESA == datos.Empresa && a.NUMERO == datos.Numero && a.LETRA == datos.Serie);
         if (cabecera is null) return NotFound();
-        var linea = await context.LineasAlbaranesVenta.OrderBy(l => l.LINIA).FirstOrDefaultAsync(l => l.EMPRESA == empresa && l.NUMERO == numero && l.LETRA == serie);
+        var linea = await context.LineasAlbaranesVenta.OrderBy(l => l.LINIA).FirstOrDefaultAsync(l => l.EMPRESA == datos.Empresa && l.NUMERO == datos.Numero && l.LETRA == datos.Serie);
         if (linea is null) return BadRequest(new { message = "El albarán no tiene línea editable." });
 
         var cliente = await ObtenerClienteAsync(datos.Cliente);
@@ -81,9 +80,10 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
         return NoContent();
     }
 
-    [HttpDelete("{empresa}/{numero}/{serie}")]
-    public async Task<IActionResult> DeleteAlbaran(string empresa, string numero, string serie)
+    [HttpDelete]
+    public async Task<IActionResult> DeleteAlbaran([FromQuery] string empresa, [FromQuery] string numero, [FromQuery] string? serie)
     {
+        serie ??= string.Empty;
         var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a => a.EMPRESA == empresa && a.NUMERO == numero && a.LETRA == serie);
         if (cabecera is null) return NotFound();
         await using var transaccion = await context.Database.BeginTransactionAsync();
@@ -117,11 +117,6 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
 
     private async Task<ClienteSage50> ObtenerClienteAsync(string codigo) =>
         await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp).FirstAsync(c => c.Codigo == codigo);
-
-    private static bool CoincideClave(AlbaranVentaEdicion datos, string empresa, string numero, string serie) =>
-        string.Equals(datos.Empresa?.Trim(), empresa.Trim(), StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(datos.Numero?.Trim(), numero.Trim(), StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(datos.Serie?.Trim(), serie.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea) => new()
     {
