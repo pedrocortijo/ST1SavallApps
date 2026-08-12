@@ -656,7 +656,6 @@
                                                         TextFieldName="Descripcion"
                                                         ValueFieldName="Codigo"
                                                         @bind-Value="solicitud.TipoResiduo"
-                                                        Enabled="@RequiereTipoResiduo"
                                                         NullText="Seleccione el tipo de residuo..."
                                                         SearchMode="ListSearchMode.AutoSearch"
                                                         SearchFilterCondition="ListSearchFilterCondition.Contains" />
@@ -2189,7 +2188,6 @@
     private bool IsEntrega2Enabled => TareaSeleccionada?.Entrega2 == true;
     private bool IsRecogidaEnabled => TareaSeleccionada?.Recoger1 == true;
     private bool IsRecogida2Enabled => TareaSeleccionada?.Recoger2 == true;
-    private bool RequiereTipoResiduo => TareaSeleccionada is { } tarea && RequiereContenedorExistente(tarea);
 
     private void OnTareaChanged(int val)
     {
@@ -2282,8 +2280,6 @@
         if (tarea?.Recoger2 != true)
             solicitud.CodigoAmbosRecogida = null;
 
-        if (tarea is null || !RequiereContenedorExistente(tarea))
-            solicitud.TipoResiduo = null;
     }
 
     private void LimpiarCambioTareaPendiente()

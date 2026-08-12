@@ -94,7 +94,7 @@
             </section>
 
                 <div class="row g-2 border-top pt-3 mb-3">
-                    <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" TData="ArticuloSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="solicitud.TipoResiduo" Enabled="@RequiereTipoResiduo" CssClass="w-100" NullText="Seleccione el tipo de residuo..." /></div>
+                    <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" TData="ArticuloSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="solicitud.TipoResiduo" CssClass="w-100" NullText="Seleccione el tipo de residuo..." /></div>
                     <div class="col-md-6"><label class="form-label small fw-bold">Albarán de planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div>
                 </div>
 
@@ -162,7 +162,6 @@
     private int intentosInicializacionFirma;
     private bool esAplicacionNativa;
     private string FechaServicio => solicitud?.FechaTarea?.ToString("dd/MM/yyyy") ?? string.Empty;
-    private bool RequiereTipoResiduo => tarea?.Recoger1 == true || tarea?.Recoger2 == true;
 
     protected override async Task OnInitializedAsync()
     {
