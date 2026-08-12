@@ -67,9 +67,12 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
         var error = await ValidarYNormalizarAsync(datos, false);
         if (error is not null) return BadRequest(new { message = error });
 
-        var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a => a.EMPRESA == datos.Empresa && a.NUMERO == datos.Numero && a.LETRA == datos.Serie);
-        if (cabecera is null) return NotFound();
-        var linea = await context.LineasAlbaranesVenta.OrderBy(l => l.LINIA).FirstOrDefaultAsync(l => l.EMPRESA == datos.Empresa && l.NUMERO == datos.Numero && l.LETRA == datos.Serie);
+        var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a =>
+            a.EMPRESA.Trim() == datos.Empresa && a.NUMERO.Trim() == datos.Numero && a.LETRA.Trim() == datos.Serie);
+        if (cabecera is null)
+            return NotFound(new { message = $"No se encuentra el albarán Sage {datos.Empresa}/{datos.Serie}/{datos.Numero}." });
+        var linea = await context.LineasAlbaranesVenta.OrderBy(l => l.LINIA).FirstOrDefaultAsync(l =>
+            l.EMPRESA.Trim() == datos.Empresa && l.NUMERO.Trim() == datos.Numero && l.LETRA.Trim() == datos.Serie);
         if (linea is null) return BadRequest(new { message = "El albarán no tiene línea editable." });
 
         var cliente = await ObtenerClienteAsync(datos.Cliente);
@@ -84,10 +87,16 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
     public async Task<IActionResult> DeleteAlbaran([FromQuery] string empresa, [FromQuery] string numero, [FromQuery] string? serie)
     {
         serie ??= string.Empty;
-        var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a => a.EMPRESA == empresa && a.NUMERO == numero && a.LETRA == serie);
-        if (cabecera is null) return NotFound();
+        empresa = empresa.Trim();
+        numero = numero.Trim();
+        serie = serie.Trim();
+        var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a =>
+            a.EMPRESA.Trim() == empresa && a.NUMERO.Trim() == numero && a.LETRA.Trim() == serie);
+        if (cabecera is null)
+            return NotFound(new { message = $"No se encuentra el albarán Sage {empresa}/{serie}/{numero}." });
         await using var transaccion = await context.Database.BeginTransactionAsync();
-        var lineas = await context.LineasAlbaranesVenta.Where(l => l.EMPRESA == empresa && l.NUMERO == numero && l.LETRA == serie).ToListAsync();
+        var lineas = await context.LineasAlbaranesVenta.Where(l =>
+            l.EMPRESA.Trim() == empresa && l.NUMERO.Trim() == numero && l.LETRA.Trim() == serie).ToListAsync();
         context.LineasAlbaranesVenta.RemoveRange(lineas);
         context.AlbaranesVenta.Remove(cabecera);
         await context.SaveChangesAsync();
