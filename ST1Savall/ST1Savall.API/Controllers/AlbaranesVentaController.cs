@@ -26,8 +26,13 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
                 .ToListAsync())
             .Where(l => claves.Contains($"{l.EMPRESA}|{l.NUMERO}|{l.LETRA}"))
             .ToList();
+        var codigosCliente = cabeceras.Select(c => c.CLIENTE).Distinct().ToList();
+        var clientes = await context.Clientes.AsNoTracking().Where(c => codigosCliente.Contains(c.Codigo)).ToListAsync();
 
-        return cabeceras.Select(c => CrearEdicion(c, lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA))).ToList();
+        return cabeceras.Select(c => CrearEdicion(c,
+            lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA),
+            clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE && cliente.Clienteerp == c.CLIENTEERP)
+                ?? clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE))).ToList();
     }
 
     [HttpGet("{empresa}/{numero}/{serie}")]
@@ -38,7 +43,10 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
         var linea = await context.LineasAlbaranesVenta.AsNoTracking()
             .OrderBy(l => l.LINIA)
             .FirstOrDefaultAsync(l => l.EMPRESA == empresa && l.NUMERO == numero && l.LETRA == serie);
-        return CrearEdicion(cabecera, linea);
+        var cliente = await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp)
+            .FirstOrDefaultAsync(c => c.Codigo == cabecera.CLIENTE && c.Clienteerp == cabecera.CLIENTEERP)
+            ?? await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp).FirstOrDefaultAsync(c => c.Codigo == cabecera.CLIENTE);
+        return CrearEdicion(cabecera, linea, cliente);
     }
 
     [HttpPost]
@@ -112,6 +120,10 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
         datos.Cliente = datos.Cliente?.Trim().ToUpperInvariant() ?? string.Empty;
         datos.Almacen = datos.Almacen?.Trim().ToUpperInvariant() ?? string.Empty;
         datos.Usuario = datos.Usuario?.Trim() ?? string.Empty;
+        datos.Vendedor = datos.Vendedor?.Trim().ToUpperInvariant() ?? string.Empty;
+        datos.FormaPago = datos.FormaPago?.Trim().ToUpperInvariant() ?? string.Empty;
+        datos.Operario = datos.Operario?.Trim().ToUpperInvariant() ?? string.Empty;
+        datos.Obra = datos.Obra?.Trim().ToUpperInvariant() ?? string.Empty;
         datos.Articulo = datos.Articulo?.Trim().ToUpperInvariant() ?? string.Empty;
         if (validarClave && (string.IsNullOrWhiteSpace(datos.Empresa) || string.IsNullOrWhiteSpace(datos.Numero) || string.IsNullOrWhiteSpace(datos.Serie))) return "Debe indicar empresa, número y serie.";
         if (string.IsNullOrWhiteSpace(datos.Cliente)) return "Debe indicar el cliente Sage.";
@@ -127,11 +139,16 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
     private async Task<ClienteSage50> ObtenerClienteAsync(string codigo) =>
         await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp).FirstAsync(c => c.Codigo == codigo);
 
-    private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea) => new()
+    private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente) => new()
     {
         Empresa = cabecera.EMPRESA.Trim(), Numero = cabecera.NUMERO.Trim(), Serie = cabecera.LETRA.Trim(), Fecha = cabecera.FECHA,
         Cliente = cabecera.CLIENTE.Trim(), Almacen = cabecera.ALMACEN.Trim(), Usuario = cabecera.USUARIO.Trim(),
-        Articulo = linea?.ARTICULO.Trim() ?? string.Empty, Unidades = linea?.UNIDADES ?? 0, Precio = linea?.PRECIO ?? 0
+        Vendedor = cabecera.VENDEDOR.Trim(), FormaPago = cabecera.FPAG.Trim(), Operario = cabecera.OPERARIO.Trim(), Obra = cabecera.OBRA.Trim(),
+        Tarifa = cliente?.Tarifa.Trim() ?? string.Empty, Articulo = linea?.ARTICULO.Trim() ?? string.Empty, Unidades = linea?.UNIDADES ?? 0, Precio = linea?.PRECIO ?? 0,
+        ClienteCif = cliente?.Cif.Trim() ?? string.Empty, ClienteNombre = cliente?.Nombre.Trim() ?? string.Empty,
+        ClienteDireccion = cliente?.Direccion.Trim() ?? string.Empty, ClienteCodigoPostal = cliente?.Codpost.Trim() ?? string.Empty,
+        ClientePoblacion = cliente?.Poblacion.Trim() ?? string.Empty, ClienteProvincia = cliente?.Provincia.Trim() ?? string.Empty,
+        ClienteTelefono = cliente?.Telefono.Trim() ?? string.Empty, ClienteEmail = cliente?.Email.Trim() ?? string.Empty
     };
 
     private static AlbaranVentaSage50 CrearCabecera(AlbaranVentaEdicion d, ClienteSage50 cliente)
@@ -145,7 +162,8 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
     {
         var ahora = DateTime.Now;
         c.USUARIO = d.Usuario; c.FECHA = d.Fecha; c.CLIENTE = d.Cliente; c.CLIENTEERP = cliente.Clienteerp.Trim(); c.ALMACEN = d.Almacen;
-        c.FPAG = cliente.Fpag.Trim(); c.VENDEDOR = cliente.Vendedor.Trim(); c.RUTA = cliente.Ruta.Trim(); c.PRONTO = cliente.Pronto;
+        c.FPAG = string.IsNullOrWhiteSpace(d.FormaPago) ? cliente.Fpag.Trim() : d.FormaPago; c.VENDEDOR = string.IsNullOrWhiteSpace(d.Vendedor) ? cliente.Vendedor.Trim() : d.Vendedor;
+        c.OPERARIO = d.Operario; c.OBRA = d.Obra; c.RUTA = cliente.Ruta.Trim(); c.PRONTO = cliente.Pronto;
         c.IVA_INC = false; c.FACTURABLE = true; c.GASTOS = true; c.TRASPERP = true; c.VISTA = true; c.FECHASTOCK = d.Fecha;
         c.CREATED = c.CREATED == default ? ahora : c.CREATED; c.MODIFIED = ahora;
         c.GUID_ID = string.IsNullOrWhiteSpace(c.GUID_ID) ? Guid.NewGuid().ToString() : c.GUID_ID;
