@@ -7,7 +7,10 @@ namespace ST1Savall.API.Controllers;
 
 [ApiController]
 [Route("api/albaranes-venta")]
-public class AlbaranesVentaController(SageGestionDbContext context) : ControllerBase
+public class AlbaranesVentaController(
+    SageGestionDbContext context,
+    SageComunDbContext comunContext,
+    ApplicationDbContext applicationContext) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AlbaranVentaEdicion>>> GetAlbaranes()
@@ -28,11 +31,14 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
             .ToList();
         var codigosCliente = cabeceras.Select(c => c.CLIENTE).Distinct().ToList();
         var clientes = await context.Clientes.AsNoTracking().Where(c => codigosCliente.Contains(c.Codigo)).ToListAsync();
+        var codigosObra = cabeceras.Select(c => c.OBRA).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
+        var obras = await comunContext.Obras.AsNoTracking().Where(o => codigosObra.Contains(o.Codigo)).ToListAsync();
 
         return cabeceras.Select(c => CrearEdicion(c,
             lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA),
             clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE && cliente.Clienteerp == c.CLIENTEERP)
-                ?? clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE))).ToList();
+                ?? clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE),
+            obras.FirstOrDefault(obra => obra.Codigo == c.OBRA))).ToList();
     }
 
     [HttpGet("{empresa}/{numero}/{serie}")]
@@ -46,12 +52,19 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
         var cliente = await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp)
             .FirstOrDefaultAsync(c => c.Codigo == cabecera.CLIENTE && c.Clienteerp == cabecera.CLIENTEERP)
             ?? await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp).FirstOrDefaultAsync(c => c.Codigo == cabecera.CLIENTE);
-        return CrearEdicion(cabecera, linea, cliente);
+        var obra = await comunContext.Obras.AsNoTracking().FirstOrDefaultAsync(o => o.Codigo == cabecera.OBRA);
+        return CrearEdicion(cabecera, linea, cliente, obra);
     }
 
     [HttpPost]
     public async Task<ActionResult<AlbaranVentaEdicion>> PostAlbaran(AlbaranVentaEdicion datos)
     {
+        var parametros = await applicationContext.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        if (parametros is null || string.IsNullOrWhiteSpace(parametros.SerieAlbaranes) || string.IsNullOrWhiteSpace(parametros.AlmacenAlbaranes))
+            return BadRequest(new { message = "Configure la serie y el almacén de albaranes en Parámetros antes de crear un albarán." });
+
+        datos.Serie = parametros.SerieAlbaranes;
+        datos.Almacen = parametros.AlmacenAlbaranes;
         var error = await ValidarYNormalizarAsync(datos, true);
         if (error is not null) return BadRequest(new { message = error });
 
@@ -139,12 +152,13 @@ public class AlbaranesVentaController(SageGestionDbContext context) : Controller
     private async Task<ClienteSage50> ObtenerClienteAsync(string codigo) =>
         await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp).FirstAsync(c => c.Codigo == codigo);
 
-    private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente) => new()
+    private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente, ObraComunSage50? obra = null) => new()
     {
         Empresa = cabecera.EMPRESA.Trim(), Numero = cabecera.NUMERO.Trim(), Serie = cabecera.LETRA.Trim(), Fecha = cabecera.FECHA,
         Cliente = cabecera.CLIENTE.Trim(), Almacen = cabecera.ALMACEN.Trim(), Usuario = cabecera.USUARIO.Trim(),
         Vendedor = cabecera.VENDEDOR.Trim(), FormaPago = cabecera.FPAG.Trim(), Operario = cabecera.OPERARIO.Trim(), Obra = cabecera.OBRA.Trim(),
-        Tarifa = cliente?.Tarifa.Trim() ?? string.Empty, Articulo = linea?.ARTICULO.Trim() ?? string.Empty, Unidades = linea?.UNIDADES ?? 0, Precio = linea?.PRECIO ?? 0,
+        ObraNombre = obra?.Nombre.Trim() ?? string.Empty,
+        Tarifa = cliente?.Tarifa.Trim() ?? string.Empty, Articulo = linea?.ARTICULO.Trim() ?? string.Empty, Unidades = linea?.UNIDADES ?? 0, Precio = linea?.PRECIO ?? 0, TotalDocumento = cabecera.TOTALDOC,
         ClienteCif = cliente?.Cif.Trim() ?? string.Empty, ClienteNombre = cliente?.Nombre.Trim() ?? string.Empty,
         ClienteDireccion = cliente?.Direccion.Trim() ?? string.Empty, ClienteCodigoPostal = cliente?.Codpost.Trim() ?? string.Empty,
         ClientePoblacion = cliente?.Poblacion.Trim() ?? string.Empty, ClienteProvincia = cliente?.Provincia.Trim() ?? string.Empty,

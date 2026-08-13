@@ -190,6 +190,16 @@
                                     </DxFormLayoutItem>
                                 </DxFormLayout>
                             </DxTabPage>
+                            <DxTabPage Text="Albaranes">
+                                <DxFormLayout CssClass="w-100 p-3">
+                                    <DxFormLayoutItem Caption="Serie de albaranes" ColSpanMd="6">
+                                        <DxTextBox @bind-Text="parametro.SerieAlbaranes" MaxLength="2" NullText="Ej.: A" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Almacén de albaranes" ColSpanMd="6">
+                                        <DxTextBox @bind-Text="parametro.AlmacenAlbaranes" MaxLength="3" NullText="Ej.: AL1" />
+                                    </DxFormLayoutItem>
+                                </DxFormLayout>
+                            </DxTabPage>
                         </DxTabs>
                     </EditFormTemplate>
                 </DxGrid>

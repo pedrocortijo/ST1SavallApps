@@ -129,6 +129,14 @@ public static class DbInitializer
                     ALTER TABLE Parametros ADD AvisoTiempoContenedor INT NOT NULL
                         CONSTRAINT DF_Parametros_AvisoTiempoContenedor DEFAULT (0);
 
+                IF COL_LENGTH('Parametros', 'SerieAlbaranes') IS NULL
+                    ALTER TABLE Parametros ADD SerieAlbaranes CHAR(2) NOT NULL
+                        CONSTRAINT DF_Parametros_SerieAlbaranes DEFAULT ('');
+
+                IF COL_LENGTH('Parametros', 'AlmacenAlbaranes') IS NULL
+                    ALTER TABLE Parametros ADD AlmacenAlbaranes CHAR(3) NOT NULL
+                        CONSTRAINT DF_Parametros_AlmacenAlbaranes DEFAULT ('');
+
                 IF COL_LENGTH('Parametros', 'PathImagenes') IS NULL
                     ALTER TABLE Parametros ADD PathImagenes VARCHAR(255) NULL;
 

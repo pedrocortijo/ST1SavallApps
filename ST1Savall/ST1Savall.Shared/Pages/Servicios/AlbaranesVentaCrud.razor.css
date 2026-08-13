@@ -1,0 +1,28 @@
+.albaran-cabecera {
+    font-size: 0.72rem;
+}
+
+.albaran-cabecera .form-label {
+    margin-bottom: 0.05rem;
+    font-size: 0.68rem;
+    line-height: 1;
+}
+
+.albaran-grupo {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    padding: 0.6rem;
+}
+
+.albaran-grupo h6 {
+    color: var(--bs-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin: -0.05rem 0 0.45rem;
+}
+
+.albaran-cabecera ::deep .form-control,
+.albaran-cabecera ::deep .dxbl-text-edit,
+.albaran-cabecera ::deep .dxbl-spin-edit {
+    font-size: 0.72rem;
+}

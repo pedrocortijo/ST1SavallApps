@@ -15,29 +15,64 @@
         @if (albaranes is null) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted mb-0">Cargando albaranes...</p></div> }
         else
         {
-            <DxGrid @ref="grid" Data="@albaranes" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Albarán de venta" PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar albarán...">
+            <DxGrid @ref="grid" Data="@albaranes" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Albarán de venta" PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar albarán..." ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" HorizontalScrollBarMode="ScrollBarMode.Auto">
                 <Columns>
-                    <DxGridCommandColumn Width="120px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                    <DxGridCommandColumn 
+                        Width="90px" 
+                        NewButtonVisible="false" 
+                        EditButtonVisible="false" 
+                        DeleteButtonVisible="false">
                         <HeaderTemplate><button type="button" class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i> Nuevo</button></HeaderTemplate>
-                        <CellDisplayTemplate>@{ var albaran = (AlbaranVentaEdicion)context.DataItem; }<div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(albaran)"><i class="oi oi-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(albaran)"><i class="oi oi-trash"></i></button></div></CellDisplayTemplate>
+                        <CellDisplayTemplate>@{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
+                            <div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(albaran)"><i class="oi oi-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(albaran)"><i class="oi oi-trash"></i></button>
+                            </div>
+                        </CellDisplayTemplate>
                     </DxGridCommandColumn>
-                    <DxGridDataColumn FieldName="Fecha" Caption="Fecha" DisplayFormat="d" Width="110px" /><DxGridDataColumn FieldName="Empresa" Caption="Empresa" Width="80px" /><DxGridDataColumn FieldName="Serie" Caption="Serie" Width="75px" /><DxGridDataColumn FieldName="Numero" Caption="Número" Width="120px" /><DxGridDataColumn FieldName="Cliente" Caption="Cliente Sage" Width="120px" /><DxGridDataColumn FieldName="Articulo" Caption="Artículo" Width="140px" /><DxGridDataColumn FieldName="Unidades" Caption="Unidades" DisplayFormat="n2" Width="110px" /><DxGridDataColumn FieldName="Precio" Caption="Precio" DisplayFormat="n2" Width="110px" /><DxGridDataColumn FieldName="Almacen" Caption="Almacén" Width="110px" /><DxGridDataColumn FieldName="Usuario" Caption="Usuario Sage" Width="180px" />
+                    <DxGridDataColumn
+                        FieldName="Fecha" 
+                        Caption="Fecha" 
+                        DisplayFormat="d" 
+                        Width="90px" />
+                    <DxGridDataColumn Caption="Albarán" Width="100px">
+                        <CellDisplayTemplate>
+                            @{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
+                            @($"{albaran.Serie.Trim()}-{albaran.Numero.Trim()}")
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="Obra" Width="220px">
+                        <CellDisplayTemplate>
+                            @{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
+                            @($"{albaran.Obra.Trim()}-{albaran.ObraNombre.Trim()}")
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn
+                        FieldName="ClienteNombre" 
+                        Caption="Nombre cliente" 
+                        Width="210px" />
+                    <DxGridDataColumn
+                        FieldName="Articulo" 
+                        Caption="Artículo" 
+                        Width="120px" />
+                    <DxGridDataColumn FieldName="TotalDocumento" Caption="Total" DisplayFormat="n2" Width="100px" TextAlignment="GridTextAlignment.Right" />
+
                 </Columns>
                 <EditFormTemplate Context="editContext">
                     @{ var albaran = (AlbaranVentaEdicion)editContext.EditModel; }
-                    <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
-                        <DxFormLayoutItem Caption="Empresa" ColSpanMd="3" BeginRow="true"><DxTextBox @bind-Text="albaran.Empresa" MaxLength="2" /></DxFormLayoutItem><DxFormLayoutItem Caption="Serie" ColSpanMd="3"><DxTextBox @bind-Text="albaran.Serie" MaxLength="2" /></DxFormLayoutItem><DxFormLayoutItem Caption="Número" ColSpanMd="6"><DxTextBox @bind-Text="albaran.Numero" MaxLength="10" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Fecha" ColSpanMd="4" BeginRow="true"><DxDateEdit @bind-Date="albaran.Fecha" /></DxFormLayoutItem><DxFormLayoutItem Caption="Cliente Sage" ColSpanMd="4"><DxTextBox @bind-Text="albaran.Cliente" MaxLength="8" /></DxFormLayoutItem><DxFormLayoutItem Caption="Almacén" ColSpanMd="4"><DxTextBox @bind-Text="albaran.Almacen" MaxLength="3" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Vendedor" ColSpanMd="3" BeginRow="true"><DxTextBox @bind-Text="albaran.Vendedor" MaxLength="5" /></DxFormLayoutItem><DxFormLayoutItem Caption="F. pago" ColSpanMd="3"><DxTextBox @bind-Text="albaran.FormaPago" MaxLength="2" /></DxFormLayoutItem><DxFormLayoutItem Caption="Operario" ColSpanMd="3"><DxTextBox @bind-Text="albaran.Operario" MaxLength="2" /></DxFormLayoutItem><DxFormLayoutItem Caption="Obra" ColSpanMd="3"><DxTextBox @bind-Text="albaran.Obra" MaxLength="5" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Tarifa" ColSpanMd="3" BeginRow="true"><input class="form-control" value="@albaran.Tarifa" readonly tabindex="-1" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Usuario Sage" ColSpanMd="6" BeginRow="true"><DxTextBox @bind-Text="albaran.Usuario" MaxLength="25" /></DxFormLayoutItem><DxFormLayoutItem Caption="Artículo Sage" ColSpanMd="6"><DxTextBox @bind-Text="albaran.Articulo" MaxLength="20" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Unidades" ColSpanMd="6" BeginRow="true"><DxSpinEdit @bind-Value="albaran.Unidades" MinValue="0.000001m" /></DxFormLayoutItem><DxFormLayoutItem Caption="Precio" ColSpanMd="6"><DxSpinEdit @bind-Value="albaran.Precio" MinValue="0m" /></DxFormLayoutItem>
-                        <DxFormLayoutItem ColSpanMd="12" BeginRow="true"><Template><h5 class="text-primary border-top pt-3 mt-2 mb-0">Datos del cliente</h5></Template></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="CIF" ColSpanMd="3" BeginRow="true"><input class="form-control" value="@albaran.ClienteCif" readonly tabindex="-1" /></DxFormLayoutItem><DxFormLayoutItem Caption="Nombre" ColSpanMd="9"><input class="form-control" value="@albaran.ClienteNombre" readonly tabindex="-1" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="12" BeginRow="true"><input class="form-control" value="@albaran.ClienteDireccion" readonly tabindex="-1" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="C. postal" ColSpanMd="3" BeginRow="true"><input class="form-control" value="@albaran.ClienteCodigoPostal" readonly tabindex="-1" /></DxFormLayoutItem><DxFormLayoutItem Caption="Población" ColSpanMd="4"><input class="form-control" value="@albaran.ClientePoblacion" readonly tabindex="-1" /></DxFormLayoutItem><DxFormLayoutItem Caption="Provincia" ColSpanMd="5"><input class="form-control" value="@albaran.ClienteProvincia" readonly tabindex="-1" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Teléfono" ColSpanMd="4" BeginRow="true"><input class="form-control" value="@albaran.ClienteTelefono" readonly tabindex="-1" /></DxFormLayoutItem><DxFormLayoutItem Caption="Email" ColSpanMd="8"><input class="form-control" value="@albaran.ClienteEmail" readonly tabindex="-1" /></DxFormLayoutItem>
-                    </DxFormLayout>
+                    <div class="row g-0 p-3 albaran-cabecera">
+                        <div class="col-lg-6 pe-lg-3"><section class="albaran-grupo h-100"><h6>Cabecera del albarán</h6><div class="row g-2">
+                            <div class="col-4"><label class="form-label">Serie</label><DxTextBox @bind-Text="albaran.Serie" MaxLength="2" /></div><div class="col-4"><label class="form-label">Número</label><DxTextBox @bind-Text="albaran.Numero" MaxLength="10" /></div><div class="col-4"><label class="form-label">Fecha</label><DxDateEdit @bind-Date="albaran.Fecha" /></div>
+                            <div class="col-6"><label class="form-label">Vendedor</label><DxTextBox @bind-Text="albaran.Vendedor" MaxLength="5" /></div><div class="col-6"><label class="form-label">F. pago</label><DxTextBox @bind-Text="albaran.FormaPago" MaxLength="2" /></div>
+                            <div class="col-6"><label class="form-label">Obra</label><DxComboBox Data="@obrasSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Obra" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione una obra..." /></div><div class="col-6"><label class="form-label">Tarifa</label><input class="form-control" value="@albaran.Tarifa" readonly tabindex="-1" /></div>
+                        </div></section></div>
+                        <div class="col-lg-6 ps-lg-3 pt-3 pt-lg-0"><section class="albaran-grupo h-100"><h6>Datos del cliente</h6><div class="row g-2">
+                            <div class="col-3"><label class="form-label">Código cliente</label><DxComboBox Data="@clientesSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Cliente" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione un cliente..." /></div><div class="col-3"><label class="form-label">CIF</label><input class="form-control" value="@albaran.ClienteCif" readonly tabindex="-1" /></div><div class="col-6"><label class="form-label">Nombre</label><input class="form-control" value="@albaran.ClienteNombre" readonly tabindex="-1" /></div>
+                            <div class="col-12"><label class="form-label">Dirección</label><input class="form-control" value="@albaran.ClienteDireccion" readonly tabindex="-1" /></div>
+                            <div class="col-3"><label class="form-label">Cód. postal</label><input class="form-control" value="@albaran.ClienteCodigoPostal" readonly tabindex="-1" /></div><div class="col-5"><label class="form-label">Población</label><input class="form-control" value="@albaran.ClientePoblacion" readonly tabindex="-1" /></div><div class="col-4"><label class="form-label">Provincia</label><input class="form-control" value="@albaran.ClienteProvincia" readonly tabindex="-1" /></div>
+                        </div></section></div>
+                        <div class="col-12 border-top mt-3 pt-3"><div class="row g-2">
+                            <div class="col-md-4"><label class="form-label">Usuario Sage</label><DxTextBox @bind-Text="albaran.Usuario" MaxLength="25" /></div><div class="col-md-4"><label class="form-label">Artículo Sage</label><DxTextBox @bind-Text="albaran.Articulo" MaxLength="20" /></div><div class="col-md-2"><label class="form-label">Unidades</label><DxSpinEdit @bind-Value="albaran.Unidades" MinValue="0.000001m" /></div><div class="col-md-2"><label class="form-label">Precio</label><DxSpinEdit @bind-Value="albaran.Precio" MinValue="0m" /></div>
+                        </div></div>
+                    </div>
                 </EditFormTemplate>
             </DxGrid>
         }
@@ -47,11 +82,14 @@
 @code {
     private IGrid? grid;
     private List<AlbaranVentaEdicion>? albaranes;
+    private List<CodigoNombre> clientesSage = [];
+    private List<CodigoNombre> obrasSage = [];
     private string? errorMessage;
     protected override async Task OnInitializedAsync() { await SetupHeadersAsync(); await LoadDataAsync(); }
     private async Task SetupHeadersAsync() { var state = await AuthStateProvider.GetAuthenticationStateAsync(); var token = state.User.FindFirst("token")?.Value; if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); }
-    private async Task LoadDataAsync() { try { albaranes = await Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>("api/albaranes-venta") ?? []; errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
+    private async Task LoadDataAsync() { try { var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>("api/albaranes-venta"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask); albaranes = albaranesTask.Result ?? []; clientesSage = (clientesTask.Result ?? []).GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e) { var a = (AlbaranVentaEdicion)e.EditModel; try { await SetupHeadersAsync(); var response = e.IsNew ? await Http.PostAsJsonAsync("api/albaranes-venta", a) : await Http.PutAsJsonAsync("api/albaranes-venta", a); if (!response.IsSuccessStatusCode) { var error = await response.Content.ReadFromJsonAsync<ApiMessage>(); errorMessage = error?.Message ?? $"Error al guardar el albarán: {response.ReasonPhrase}"; e.Cancel = true; return; } await LoadDataAsync(); } catch (Exception ex) { errorMessage = $"Error al guardar el albarán: {ex.Message}"; e.Cancel = true; } }
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e) { var a = (AlbaranVentaEdicion)e.DataItem; try { await SetupHeadersAsync(); var url = $"api/albaranes-venta?empresa={Uri.EscapeDataString(a.Empresa)}&numero={Uri.EscapeDataString(a.Numero)}&serie={Uri.EscapeDataString(a.Serie)}"; var response = await Http.DeleteAsync(url); if (!response.IsSuccessStatusCode) { errorMessage = $"Error al eliminar el albarán: {response.ReasonPhrase}"; e.Cancel = true; return; } await LoadDataAsync(); } catch (Exception ex) { errorMessage = $"Error al eliminar el albarán: {ex.Message}"; e.Cancel = true; } }
     private sealed class ApiMessage { public string? Message { get; set; } }
+    private sealed record CodigoNombre(string Codigo, string Nombre) { public string Descripcion => $"{Codigo}-{Nombre}"; }
 }

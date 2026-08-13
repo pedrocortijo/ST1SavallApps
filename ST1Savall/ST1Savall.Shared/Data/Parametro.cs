@@ -42,6 +42,14 @@ public class Parametro
 
     public int AvisoTiempoContenedor { get; set; }
 
+    [Required, MaxLength(2)]
+    [Column(TypeName = "char(2)")]
+    public string SerieAlbaranes { get; set; } = string.Empty;
+
+    [Required, MaxLength(3)]
+    [Column(TypeName = "char(3)")]
+    public string AlmacenAlbaranes { get; set; } = string.Empty;
+
     [MaxLength(255)]
     [Column(TypeName = "varchar(255)")]
     public string? PathImagenes { get; set; }
