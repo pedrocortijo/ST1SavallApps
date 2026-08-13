@@ -23,6 +23,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TareaRelacion> TareasRelaciones { get; set; } = null!;
     public DbSet<Planta> Plantas { get; set; } = null!;
     public DbSet<Parametro> Parametros { get; set; } = null!;
+    public DbSet<PrecioEspecialObra> PreciosEspecialesObra { get; set; } = null!;
     public DbSet<RutaCache> RutasCache { get; set; } = null!;
     public DbSet<Ausencia> Ausencias { get; set; } = null!;
     public DbSet<Motivo> Motivos { get; set; } = null!;
@@ -89,6 +90,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ContenedorTipo>()
             .Property(ct => ct.CapacidadMetrosCubicos)
             .HasPrecision(5, 2);
+
+        builder.Entity<PrecioEspecialObra>()
+            .HasIndex(p => new { p.ClienteSage, p.ObraSage, p.ArticuloSage })
+            .IsUnique();
 
         builder.Entity<Solicitud>()
             .Property(s => s.Latitud)

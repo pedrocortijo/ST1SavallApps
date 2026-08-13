@@ -67,6 +67,7 @@ public class AlbaranesVentaController(
         datos.Almacen = parametros.AlmacenAlbaranes;
         var error = await ValidarYNormalizarAsync(datos, true);
         if (error is not null) return BadRequest(new { message = error });
+        await AplicarPrecioEspecialAsync(datos);
 
         var yaExiste = await context.AlbaranesVenta.AnyAsync(a => a.EMPRESA == datos.Empresa && a.NUMERO == datos.Numero && a.LETRA == datos.Serie);
         if (yaExiste) return Conflict(new { message = "Ya existe un albarán con esa empresa, número y serie." });
@@ -87,6 +88,7 @@ public class AlbaranesVentaController(
     {
         var error = await ValidarYNormalizarAsync(datos, false);
         if (error is not null) return BadRequest(new { message = error });
+        await AplicarPrecioEspecialAsync(datos);
 
         var cabecera = await context.AlbaranesVenta.FirstOrDefaultAsync(a =>
             a.EMPRESA.Trim() == datos.Empresa && a.NUMERO.Trim() == datos.Numero && a.LETRA.Trim() == datos.Serie);
@@ -152,6 +154,19 @@ public class AlbaranesVentaController(
     private async Task<ClienteSage50> ObtenerClienteAsync(string codigo) =>
         await context.Clientes.AsNoTracking().OrderBy(c => c.Clienteerp).FirstAsync(c => c.Codigo == codigo);
 
+    private async Task AplicarPrecioEspecialAsync(AlbaranVentaEdicion datos)
+    {
+        if (string.IsNullOrWhiteSpace(datos.Obra)) return;
+        var hoy = datos.Fecha.Date;
+        var precio = await applicationContext.PreciosEspecialesObra.AsNoTracking()
+            .Where(p => p.ClienteSage == datos.Cliente && p.ObraSage == datos.Obra && p.ArticuloSage == datos.Articulo
+                && (!p.VigenteDesde.HasValue || p.VigenteDesde <= hoy)
+                && (!p.VigenteHasta.HasValue || p.VigenteHasta >= hoy))
+            .Select(p => (decimal?)p.Precio)
+            .FirstOrDefaultAsync();
+        if (precio.HasValue) datos.Precio = precio.Value;
+    }
+
     private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente, ObraComunSage50? obra = null) => new()
     {
         Empresa = cabecera.EMPRESA.Trim(), Numero = cabecera.NUMERO.Trim(), Serie = cabecera.LETRA.Trim(), Fecha = cabecera.FECHA,
@@ -178,6 +193,7 @@ public class AlbaranesVentaController(
         c.USUARIO = d.Usuario; c.FECHA = d.Fecha; c.CLIENTE = d.Cliente; c.CLIENTEERP = cliente.Clienteerp.Trim(); c.ALMACEN = d.Almacen;
         c.FPAG = string.IsNullOrWhiteSpace(d.FormaPago) ? cliente.Fpag.Trim() : d.FormaPago; c.VENDEDOR = string.IsNullOrWhiteSpace(d.Vendedor) ? cliente.Vendedor.Trim() : d.Vendedor;
         c.OPERARIO = d.Operario; c.OBRA = d.Obra; c.RUTA = cliente.Ruta.Trim(); c.PRONTO = cliente.Pronto;
+        c.TOTALDOC = d.Unidades * d.Precio;
         c.IVA_INC = false; c.FACTURABLE = true; c.GASTOS = true; c.TRASPERP = true; c.VISTA = true; c.FECHASTOCK = d.Fecha;
         c.CREATED = c.CREATED == default ? ahora : c.CREATED; c.MODIFIED = ahora;
         c.GUID_ID = string.IsNullOrWhiteSpace(c.GUID_ID) ? Guid.NewGuid().ToString() : c.GUID_ID;

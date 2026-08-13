@@ -34,6 +34,23 @@ public static class DbInitializer
             END;
         ");
 
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'PreciosEspecialesObra', N'U') IS NULL
+            BEGIN
+                CREATE TABLE PreciosEspecialesObra (
+                    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    ClienteSage CHAR(8) NOT NULL,
+                    ObraSage CHAR(5) NOT NULL,
+                    ArticuloSage CHAR(20) NOT NULL,
+                    Precio DECIMAL(15,6) NOT NULL,
+                    VigenteDesde DATETIME2 NULL,
+                    VigenteHasta DATETIME2 NULL,
+                    Observaciones NVARCHAR(250) NULL,
+                    CONSTRAINT UQ_PreciosEspecialesObra UNIQUE (ClienteSage, ObraSage, ArticuloSage)
+                );
+            END;
+        ");
+
         // Mantener los artículos de Sage y restaurar la tabla local del CRUD de tipos.
         await context.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('Contenedores', 'CodigoArticulo') IS NULL
