@@ -27,6 +27,7 @@ public class OperariosController : ControllerBase
         return await _context.Operarios
             .AsNoTracking()
             .Include(o => o.Cargo)
+            .Include(o => o.Camion)
             .OrderBy(o => o.Nombre)
             .ToListAsync();
     }
@@ -34,7 +35,7 @@ public class OperariosController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<Operario>> GetOperario(int id)
     {
-        var operario = await _context.Operarios.Include(o => o.Cargo).Include(o => o.Planta).FirstOrDefaultAsync(o => o.IdOperario == id);
+        var operario = await _context.Operarios.Include(o => o.Cargo).Include(o => o.Planta).Include(o => o.Camion).FirstOrDefaultAsync(o => o.IdOperario == id);
         if (operario == null) return NotFound();
         return operario;
     }
@@ -42,6 +43,10 @@ public class OperariosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Operario>> PostOperario(Operario operario)
     {
+        operario.Cargo = null;
+        operario.Planta = null;
+        operario.Camion = null;
+
         var validationError = NormalizarYValidarDisponibilidad(operario);
         if (validationError != null) return BadRequest(new { message = validationError });
 
@@ -54,6 +59,11 @@ public class OperariosController : ControllerBase
     public async Task<IActionResult> PutOperario(int id, Operario operario)
     {
         if (id != operario.IdOperario) return BadRequest();
+
+        operario.Cargo = null;
+        operario.Planta = null;
+        operario.Camion = null;
+
         var validationError = NormalizarYValidarDisponibilidad(operario);
         if (validationError != null) return BadRequest(new { message = validationError });
 
@@ -92,7 +102,7 @@ public class OperariosController : ControllerBase
         return _context.Operarios.Any(e => e.IdOperario == id);
     }
 
-    private static string? NormalizarYValidarDisponibilidad(Operario operario)
+    private string? NormalizarYValidarDisponibilidad(Operario operario)
     {
         operario.EstadoLaboral = string.IsNullOrWhiteSpace(operario.EstadoLaboral)
             ? "Activo"
@@ -129,6 +139,10 @@ public class OperariosController : ControllerBase
             return "El estado laboral debe ser Activo o Inactivo.";
         }
 
+        if (operario.IdCamion.HasValue && !_context.Camiones.Any(c => c.IdCamion == operario.IdCamion.Value))
+            return "El camión seleccionado no existe.";
+        if (operario.IdCamion.HasValue && _context.Operarios.Any(o => o.IdOperario != operario.IdOperario && o.IdCamion == operario.IdCamion.Value))
+            return "Este camión ya está asignado a otro operario.";
         return null;
     }
 }

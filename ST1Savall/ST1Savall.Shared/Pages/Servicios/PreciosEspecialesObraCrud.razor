@@ -1,65 +1,15 @@
 @page "/servicios/precios-especiales-obra"
-@using ST1Savall.Shared.Data
-@inject HttpClient Http
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Precios especiales por obra</PageTitle>
 
 <div class="container-fluid py-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div><h2 class="fw-bold text-primary mb-1">Precios especiales por obra</h2><p class="text-muted mb-0">Precio de venta por cliente, obra y artículo Sage.</p></div>
-        <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
+    <div class="card shadow-sm mt-3">
+        <div class="card-body p-4">
+            <h2 class="fw-bold text-primary">Precios especiales por obra</h2>
+            <p class="text-muted mb-3">Los precios especiales se gestionan desde la ficha de cada obra.</p>
+            <NavLink href="/modelos/obrasmnto" class="btn btn-primary">
+                <i class="oi oi-briefcase me-1"></i> Abrir mantenimiento de obras
+            </NavLink>
+        </div>
     </div>
-    @if (errorMessage is not null) { <div class="alert alert-danger alert-dismissible fade show">@errorMessage <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button></div> }
-    <div class="card shadow-sm"><div class="card-body p-0">
-        @if (precios is null) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div> }
-        else
-        {
-            <DxGrid @ref="grid" Data="@precios" KeyFieldName="Id" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnSaving" DataItemDeleting="OnDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Precio especial por obra" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar precio especial..." HorizontalScrollBarMode="ScrollBarMode.Auto">
-                <Columns>
-                    <DxGridCommandColumn Width="100px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
-                        <HeaderTemplate><button class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i> Nuevo</button></HeaderTemplate>
-                        <CellDisplayTemplate>@{ var precio = (PrecioEspecialObra)context.DataItem; }<div class="d-flex gap-1"><button class="btn btn-sm btn-outline-primary" @onclick="() => grid?.StartEditDataItemAsync(precio)"><i class="oi oi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" @onclick="() => grid?.ShowDataItemDeleteConfirmation(precio)"><i class="oi oi-trash"></i></button></div></CellDisplayTemplate>
-                    </DxGridCommandColumn>
-                    <DxGridDataColumn Caption="Cliente" Width="270px"><CellDisplayTemplate>@TextoCliente(((PrecioEspecialObra)context.DataItem).ClienteSage)</CellDisplayTemplate></DxGridDataColumn>
-                    <DxGridDataColumn Caption="Obra" Width="270px"><CellDisplayTemplate>@TextoObra(((PrecioEspecialObra)context.DataItem).ObraSage)</CellDisplayTemplate></DxGridDataColumn>
-                    <DxGridDataColumn Caption="Artículo" Width="270px"><CellDisplayTemplate>@TextoArticulo(((PrecioEspecialObra)context.DataItem).ArticuloSage)</CellDisplayTemplate></DxGridDataColumn>
-                    <DxGridDataColumn FieldName="Precio" Caption="Precio" DisplayFormat="n2" Width="110px" />
-                    <DxGridDataColumn FieldName="VigenteDesde" Caption="Desde" DisplayFormat="d" Width="105px" />
-                    <DxGridDataColumn FieldName="VigenteHasta" Caption="Hasta" DisplayFormat="d" Width="105px" />
-                </Columns>
-                <EditFormTemplate Context="editContext">
-                    @{ var precio = (PrecioEspecialObra)editContext.EditModel; }
-                    <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
-                        <DxFormLayoutItem Caption="Cliente Sage *" ColSpanMd="12"><DxComboBox Data="@clientes" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="precio.ClienteSage" SearchMode="ListSearchMode.AutoSearch" NullText="Seleccione cliente..." /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Obra Sage *" ColSpanMd="12"><DxComboBox Data="@obras" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="precio.ObraSage" SearchMode="ListSearchMode.AutoSearch" NullText="Seleccione obra..." /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Artículo Sage *" ColSpanMd="12"><DxComboBox Data="@articulos" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="precio.ArticuloSage" SearchMode="ListSearchMode.AutoSearch" NullText="Seleccione artículo..." /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Precio *" ColSpanMd="4"><DxSpinEdit @bind-Value="precio.Precio" MinValue="0m" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Vigente desde" ColSpanMd="4"><DxDateEdit @bind-Date="precio.VigenteDesde" ClearButtonVisible="true" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Vigente hasta" ColSpanMd="4"><DxDateEdit @bind-Date="precio.VigenteHasta" ClearButtonVisible="true" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12"><DxMemo @bind-Text="precio.Observaciones" Rows="3" MaxLength="250" /></DxFormLayoutItem>
-                    </DxFormLayout>
-                </EditFormTemplate>
-            </DxGrid>
-        }
-    </div></div>
 </div>
-
-@code {
-    private IGrid? grid;
-    private List<PrecioEspecialObra>? precios;
-    private List<CodigoNombre> clientes = [], obras = [], articulos = [];
-    private string? errorMessage;
-
-    protected override async Task OnInitializedAsync() { await SetupHeadersAsync(); await LoadAsync(); }
-    private async Task SetupHeadersAsync() { var state = await AuthStateProvider.GetAuthenticationStateAsync(); var token = state.User.FindFirst("token")?.Value; if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); }
-    private async Task LoadAsync() { try { var preciosTask = Http.GetFromJsonAsync<List<PrecioEspecialObra>>("api/precios-especiales-obra"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); var articulosTask = Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50"); await Task.WhenAll(preciosTask, clientesTask, obrasTask, articulosTask); precios = preciosTask.Result ?? []; clientes = (clientesTask.Result ?? []).GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obras = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); articulos = (articulosTask.Result ?? []).Select(a => new CodigoNombre(a.Codigo.Trim(), a.Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar precios especiales: {ex.Message}"; precios ??= []; } }
-    private async Task OnSaving(GridEditModelSavingEventArgs e) { var precio = (PrecioEspecialObra)e.EditModel; try { await SetupHeadersAsync(); var response = e.IsNew ? await Http.PostAsJsonAsync("api/precios-especiales-obra", precio) : await Http.PutAsJsonAsync($"api/precios-especiales-obra/{precio.Id}", precio); if (!response.IsSuccessStatusCode) { var error = await response.Content.ReadFromJsonAsync<ApiMessage>(); errorMessage = error?.Message ?? $"Error al guardar: {response.ReasonPhrase}"; e.Cancel = true; return; } await LoadAsync(); } catch (Exception ex) { errorMessage = ex.Message; e.Cancel = true; } }
-    private async Task OnDeleting(GridDataItemDeletingEventArgs e) { var precio = (PrecioEspecialObra)e.DataItem; var response = await Http.DeleteAsync($"api/precios-especiales-obra/{precio.Id}"); if (!response.IsSuccessStatusCode) { errorMessage = $"Error al eliminar: {response.ReasonPhrase}"; e.Cancel = true; return; } await LoadAsync(); }
-    private string TextoCliente(string codigo) => Texto(clientes, codigo);
-    private string TextoObra(string codigo) => Texto(obras, codigo);
-    private string TextoArticulo(string codigo) => Texto(articulos, codigo);
-    private static string Texto(IEnumerable<CodigoNombre> lista, string codigo) => lista.FirstOrDefault(x => x.Codigo == codigo.Trim())?.Descripcion ?? codigo.Trim();
-    private sealed record CodigoNombre(string Codigo, string Nombre) { public string Descripcion => $"{Codigo}-{Nombre}"; }
-    private sealed class ApiMessage { public string? Message { get; set; } }
-}

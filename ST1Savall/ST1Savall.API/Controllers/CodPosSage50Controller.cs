@@ -21,7 +21,45 @@ public class CodPosSage50Controller : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CodPosSage50>>> GetCodpos()
     {
-        return await _context.Codpos.ToListAsync();
+        return await _context.Codpos.AsNoTracking().ToListAsync();
+    }
+
+    [HttpGet("paginados")]
+    public async Task<ActionResult<ResultadoPaginado<CodPosSage50>>> GetCodposPaginados(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanoPagina = 100,
+        [FromQuery] string? buscar = null)
+    {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 25, 250);
+        var texto = buscar?.Trim();
+
+        IQueryable<CodPosSage50> consulta = _context.Codpos.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(texto))
+        {
+            var patron = $"%{texto}%";
+            consulta = consulta.Where(p =>
+                EF.Functions.Like(p.Codigo, patron) ||
+                EF.Functions.Like(p.Poblacion, patron) ||
+                EF.Functions.Like(p.Provincia, patron) ||
+                EF.Functions.Like(p.Cpostalm, patron));
+        }
+
+        var totalRegistros = await consulta.CountAsync();
+        var datos = await consulta
+            .OrderBy(p => p.Codigo)
+            .ThenBy(p => p.Linea)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .ToListAsync();
+
+        return Ok(new ResultadoPaginado<CodPosSage50>
+        {
+            Datos = datos,
+            TotalRegistros = totalRegistros,
+            Pagina = pagina,
+            TamanoPagina = tamanoPagina
+        });
     }
 
     [HttpGet("{codigo}/{linea}")]

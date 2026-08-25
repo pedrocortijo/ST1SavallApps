@@ -237,7 +237,50 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="confirmacionCrearSolicitudReprogramadaVisible"
+         HeaderText="Crear nueva solicitud"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-calendar text-primary fs-3"></i>
+            <div>
+                <p class="mb-1 fw-semibold">Ha introducido la próxima fecha: @fechaNuevaParaCrear?.ToString("dd/MM/yyyy")</p>
+                <p class="mb-0 text-muted">¿Desea crear una nueva solicitud para esa fecha con los datos de la solicitud actual?</p>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="No" RenderStyle="ButtonRenderStyle.Secondary" Click="() => confirmacionCrearSolicitudReprogramadaVisible = false" />
+            <DxButton Text="Sí, crear solicitud" RenderStyle="ButtonRenderStyle.Primary" Click="CrearSolicitudReprogramadaAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
 
+<DxPopup Visible="@(!string.IsNullOrWhiteSpace(mensajeExitoReprogramacion))"
+         VisibleChanged="@((bool visible) => { if (!visible) mensajeExitoReprogramacion = null; })"
+         HeaderText="Solicitud reprogramada"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-check text-success fs-3"></i>
+            <div>
+                <p class="mb-0">@mensajeExitoReprogramacion</p>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => mensajeExitoReprogramacion = null" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
 
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -288,25 +331,26 @@
                         <DxDateEdit @bind-Date="@solicitud.FechaSolicitud" />
                     </DxFormLayoutItem>
                     
-                    <DxFormLayoutItem Caption="Obra" ColSpanMd="2">
+                    <DxFormLayoutItem Caption="Obra" ColSpanMd="8">
                         <DxComboBox Data="@obras"
-                                    TextFieldName="Codigo"
+                                    TextFieldName="TextoBusqueda"
                                     ValueFieldName="IdObra"
                                     Value="@solicitud.IdCliente"
-                                    ValueChanged="@((int val) => OnObraChangedAsync(val))">
+                                    ValueChanged="@((int val) => OnObraChangedAsync(val))"
+                                    SearchMode="ListSearchMode.AutoSearch"
+                                    SearchFilterCondition="ListSearchFilterCondition.Contains"
+                                    AllowUserInput="true">
+                            <Buttons>
+                                <DxEditorButton IconCssClass="oi oi-pencil"
+                                                Tooltip="Editar obra seleccionada"
+                                                Click="EditarObraSeleccionada"
+                                                Enabled="@TieneObraSeleccionada"
+                                                Visible="true" />
+                            </Buttons>
                             <ItemTemplate Context="obra">
                                 <span><strong>@obra.Codigo</strong> - @obra.Descripcion</span>
                             </ItemTemplate>
                         </DxComboBox>
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Albarán planta" ColSpanMd="2">
-                        <DxTextBox @bind-Text="@solicitud.AlbaranPlanta" MaxLength="20" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Serie Sage" ColSpanMd="2">
-                        <DxTextBox @bind-Text="@solicitud.AlbaranSerieSage" MaxLength="2" Enabled="false" />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Número Sage" ColSpanMd="2">
-                        <DxTextBox @bind-Text="@solicitud.AlbaranNumeroSage" MaxLength="10" Enabled="false" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
                         <Template>
@@ -351,17 +395,7 @@
                     </DxFormLayoutItem>
 
 
-                    <DxFormLayoutItem Caption="Usuario" ColSpanMd="4" BeginRow="true"> 
-                        <DxComboBox Data="@usuariosList"
-                                    TextFieldName="UserName"
-                                    ValueFieldName="UserName"
-                                    @bind-Value="@solicitud.IdOperario"
-                                    Enabled="@(Id.HasValue)"
-                                    ReadOnly="@(!Id.HasValue)"
-                                    ClearButtonVisible="@(Id.HasValue)" />
-                    </DxFormLayoutItem>
-
-                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="4">
+                    <DxFormLayoutItem Caption="Tipo de Tarea" ColSpanMd="3" ColSpanSm="6" ColSpanXs="12" BeginRow="true">
                         <DxComboBox @key="tareaComboKey"
                                     Data="@TareasDisponibles"
                                     TextFieldName="NombreTarea"
@@ -370,7 +404,7 @@
                                     ValueChanged="@((int val) => OnTareaChanged(val))" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="4">
+                    <DxFormLayoutItem Caption="Conductor" ColSpanMd="3" ColSpanSm="6" ColSpanXs="12">
                         <DxComboBox Data="@GetOperariosDisponibles()"
                                     TextFieldName="Nombre"
                                     ValueFieldName="IdOperario"
@@ -379,10 +413,27 @@
                                     ClearButtonVisible="true" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Estado" ColSpanMd="8" BeginRow="true">
+                    <DxFormLayoutItem Caption="Matrícula del camión" ColSpanMd="2" ColSpanSm="4" ColSpanXs="12">
+                        <DxTextBox Text="@MatriculaCamionConductor" ReadOnly="true" EnableValidation="false" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="2" ColSpanSm="4" ColSpanXs="6">
+                        <DxComboBox Data="@prioridadesList"
+                                    TextFieldName="Name"
+                                    ValueFieldName="Id"
+                                    @bind-Value="@solicitud.Prioridad" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem ColSpanMd="2" ColSpanSm="4" ColSpanXs="6" CssClass="d-flex align-items-end pb-1">
+                        <DxCheckBox Checked="@solicitud.Bloqueado"
+                                    CheckedChanged="@((bool val) => OnBloqueadoChanged(val))"
+                                    LabelPosition="LabelPosition.Right">Bloqueado</DxCheckBox>
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Estado" ColSpanMd="12" BeginRow="true" CssClass="text-center">
                         @if (estadosList != null && estadosList.Any())
                         {
-                            <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-center mt-1">
                                 @foreach (var est in estadosList.OrderBy(e => e.IdEstado))
                                 {
                                     var id = est.IdEstado;
@@ -409,19 +460,6 @@
                                 }
                             </div>
                         }
-                    </DxFormLayoutItem>
-
-                    <DxFormLayoutItem Caption="Prioridad" ColSpanMd="2" CssClass="d-flex align-items-center mt-4">
-                        <DxComboBox Data="@prioridadesList"                                    
-                                    TextFieldName="Name"
-                                    ValueFieldName="Id"                                   
-                                    @bind-Value="@solicitud.Prioridad" />
-                    </DxFormLayoutItem>
-
-                    <DxFormLayoutItem ColSpanMd="2" CssClass="d-flex align-items-center mt-4">
-                        <DxCheckBox Checked="@solicitud.Bloqueado"
-                                    CheckedChanged="@((bool val) => OnBloqueadoChanged(val))"
-                                    LabelPosition="LabelPosition.Right">Bloqueado</DxCheckBox>
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Hora" ColSpanMd="3" Visible="false">
@@ -515,8 +553,15 @@
                             <div class="small pt-2 text-center" style="color: #f59e0b;">
                                 <strong>@FormatKilometros(solicitud.DistanciaTotalMetros)</strong>
                                 · Origen→Obra: @solicitud.MinutosOrigenObra min
-                                · Obra→Reciclaje: @solicitud.MinutosObraDescarga min
-                                · Reciclaje→Central: @solicitud.MinutosDescargaRegreso min
+                                @if (solicitud.IdPlantaDescarga.HasValue)
+                                {
+                                    <text>· Obra→Reciclaje: @solicitud.MinutosObraDescarga min
+                                    · Reciclaje→Central: @solicitud.MinutosDescargaRegreso min</text>
+                                }
+                                else
+                                {
+                                    <text>· Obra→Central: @solicitud.MinutosDescargaRegreso min</text>
+                                }
                                 @if (solicitud.DuracionOperacionMinutos.GetValueOrDefault() > 0)
                                 {
                                     <span> · Operación: @solicitud.DuracionOperacionMinutos min</span>
@@ -544,16 +589,16 @@
                     }
 
                     <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12" BeginRow="true">
-                        <DxTextBox @bind-Text="@solicitud.Observaciones" />
+                        <DxMemo @bind-Text="@solicitud.Observaciones" Rows="2" />
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Observaciones del conductor para la oficna" ColSpanMd="12" >
-                        <DxTextBox @bind-Text:get="@solicitud.ObservacionesConductor"
-                                   @bind-Text:set="@OnObservacionesConductorChanged" />
+                        <DxMemo @bind-Text:get="@solicitud.ObservacionesConductor"
+                                @bind-Text:set="@OnObservacionesConductorChanged" Rows="2" />
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="12" BeginRow="true">
-                        <DxTextBox @bind-Text="@solicitud.ComentariosOficina" />
+                        <DxMemo @bind-Text="@solicitud.ComentariosOficina" Rows="2" />
                     </DxFormLayoutItem>
 
                     <!-- Grupo 3: Contenedor y Ubicación -->
@@ -647,9 +692,9 @@
                                         </DxComboBox>
                                     </div>
                                     </div>
-                                    <div class="row g-2 mt-1">
+                                    <div class="row g-2 mt-4">
                                         <div class="col-12">
-                                            <label class="form-label fw-bold text-muted small mb-1">Tipo de residuo</label>
+                                            <label class="form-label fw-bold text-muted small mb-2">Tipo de residuo@(RequiereTipoResiduo ? " *" : string.Empty)</label>
                                             <DxComboBox Data="@(tiposContenedor?.OrderBy(articulo => articulo.Nombre) ?? Enumerable.Empty<ArticuloSage50>())"
                                                         TData="ArticuloSage50"
                                                         TValue="string"
@@ -688,6 +733,15 @@
                                             </button>
                                         </div>
                                     </div>
+
+                                    <h6 class="fw-bold text-primary mt-3 mb-3 pb-2 border-bottom">Albaranes</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Albarán planta</label><DxTextBox @bind-Text="@solicitud.AlbaranPlanta" MaxLength="20" />
+                                        </div><div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Kg pesaje</label><DxSpinEdit @bind-Value="@solicitud.KgAlbaran" MinValue="0" Increment="1" /></div>
+                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Serie Sage</label><DxTextBox @bind-Text="@solicitud.AlbaranSerieSage" MaxLength="2" Enabled="false" /></div>
+                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Número Sage</label><DxTextBox Text="@solicitud.AlbaranNumeroSage" TextChanged="MantenerNumeroSage" MaxLength="10" EnableValidation="false" @onkeydown:preventDefault="true"><Buttons><DxEditorButton IconCssClass="oi oi-external-link" Tooltip="Abrir albarán de venta" Click="AbrirAlbaranSage" Enabled="@TieneAlbaranSage" Visible="@TieneAlbaranSage" /></Buttons></DxTextBox></div>
+                                    </div>
+                                    @if (EsEstadoFinalizado(solicitud.Estado) && string.IsNullOrWhiteSpace(solicitud.AlbaranSerieSage)) { <div class="mt-2"><DxButton Text="Generar albarán Sage" IconCssClass="oi oi-document" RenderStyle="ButtonRenderStyle.Primary" Click="GenerarAlbaranSageAsync" /></div> }
                                 </div>
                             </div>
                         </Template>
@@ -698,13 +752,13 @@
                         Anulación de la tarea
                     </DxFormLayoutItem>
                     
-                        <DxFormLayoutItem Caption="Fecha Anulación" ColSpanMd="2" BeginRow="true">
-                        <DxDateEdit Date="@solicitud.FechaPrevista"
-                                    DateChanged="@((DateTime? val) => OnFechaPrevistaChanged(val))"
-                                    DateExpression="@(() => solicitud.FechaPrevista)" />
-                        </DxFormLayoutItem>
- 
-                        <DxFormLayoutItem Caption="Motivo de la anulación" ColSpanMd="10">
+                    <DxFormLayoutItem Caption="Fecha Anulación" ColSpanMd="2" BeginRow="true">
+                        <DxDateEdit Date="@solicitud.FechaAnulacion"
+                                    DateChanged="@((DateTime? val) => OnFechaAnulacionChanged(val))"
+                                    DateExpression="@(() => solicitud.FechaAnulacion)" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Motivo de la anulación" ColSpanMd="6">
                         <div class="d-flex gap-2">
                             <DxComboBox Data="@motivosList"
                                         TData="Motivo"
@@ -716,20 +770,28 @@
                                         ClearButtonVisible="true"
                                         SearchMode="ListSearchMode.AutoSearch"
                                         SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                        NullText="Seleccione el motivo de aplazamiento..."
+                                        NullText="Seleccione el motivo de la anulación..."
                                         CssClass="flex-grow-1" />
                             <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1"
                                     title="Borrar motivo"
-                                    aria-label="Borrar firma" @onclick="() => OnMotivoReprogramacionChanged(null)">
+                                    aria-label="Borrar motivo" @onclick="() => OnMotivoReprogramacionChanged(null)">
                                 <i class="oi oi-trash"></i>
                             </button>
-@* 
-                            <button type="button" class="btn btn-outline-danger" style="height: 32px; width: 38px;" title="Borrar motivo" aria-label="Borrar motivo"
-                                    @onclick="() => OnMotivoReprogramacionChanged(null)">
-                                <span aria-hidden="true" style="font-size: 1.35rem; line-height: 1;">&times;</span>
-                            </button>
-*@
                         </div>
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Próxima fecha" ColSpanMd="2">
+                        <DxDateEdit Date="@solicitud.FechaPrevista"
+                                    DateChanged="@((DateTime? val) => OnFechaPrevistaChanged(val))"
+                                    DateExpression="@(() => solicitud.FechaPrevista)" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Pasa al servicio Nº.:" ColSpanMd="2">
+                        <DxTextBox Text="@solicitud.IdSolicitudReprogramada?.ToString()"
+                                   ReadOnly="true"
+                                   TextChanged="@((string? val) => OnIdSolicitudReprogramadaChanged(val))"
+                                   TextExpression="@(() => solicitud.IdSolicitudReprogramada.HasValue ? solicitud.IdSolicitudReprogramada.Value.ToString() : string.Empty)">
+                        </DxTextBox>
                     </DxFormLayoutItem>
 
                     <!-- Grupo 5: Ocupación de Vía Pública y firma -->
@@ -802,6 +864,12 @@
     [SupplyParameterFromQuery(Name = "mapLon")]
     public decimal? MapLon { get; set; }
 
+    [SupplyParameterFromQuery(Name = "lat")]
+    public decimal? QueryLat { get; set; }
+
+    [SupplyParameterFromQuery(Name = "lon")]
+    public decimal? QueryLon { get; set; }
+
     private Solicitud? solicitud;
     private List<Operario>? operarios;
     private List<ApplicationUserDto>? usuariosList;
@@ -855,6 +923,10 @@
     private bool firmaInicializada;
     private bool firmaPendienteDeMostrar;
     private bool firmaEliminada;
+    private DateTime? fechaPrevistaInicial;
+    private bool confirmacionCrearSolicitudReprogramadaVisible;
+    private DateTime? fechaNuevaParaCrear;
+    private string? mensajeExitoReprogramacion;
 
     private class KeyName
     {
@@ -984,6 +1056,7 @@
                 if (solicitud != null)
                 {
                     estadoInicial = solicitud.Estado;
+                    fechaPrevistaInicial = solicitud.FechaPrevista;
                     if (Duplicate != true)
                         await CargarFirmaAsync();
                 }
@@ -997,7 +1070,15 @@
                 }
                 else
                 {
-                    passwordFinalizadaVisible = solicitud != null && EsEstadoFinalizado(solicitud.Estado);
+                    if (await IsCurrentUserAdminAsync())
+                    {
+                        finalizadaDesbloqueada = true;
+                        passwordFinalizadaVisible = false;
+                    }
+                    else
+                    {
+                        passwordFinalizadaVisible = solicitud != null && EsEstadoFinalizado(solicitud.Estado);
+                    }
                 }
             }
             else
@@ -1034,7 +1115,16 @@
                         solicitud.Encargado = obra.Encargado;
                         solicitud.Movil = obra.Movil;
 
-                        await GeocodificarUbicacionObraAsync(obra);
+                        if (TryParseCoordinate(obra.Libre1, out var oLat) && TryParseCoordinate(obra.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
+                        {
+                            solicitud.Latitud = (decimal)oLat;
+                            solicitud.Longitud = (decimal)oLon;
+                            SyncCoordinates();
+                        }
+                        else
+                        {
+                            await GeocodificarUbicacionObraAsync(obra);
+                        }
                     }
                 }
 
@@ -1049,11 +1139,60 @@
                 }
             }
 
-            if (solicitud != null && MapLat.HasValue && MapLon.HasValue)
+            var returnLat = MapLat ?? QueryLat;
+            var returnLon = MapLon ?? QueryLon;
+
+            if (solicitud != null)
             {
-                solicitud.Latitud = MapLat.Value;
-                solicitud.Longitud = MapLon.Value;
-                SyncCoordinates();
+                if (returnLat.HasValue && returnLon.HasValue && (returnLat.Value != 0 || returnLon.Value != 0))
+                {
+                    solicitud.Latitud = returnLat.Value;
+                    solicitud.Longitud = returnLon.Value;
+                    SyncCoordinates();
+
+                    // Al cerrar el mapa las guardas
+                    if (solicitud.IdSolicitud > 0 && Duplicate != true)
+                    {
+                        try
+                        {
+                            solicitud.FechaActualizacion = DateTime.Now;
+                            if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
+                            {
+                                solicitud.LatitudObra = solicitud.Latitud;
+                                solicitud.LongitudObra = solicitud.Longitud;
+                            }
+                            await SetupHeadersAsync();
+                            await Http.PutAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}", solicitud);
+                        }
+                        catch { }
+                    }
+
+                    if (solicitud.IdCliente > 0)
+                    {
+                        await GuardarCoordenadasEnObraSage50Async(solicitud.IdCliente, returnLat.Value, returnLon.Value);
+                    }
+                }
+                if (solicitud.IdCliente > 0)
+                {
+                    var obraAsignada = obras?.FirstOrDefault(o => o.IdObra == solicitud.IdCliente);
+                    if (obraAsignada != null)
+                    {
+                        solicitud.NombreObra = obraAsignada.Descripcion;
+                        solicitud.NombreCliente = obraAsignada.NombreCliente;
+                        solicitud.DireccionCliente = obraAsignada.Ubicacion;
+                        solicitud.PoblacionCliente = obraAsignada.Poblacion;
+                        solicitud.TelefonoCliente = obraAsignada.Telefono;
+                        solicitud.Encargado = obraAsignada.Encargado;
+                        solicitud.Movil = obraAsignada.Movil;
+
+                        if ((!returnLat.HasValue || !returnLon.HasValue) && TryParseCoordinate(obraAsignada.Libre1, out var oLat) && TryParseCoordinate(obraAsignada.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
+                        {
+                            solicitud.Latitud = (decimal)oLat;
+                            solicitud.Longitud = (decimal)oLon;
+                            SyncCoordinates();
+                        }
+                    }
+                }
             }
 
             solicitudInicial = SerializarSolicitud();
@@ -1169,54 +1308,119 @@
                 solicitud.Bloqueado = true;
             }
 
-            await GeocodificarUbicacionObraAsync(obra);
+            if (TryParseCoordinate(obra.Libre1, out var oLat) && TryParseCoordinate(obra.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
+            {
+                solicitud.Latitud = (decimal)oLat;
+                solicitud.Longitud = (decimal)oLon;
+                SyncCoordinates();
+                StateHasChanged();
+            }
+            else
+            {
+                // Limpiar coordenadas anteriores para la nueva obra antes de geocodificar
+                solicitud.Latitud = null;
+                solicitud.Longitud = null;
+                solicitud.CoordenadasGPS = null;
+                solicitud.LatitudObra = null;
+                solicitud.LongitudObra = null;
+                StateHasChanged();
+
+                await GeocodificarUbicacionObraAsync(obra);
+            }
+        }
+        else
+        {
+            solicitud.NombreObra = null;
+            solicitud.NombreCliente = null;
+            solicitud.DireccionCliente = null;
+            solicitud.PoblacionCliente = null;
+            solicitud.TelefonoCliente = null;
+            solicitud.Encargado = null;
+            solicitud.Movil = null;
+            solicitud.Latitud = null;
+            solicitud.Longitud = null;
+            solicitud.CoordenadasGPS = null;
+            solicitud.LatitudObra = null;
+            solicitud.LongitudObra = null;
+            StateHasChanged();
         }
     }
 
-    private async Task GeocodificarUbicacionObraAsync(Obra obra)
+    private async Task<bool> GeocodificarUbicacionObraAsync(Obra obra)
     {
-        if (solicitud == null) return;
+        if (solicitud == null || obra == null) return false;
 
         var address = ST1Savall.MapHelper.BuildNormalizedQuery(
             obra.Ubicacion,
             obra.Poblacion,
-            obra.CodigoPostal,
-            obra.Provincia);
+            obra.Provincia,
+            obra.CodigoPostal);
+
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            address = ST1Savall.MapHelper.BuildNormalizedQuery(
+                solicitud.DireccionCliente,
+                solicitud.PoblacionCliente,
+                null,
+                null);
+        }
 
         if (string.IsNullOrWhiteSpace(address))
         {
             address = obra.Descripcion;
         }
 
-        if (string.IsNullOrWhiteSpace(address)) return;
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            StateHasChanged();
+            return false;
+        }
 
         try
         {
-            var queryJson = System.Text.Json.JsonSerializer.Serialize($"{address}, Spain");
-            var geocodeResult = await JSRuntime.InvokeAsync<GpsPosition>("eval", $@"
-                (async () => {{
-                    try {{
-                        const response = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent({queryJson}) + '&limit=1');
-                        if (!response.ok) return null;
-                        const results = await response.json();
-                        if (!results || results.length === 0) return null;
-                        return {{ latitud: parseFloat(results[0].lat), longitud: parseFloat(results[0].lon) }};
-                    }} catch (e) {{
-                        return null;
-                    }}
-                }})()");
+            var searchQuery = (address + ", España").Replace("'", "\\'");
+            var jsScript = @"
+                (async () => {
+                    try {
+                        const fullQuery = '" + searchQuery + @"';
+                        let res = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fullQuery) + '&limit=1');
+                        if (res.ok) {
+                            let data = await res.json();
+                            if (data && data.length > 0) {
+                                return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                            }
+                        }
+                        let parts = fullQuery.split(',').map(p => p.trim()).filter(Boolean);
+                        let fallbackQuery = parts.length > 1 ? parts.slice(-2).join(', ') : fullQuery;
+                        res = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fallbackQuery) + '&limit=1');
+                        if (res.ok) {
+                            let data = await res.json();
+                            if (data && data.length > 0) {
+                                return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                            }
+                        }
+                    } catch (e) {}
+                    return null;
+                })()
+            ";
 
-            if (geocodeResult != null && solicitud != null)
+            var geocodeResult = await JSRuntime.InvokeAsync<GpsPosition>("eval", jsScript);
+
+            if (geocodeResult != null && (geocodeResult.Latitud != 0 || geocodeResult.Longitud != 0))
             {
                 solicitud.Latitud = (decimal)geocodeResult.Latitud;
                 solicitud.Longitud = (decimal)geocodeResult.Longitud;
                 SyncCoordinates();
+                await GuardarCoordenadasEnObraSage50Async(obra.IdObra, (decimal)geocodeResult.Latitud, (decimal)geocodeResult.Longitud);
                 StateHasChanged();
+                return true;
             }
         }
         catch
         {
         }
+        StateHasChanged();
+        return false;
     }
 
     private async Task OnBloqueadoChanged(bool value)
@@ -1276,18 +1480,281 @@
         ActualizarEstadoPorAplazamiento();
     }
 
-    private void OnFechaPrevistaChanged(DateTime? val)
+    private void OnFechaAnulacionChanged(DateTime? val)
     {
         if (solicitud == null) return;
+        solicitud.FechaAnulacion = val;
+        ActualizarEstadoPorAplazamiento();
+    }
+
+    private async Task OnFechaPrevistaChanged(DateTime? val)
+    {
+        if (solicitud == null) return;
+        var fechaPrevia = solicitud.FechaPrevista;
         solicitud.FechaPrevista = val;
         ActualizarEstadoPorAplazamiento();
+
+        if (!val.HasValue) return;
+
+        // Caso 1: Si la próxima fecha estaba en blanco al cargar la solicitud
+        if (!fechaPrevistaInicial.HasValue)
+        {
+            if (!solicitud.IdSolicitudReprogramada.HasValue)
+            {
+                fechaNuevaParaCrear = val.Value;
+                confirmacionCrearSolicitudReprogramadaVisible = true;
+            }
+            else
+            {
+                await BuscarYActualizarSolicitudReprogramadaAsync(fechaPrevia ?? val.Value, val.Value);
+            }
+        }
+        // Caso 2: Si la próxima fecha ya tenía un valor asignado previamente y se modifica
+        else if (val.Value.Date != fechaPrevistaInicial.Value.Date)
+        {
+            await BuscarYActualizarSolicitudReprogramadaAsync(fechaPrevistaInicial.Value, val.Value);
+        }
+    }
+
+    private async Task CrearSolicitudReprogramadaAsync()
+    {
+        confirmacionCrearSolicitudReprogramadaVisible = false;
+        if (solicitud == null || !fechaNuevaParaCrear.HasValue) return;
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var currentUserName = authState.User.Identity?.Name ?? solicitud.IdOperario;
+
+            var nueva = new Solicitud
+            {
+                IdCliente = solicitud.IdCliente,
+                NombreCliente = solicitud.NombreCliente,
+                NombreObra = solicitud.NombreObra,
+                DireccionCliente = solicitud.DireccionCliente,
+                PoblacionCliente = solicitud.PoblacionCliente,
+                TelefonoCliente = solicitud.TelefonoCliente,
+                Movil = solicitud.Movil,
+                Encargado = solicitud.Encargado,
+                IdTipoTarea = solicitud.IdTipoTarea,
+                IdPlantaOrigen = solicitud.IdPlantaOrigen,
+                IdPlantaDescarga = solicitud.IdPlantaDescarga,
+                IdPlantaRegreso = solicitud.IdPlantaRegreso,
+                CodigoEntrega = solicitud.CodigoEntrega,
+                CodigoAmbosEntrega = solicitud.CodigoAmbosEntrega,
+                CodigoRecogida = solicitud.CodigoRecogida,
+                CodigoAmbosRecogida = solicitud.CodigoAmbosRecogida,
+                TipoResiduo = solicitud.TipoResiduo,
+                Observaciones = GenerarObservacionesReprogramada(solicitud),
+                ComentariosOficina = solicitud.ComentariosOficina,
+                IdOperario = currentUserName,
+                IdUsuario = solicitud.IdUsuario,
+                Prioridad = solicitud.Prioridad ?? 3,
+                RequiereOVP = solicitud.RequiereOVP,
+                NumLicenciaOVP = solicitud.NumLicenciaOVP,
+                FechaInicioOVP = solicitud.FechaInicioOVP,
+                FechaFinOVP = solicitud.FechaFinOVP,
+                Latitud = solicitud.Latitud,
+                Longitud = solicitud.Longitud,
+                LatitudObra = solicitud.LatitudObra,
+                LongitudObra = solicitud.LongitudObra,
+                LatitudOrigen = solicitud.LatitudOrigen,
+                LongitudOrigen = solicitud.LongitudOrigen,
+                LatitudDescarga = solicitud.LatitudDescarga,
+                LongitudDescarga = solicitud.LongitudDescarga,
+                LatitudRegreso = solicitud.LatitudRegreso,
+                LongitudRegreso = solicitud.LongitudRegreso,
+                DuracionOperacionMinutos = solicitud.DuracionOperacionMinutos,
+                DuracionViajeMinutos = solicitud.DuracionViajeMinutos,
+                DistanciaOrigenObraMetros = solicitud.DistanciaOrigenObraMetros,
+                DistanciaObraDescargaMetros = solicitud.DistanciaObraDescargaMetros,
+                DistanciaDescargaRegresoMetros = solicitud.DistanciaDescargaRegresoMetros,
+                DistanciaTotalMetros = solicitud.DistanciaTotalMetros,
+                MinutosOrigenObra = solicitud.MinutosOrigenObra,
+                MinutosObraDescarga = solicitud.MinutosObraDescarga,
+                MinutosDescargaRegreso = solicitud.MinutosDescargaRegreso,
+
+                FechaSolicitud = DateTime.Today,
+                FechaTarea = fechaNuevaParaCrear.Value.Date,
+                FechaInicial = fechaNuevaParaCrear.Value.Date,
+                FechaPrevista = null,
+                FechaAnulacion = null,
+                MotivoReprogramacion = null,
+                ObservacionesConductor = null,
+                Estado = parametrosList?.FirstOrDefault()?.EstadoPendiente ?? 1,
+                Bloqueado = false,
+                NotificacionInicioVisualizada = false
+            };
+
+            var response = await Http.PostAsJsonAsync("api/solicitudes", nueva);
+            if (response.IsSuccessStatusCode)
+            {
+                var creada = await response.Content.ReadFromJsonAsync<Solicitud>();
+                if (creada != null)
+                {
+                    solicitud.IdSolicitudReprogramada = creada.IdSolicitud;
+                    fechaPrevistaInicial = fechaNuevaParaCrear.Value;
+
+                    if (solicitud.IdSolicitud > 0)
+                    {
+                        try
+                        {
+                            await Http.PutAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}", solicitud);
+                        }
+                        catch { }
+                    }
+
+                    mensajeExitoReprogramacion = $"Se ha creado la nueva solicitud nº {creada.IdSolicitud} para la fecha {fechaNuevaParaCrear.Value:dd/MM/yyyy}.";
+                }
+            }
+            else
+            {
+                errorMessage = await ObtenerMensajeErrorAsync(response, "Error al crear la solicitud para la próxima fecha");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al crear la solicitud: {ex.Message}";
+        }
+    }
+
+    private async Task BuscarYActualizarSolicitudReprogramadaAsync(DateTime fechaAntigua, DateTime fechaNueva)
+    {
+        try
+        {
+            Solicitud? solicitudAActualizar = null;
+
+            // 1. Buscar por ID directo si está vinculado
+            if (solicitud?.IdSolicitudReprogramada.HasValue == true && solicitud.IdSolicitudReprogramada.Value > 0)
+            {
+                try
+                {
+                    solicitudAActualizar = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{solicitud.IdSolicitudReprogramada.Value}");
+                }
+                catch
+                {
+                    solicitudAActualizar = null;
+                }
+            }
+
+            // 2. Si no se encontró por ID directo, buscar por coincidencia de cliente, obra, tarea y fecha antigua
+            if (solicitudAActualizar == null && solicitud != null)
+            {
+                var todas = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+                if (todas != null)
+                {
+                    solicitudAActualizar = todas
+                        .Where(s => s.IdSolicitud != solicitud.IdSolicitud)
+                        .Where(s => s.IdCliente == solicitud.IdCliente)
+                        .Where(s => string.Equals(s.NombreObra, solicitud.NombreObra, StringComparison.OrdinalIgnoreCase))
+                        .Where(s => s.IdTipoTarea == solicitud.IdTipoTarea)
+                        .Where(s => (s.FechaTarea.HasValue && s.FechaTarea.Value.Date == fechaAntigua.Date)
+                                 || (s.FechaInicial.HasValue && s.FechaInicial.Value.Date == fechaAntigua.Date))
+                        .OrderByDescending(s => s.IdSolicitud)
+                        .FirstOrDefault();
+                }
+            }
+
+            // 3. Si se encontró la solicitud, modificar su fecha
+            if (solicitudAActualizar != null && solicitud != null)
+            {
+                solicitudAActualizar.FechaTarea = fechaNueva.Date;
+                solicitudAActualizar.FechaInicial = fechaNueva.Date;
+                solicitudAActualizar.Observaciones = GenerarObservacionesReprogramada(solicitud, solicitudAActualizar);
+                if (solicitudAActualizar.FechaHoraInicioPlanificada.HasValue)
+                {
+                    solicitudAActualizar.FechaHoraInicioPlanificada = fechaNueva.Date + solicitudAActualizar.FechaHoraInicioPlanificada.Value.TimeOfDay;
+                }
+                if (solicitudAActualizar.FechaHoraFinPlanificada.HasValue)
+                {
+                    solicitudAActualizar.FechaHoraFinPlanificada = fechaNueva.Date + solicitudAActualizar.FechaHoraFinPlanificada.Value.TimeOfDay;
+                }
+
+                var putResponse = await Http.PutAsJsonAsync($"api/solicitudes/{solicitudAActualizar.IdSolicitud}", solicitudAActualizar);
+                if (putResponse.IsSuccessStatusCode)
+                {
+                    solicitud.IdSolicitudReprogramada = solicitudAActualizar.IdSolicitud;
+                    fechaPrevistaInicial = fechaNueva;
+
+                    if (solicitud.IdSolicitud > 0)
+                    {
+                        try
+                        {
+                            await Http.PutAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}", solicitud);
+                        }
+                        catch { }
+                    }
+
+                    mensajeExitoReprogramacion = $"Se ha modificado la fecha de la solicitud reprogramada nº {solicitudAActualizar.IdSolicitud} a {fechaNueva:dd/MM/yyyy}.";
+                }
+                else
+                {
+                    errorMessage = await ObtenerMensajeErrorAsync(putResponse, $"Error al actualizar la solicitud nº {solicitudAActualizar.IdSolicitud}");
+                }
+            }
+            else
+            {
+                // Si no se encontró ninguna solicitud previa para la fecha antigua, preguntar si desea crear una nueva
+                fechaNuevaParaCrear = fechaNueva;
+                confirmacionCrearSolicitudReprogramadaVisible = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al buscar y actualizar la solicitud reprogramada: {ex.Message}";
+        }
+    }
+
+    private string GenerarObservacionesReprogramada(Solicitud? origen, Solicitud? destino = null)
+    {
+        if (origen == null) return string.Empty;
+        var motivoTexto = motivosList?.FirstOrDefault(m => m.IdMotivo == origen.MotivoReprogramacion)?.DescripcionMotivo;
+
+        string textoReferencia;
+        if (origen.IdSolicitud > 0)
+        {
+            textoReferencia = !string.IsNullOrWhiteSpace(motivoTexto)
+                ? $"Proviene de la solicitud #{origen.IdSolicitud} y motivo de la anulación: {motivoTexto}"
+                : $"Proviene de la solicitud #{origen.IdSolicitud}";
+        }
+        else
+        {
+            textoReferencia = !string.IsNullOrWhiteSpace(motivoTexto)
+                ? $"Motivo de la anulación anterior: {motivoTexto}"
+                : string.Empty;
+        }
+
+        var obsExistente = destino?.Observaciones ?? origen.Observaciones;
+
+        if (string.IsNullOrWhiteSpace(obsExistente))
+            return textoReferencia;
+
+        // Si ya empezaba con una referencia previa de "Proviene de la solicitud #", la reemplazamos con la versión actualizada
+        if (obsExistente.StartsWith("Proviene de la solicitud #"))
+        {
+            var saltoLinea = obsExistente.IndexOf('\n');
+            if (saltoLinea >= 0)
+            {
+                var resto = obsExistente.Substring(saltoLinea + 1).TrimStart();
+                return string.IsNullOrWhiteSpace(resto) ? textoReferencia : $"{textoReferencia}\n{resto}";
+            }
+            return textoReferencia;
+        }
+
+        return !string.IsNullOrWhiteSpace(textoReferencia)
+            ? $"{textoReferencia}\n{obsExistente}"
+            : obsExistente;
     }
 
     private void ActualizarEstadoPorAplazamiento()
     {
         if (solicitud == null) return;
 
-        if (solicitud.FechaPrevista.HasValue && solicitud.MotivoReprogramacion is > 0)
+        bool tieneFechaAnulacion = solicitud.FechaAnulacion.HasValue;
+        bool tieneMotivo = solicitud.MotivoReprogramacion.HasValue && solicitud.MotivoReprogramacion.Value > 0;
+        bool tieneFechaPrevista = solicitud.FechaPrevista.HasValue;
+
+        if (tieneFechaAnulacion || (tieneFechaPrevista && tieneMotivo) || tieneMotivo)
         {
             solicitud.Estado = ObtenerEstadoAnulado();
             return;
@@ -1367,6 +1834,43 @@
         return parametrosList?.FirstOrDefault()?.EstadoFinalizado == idEstado;
     }
 
+    private bool TieneAlbaranSage => solicitud is not null
+        && !string.IsNullOrWhiteSpace(solicitud.AlbaranSerieSage)
+        && !string.IsNullOrWhiteSpace(solicitud.AlbaranNumeroSage);
+
+    private string UrlAlbaranSage => !TieneAlbaranSage
+        ? string.Empty
+        : $"/servicios/albaranes-venta?serie={Uri.EscapeDataString(solicitud!.AlbaranSerieSage!.Trim())}&numero={Uri.EscapeDataString(solicitud.AlbaranNumeroSage!.Trim())}";
+
+    private void MantenerNumeroSage(string? _) { }
+
+    private void AbrirAlbaranSage(Microsoft.AspNetCore.Components.Web.MouseEventArgs _)
+    {
+        if (TieneAlbaranSage)
+            NavigationManager.NavigateTo(UrlAlbaranSage);
+    }
+
+    private void OnIdSolicitudReprogramadaChanged(string? val)
+    {
+        if (solicitud == null) return;
+        if (int.TryParse(val, out var parsedId) && parsedId > 0)
+        {
+            solicitud.IdSolicitudReprogramada = parsedId;
+        }
+        else
+        {
+            solicitud.IdSolicitudReprogramada = null;
+        }
+    }
+
+    private void AbrirSolicitudReprogramada(Microsoft.AspNetCore.Components.Web.MouseEventArgs _)
+    {
+        if (solicitud?.IdSolicitudReprogramada.HasValue == true && solicitud.IdSolicitudReprogramada.Value > 0)
+        {
+            NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{solicitud.IdSolicitudReprogramada.Value}");
+        }
+    }
+
     private bool EsEstadoPendiente(int idEstado)
     {
         var idConfigurado = parametrosList?.FirstOrDefault()?.EstadoPendiente;
@@ -1409,7 +1913,6 @@
     private bool TienePlanificacionCompletaParaAsignar() =>
         solicitud?.IdConductor is > 0 &&
         solicitud?.IdPlantaOrigen.HasValue == true &&
-        solicitud?.IdPlantaDescarga.HasValue == true &&
         solicitud?.IdPlantaRegreso.HasValue == true &&
         solicitud?.DuracionPlanificadaMinutos is > 0 &&
         (solicitud?.FechaTarea.HasValue == true || solicitud?.FechaPrevista.HasValue == true) &&
@@ -1442,6 +1945,37 @@
         confirmacionEliminarPlanificacionVisible = false;
     }
 
+    private async Task GenerarAlbaranSageAsync()
+    {
+        if (solicitud is null || solicitud.IdSolicitud <= 0) return;
+        try
+        {
+            errorMessage = null;
+            var response = await Http.PostAsync($"api/solicitudes/{solicitud.IdSolicitud}/generar-albaran-sage", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await ObtenerMensajeErrorAsync(response, "No se ha podido generar el albarán Sage");
+                return;
+            }
+
+            var resultado = await response.Content.ReadFromJsonAsync<ResultadoFinalizacionServicio>();
+            if (resultado?.AlbaranGenerado == true)
+            {
+                solicitud.AlbaranSerieSage = resultado.Serie;
+                solicitud.AlbaranNumeroSage = resultado.Numero;
+                solicitudInicial = SerializarSolicitud();
+            }
+            else
+            {
+                errorMessage = $"No se ha podido generar el albarán Sage: {resultado?.Aviso ?? "sin detalle disponible"}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido generar el albarán Sage: {ex.Message}";
+        }
+    }
+
     private async Task<bool> GuardarInternamenteAsync()
     {
         if (solicitud == null) return false;
@@ -1452,8 +1986,15 @@
         }
         if (EsEstadoFinalizado(estadoInicial ?? 0) && !finalizadaDesbloqueada)
         {
-            passwordFinalizadaVisible = true;
-            return false;
+            if (await IsCurrentUserAdminAsync())
+            {
+                finalizadaDesbloqueada = true;
+            }
+            else
+            {
+                passwordFinalizadaVisible = true;
+                return false;
+            }
         }
 
         if (!ValidarEstadoAlGuardar(out var motivoError))
@@ -1464,7 +2005,7 @@
 
         try
         {
-            AplicarEstadoReprogramacion();
+            ActualizarEstadoPorAplazamiento();
             if (solicitud.FechaTarea.HasValue)
             {
                 var targetDate = solicitud.FechaTarea.Value.Date;
@@ -1671,6 +2212,33 @@
         GoBack();
     }
 
+    private async Task<bool> IsCurrentUserAdminAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var nameOrEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                ?? user.Identity?.Name;
+
+            if (!string.IsNullOrWhiteSpace(nameOrEmail))
+            {
+                if (string.Equals(nameOrEmail, "admin@savall.com", StringComparison.OrdinalIgnoreCase) ||
+                    nameOrEmail.StartsWith("admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            if (user.IsInRole("Admin") || user.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && string.Equals(c.Value, "Admin", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
     private UnsavedChangesGuard? unsavedChangesGuard;
 
     private bool HayCambiosPendientes =>
@@ -1782,9 +2350,28 @@
         if (solicitud == null) return false;
 
         SyncCoordinates();
+
+        if (!solicitud.Latitud.HasValue || !solicitud.Longitud.HasValue)
+        {
+            var obraObj = obras?.FirstOrDefault(o => o.IdObra == solicitud.IdCliente);
+            if (obraObj != null)
+            {
+                if (TryParseCoordinate(obraObj.Libre1, out var oLat) && TryParseCoordinate(obraObj.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
+                {
+                    solicitud.Latitud = (decimal)oLat;
+                    solicitud.Longitud = (decimal)oLon;
+                    SyncCoordinates();
+                }
+                else
+                {
+                    await GeocodificarUbicacionObraAsync(obraObj);
+                }
+            }
+        }
+
         if (!TieneDatosRutaCompletos())
         {
-            errorMessage = "Seleccione las tres plantas e indique las coordenadas de la obra.";
+            errorMessage = "Seleccione la central de origen, la central de regreso e indique las coordenadas de la obra.";
             return false;
         }
 
@@ -1836,7 +2423,6 @@
 
     private bool TieneDatosRutaCompletos() =>
         solicitud?.IdPlantaOrigen.HasValue == true &&
-        solicitud.IdPlantaDescarga.HasValue &&
         solicitud.IdPlantaRegreso.HasValue &&
         solicitud.Latitud.HasValue &&
         solicitud.Longitud.HasValue;
@@ -1910,7 +2496,7 @@
 
         double? lat = null;
         double? lon = null;
-        if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
+        if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue && (solicitud.Latitud.Value != 0 || solicitud.Longitud.Value != 0))
         {
             lat = (double)solicitud.Latitud.Value;
             lon = (double)solicitud.Longitud.Value;
@@ -1920,62 +2506,106 @@
             var parts = solicitud.CoordenadasGPS.Split(',');
             if (parts.Length == 2 && 
                 double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedLat) && 
-                double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedLon))
+                double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var parsedLon) &&
+                (parsedLat != 0 || parsedLon != 0))
             {
                 lat = parsedLat;
                 lon = parsedLon;
             }
         }
 
-        var address = ST1Savall.MapHelper.BuildNormalizedQuery(solicitud.DireccionCliente, solicitud.PoblacionCliente, null, null);
-        if ((!lat.HasValue || !lon.HasValue) && !string.IsNullOrEmpty(address))
-        {
-            try
-            {
-                var queryJson = System.Text.Json.JsonSerializer.Serialize($"{address}, Spain");
-                var geocodeResult = await JSRuntime.InvokeAsync<GpsPosition>("eval", $@"
-                    (async () => {{
-                        const response = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent({queryJson}) + '&limit=1');
-                        if (!response.ok) return null;
-                        const results = await response.json();
-                        if (!results || results.length === 0) return null;
-                        return {{ latitud: parseFloat(results[0].lat), longitud: parseFloat(results[0].lon) }};
-                    }})()");
+        var obraObj = obras?.FirstOrDefault(o => o.IdObra == solicitud.IdCliente);
 
-                if (geocodeResult != null)
-                {
-                    solicitud.Latitud = (decimal)geocodeResult.Latitud;
-                    solicitud.Longitud = (decimal)geocodeResult.Longitud;
-                    SyncCoordinates();
-                    lat = geocodeResult.Latitud;
-                    lon = geocodeResult.Longitud;
-                }
-            }
-            catch
+        // Si no hay coordenadas en la solicitud, comprobar si la obra las tiene en Sage 50
+        if ((!lat.HasValue || !lon.HasValue) && obraObj != null)
+        {
+            if (TryParseCoordinate(obraObj.Libre1, out var oLat) && TryParseCoordinate(obraObj.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
             {
-                // El mapa puede abrirse con la dirección aunque la geocodificación falle.
+                solicitud.Latitud = (decimal)oLat;
+                solicitud.Longitud = (decimal)oLon;
+                SyncCoordinates();
+                lat = oLat;
+                lon = oLon;
             }
         }
+
+        // Si sigue sin haber coordenadas, buscar según la dirección de la obra mediante geocodificación
+        if (!lat.HasValue || !lon.HasValue)
+        {
+            if (obraObj != null)
+            {
+                if (await GeocodificarUbicacionObraAsync(obraObj))
+                {
+                    lat = (double?)solicitud.Latitud;
+                    lon = (double?)solicitud.Longitud;
+                }
+            }
+            else
+            {
+                var addressToSearch = ST1Savall.MapHelper.BuildNormalizedQuery(solicitud.DireccionCliente, solicitud.PoblacionCliente, null, null);
+                if (!string.IsNullOrWhiteSpace(addressToSearch))
+                {
+                    try
+                    {
+                        var searchQuery = (addressToSearch + ", España").Replace("'", "\\'");
+                        var jsScript = @"
+                            (async () => {
+                                try {
+                                    const fullQuery = '" + searchQuery + @"';
+                                    let res = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fullQuery) + '&limit=1');
+                                    if (res.ok) {
+                                        let data = await res.json();
+                                        if (data && data.length > 0) {
+                                            return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                                        }
+                                    }
+                                    let parts = fullQuery.split(',').map(p => p.trim()).filter(Boolean);
+                                    let fallbackQuery = parts.length > 1 ? parts.slice(-2).join(', ') : fullQuery;
+                                    res = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fallbackQuery) + '&limit=1');
+                                    if (res.ok) {
+                                        let data = await res.json();
+                                        if (data && data.length > 0) {
+                                            return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                                        }
+                                    }
+                                } catch (e) {}
+                                return null;
+                            })()
+                        ";
+                        var geocodeResult = await JSRuntime.InvokeAsync<GpsPosition>("eval", jsScript);
+                        if (geocodeResult != null && (geocodeResult.Latitud != 0 || geocodeResult.Longitud != 0))
+                        {
+                            solicitud.Latitud = (decimal)geocodeResult.Latitud;
+                            solicitud.Longitud = (decimal)geocodeResult.Longitud;
+                            SyncCoordinates();
+                            lat = geocodeResult.Latitud;
+                            lon = geocodeResult.Longitud;
+                            if (solicitud.IdCliente > 0)
+                            {
+                                await GuardarCoordenadasEnObraSage50Async(solicitud.IdCliente, (decimal)geocodeResult.Latitud, (decimal)geocodeResult.Longitud);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        var address = obraObj != null 
+            ? ST1Savall.MapHelper.BuildNormalizedQuery(obraObj.Ubicacion, obraObj.Poblacion, obraObj.Provincia, obraObj.CodigoPostal)
+            : ST1Savall.MapHelper.BuildNormalizedQuery(solicitud.DireccionCliente, solicitud.PoblacionCliente, null, null);
 
         if (string.IsNullOrEmpty(address))
         {
-            address = "Ubicación de Solicitud";
+            address = solicitud.NombreObra ?? "Ubicación de Solicitud";
         }
 
-        var backUrl = "/modelos/solicitudes";
-        if (solicitud.IdSolicitud > 0)
-        {
-            backUrl = $"/modelos/solicitudes/edit/{solicitud.IdSolicitud}";
-        }
-
-        // Obtener la serie del contenedor y su descripción si está asignado
-        if (lat.HasValue && lon.HasValue)
-        {
-            backUrl += $"?mapLat={lat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}&mapLon={lon.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-        }
+        var backUrl = solicitud.IdSolicitud > 0
+            ? $"/modelos/solicitudes/edit/{solicitud.IdSolicitud}"
+            : "/modelos/solicitudes";
 
         var serie = solicitud.CodigoEntrega ?? solicitud.CodigoRecogida ?? string.Empty;
-        var obra = solicitud.NombreObra ?? "Ubicación de Solicitud";
+        var obraName = solicitud.NombreObra ?? obraObj?.Descripcion ?? "Ubicación de Solicitud";
         var tipo = "Ubicación de Solicitud";
 
         if (!string.IsNullOrEmpty(serie))
@@ -1990,7 +2620,7 @@
         var latParam = lat.HasValue ? $"&lat={lat.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
         var lonParam = lon.HasValue ? $"&lon={lon.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : "";
         var serieParam = !string.IsNullOrEmpty(serie) ? $"&serie={Uri.EscapeDataString(serie)}" : "";
-        var obraParam = $"&obra={Uri.EscapeDataString(obra)}";
+        var obraParam = $"&obra={Uri.EscapeDataString(obraName)}";
 
         var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(address)}&title={Uri.EscapeDataString(tipo)}{serieParam}{obraParam}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
         NavigationManager.NavigateTo(mapsUrl);
@@ -2024,6 +2654,8 @@
         // Prioritize Latitud and Longitud if they have values to keep CoordenadasGPS string updated
         if (solicitud.Latitud.HasValue && solicitud.Longitud.HasValue)
         {
+            solicitud.LatitudObra = solicitud.Latitud;
+            solicitud.LongitudObra = solicitud.Longitud;
             solicitud.CoordenadasGPS = $"{solicitud.Latitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)},{solicitud.Longitud.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture)}";
         }
         // If they are null/not set but CoordenadasGPS has a value, parse it to populate Latitud and Longitud
@@ -2038,8 +2670,16 @@
                 {
                     solicitud.Latitud = lat;
                     solicitud.Longitud = lon;
+                    solicitud.LatitudObra = lat;
+                    solicitud.LongitudObra = lon;
                 }
             }
+        }
+        else
+        {
+            solicitud.CoordenadasGPS = null;
+            solicitud.LatitudObra = null;
+            solicitud.LongitudObra = null;
         }
     }
 
@@ -2188,6 +2828,7 @@
     private bool IsEntrega2Enabled => TareaSeleccionada?.Entrega2 == true;
     private bool IsRecogidaEnabled => TareaSeleccionada?.Recoger1 == true;
     private bool IsRecogida2Enabled => TareaSeleccionada?.Recoger2 == true;
+    private bool RequiereTipoResiduo => TareaSeleccionada?.Recoger1 == true || TareaSeleccionada?.Recoger2 == true;
 
     private void OnTareaChanged(int val)
     {
@@ -2302,9 +2943,40 @@
         if (operarios == null) return Enumerable.Empty<Operario>();
 
         return operarios.Where(o =>
-            (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+            (EsConductor(o) && o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
             || (solicitud != null && solicitud.IdConductor.HasValue && o.IdOperario == solicitud.IdConductor.Value)
         ).OrderBy(o => o.Nombre);
+    }
+
+    private bool TieneObraSeleccionada => obras?.Any(o => o.IdObra == solicitud?.IdCliente && !string.IsNullOrWhiteSpace(o.Codigo)) == true;
+
+    private async Task EditarObraSeleccionada()
+    {
+        if (solicitud is null)
+            return;
+
+        if (!await GuardarInternamenteAsync())
+            return;
+
+        var obra = obras?.FirstOrDefault(o => o.IdObra == solicitud.IdCliente);
+        if (obra is not null && !string.IsNullOrWhiteSpace(obra.Codigo))
+        {
+            var returnUrl = "/modelos/solicitudes/edit/" + solicitud.IdSolicitud;
+
+            NavigationManager.NavigateTo($"/modelos/obrasmnto/edit/{Uri.EscapeDataString(obra.Codigo)}?returnUrl={Uri.EscapeDataString(returnUrl)}");
+        }
+    }
+
+    private static bool EsConductor(Operario o)
+    {
+        if (o == null) return false;
+        if (o.IdCargo.HasValue && o.IdCargo == 1) return true;
+        if (o.Cargo != null && !string.IsNullOrWhiteSpace(o.Cargo.Descripcion))
+        {
+            return string.Equals(o.Cargo.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase)
+                || o.Cargo.Descripcion.Contains("conductor", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 
     private void OnConductorChanged(int? idConductor)
@@ -2315,12 +2987,17 @@
         var operarioConductor = operarios?.FirstOrDefault(o => o.IdOperario == idConductor);
         var idPlanta = operarioConductor?.IdPlanta;
 
+        // La planta del conductor se propone como origen, reciclaje y regreso.
         solicitud.IdPlantaOrigen = idPlanta;
         solicitud.IdPlantaDescarga = idPlanta;
         solicitud.IdPlantaRegreso = idPlanta;
 
         AplicarEstadoReprogramacion();
     }
+
+    private string MatriculaCamionConductor => solicitud?.IdConductor is int idConductor
+        ? operarios?.FirstOrDefault(o => o.IdOperario == idConductor)?.Camion?.Matricula?.Trim() ?? string.Empty
+        : string.Empty;
 
     private bool ValidarEstadoAlGuardar(out string? motivoError)
     {
@@ -2379,6 +3056,56 @@
     private string ObtenerNombreEstado(int idEstado)
     {
         return estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion ?? $"Estado {idEstado}";
+    }
+
+    private static bool TryParseCoordinate(string? value, out double coordinate)
+    {
+        return double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out coordinate)
+            || double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, new System.Globalization.CultureInfo("es-ES"), out coordinate);
+    }
+
+    private static string LimitarTexto(string? texto, int longitudMaxima)
+    {
+        if (string.IsNullOrEmpty(texto)) return string.Empty;
+        var trimmed = texto.Trim();
+        return trimmed.Length <= longitudMaxima ? trimmed : trimmed[..longitudMaxima];
+    }
+
+    private async Task GuardarCoordenadasEnObraSage50Async(int? idObra, decimal lat, decimal lon)
+    {
+        if (!idObra.HasValue || idObra.Value <= 0) return;
+        try
+        {
+            var obraDto = obras?.FirstOrDefault(o => o.IdObra == idObra.Value);
+            var codigo = obraDto?.Codigo ?? idObra.Value.ToString("D5");
+            if (string.IsNullOrWhiteSpace(codigo)) return;
+
+            await SetupHeadersAsync();
+            var res = await Http.GetAsync($"api/obrascomunsage50/{Uri.EscapeDataString(codigo)}");
+            if (!res.IsSuccessStatusCode) return;
+
+            var obraComun = await res.Content.ReadFromJsonAsync<ObraComunSage50>();
+            if (obraComun != null)
+            {
+                var latStr = LimitarTexto(lat.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture), 10);
+                var lonStr = LimitarTexto(lon.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture), 10);
+
+                obraComun.Libre1 = latStr;
+                obraComun.Libre2 = lonStr;
+
+                await Http.PutAsJsonAsync($"api/obrascomunsage50/{Uri.EscapeDataString(codigo)}", obraComun);
+
+                if (obraDto != null)
+                {
+                    obraDto.Libre1 = latStr;
+                    obraDto.Libre2 = lonStr;
+                }
+            }
+        }
+        catch
+        {
+            // Ignorar errores no críticos de sincronización con Sage
+        }
     }
 
     private class GpsPosition

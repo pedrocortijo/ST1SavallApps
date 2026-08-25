@@ -46,9 +46,34 @@ public class Parametro
     [Column(TypeName = "char(2)")]
     public string SerieAlbaranes { get; set; } = string.Empty;
 
+    [MaxLength(2)]
+    [Column(TypeName = "char(2)")]
+    public string? EmpresaAlbaranes { get; set; }
+
     [Required, MaxLength(3)]
     [Column(TypeName = "char(3)")]
     public string AlmacenAlbaranes { get; set; } = string.Empty;
+
+    [MaxLength(25)]
+    [Column(TypeName = "char(25)")]
+    public string? UsuarioAlbaranes { get; set; }
+
+    [MaxLength(500)]
+    public string? ExcelAlbaranesSabospaAlicante { get; set; }
+
+    [MaxLength(500)]
+    public string? ExcelAlbaranesSabospaFinestrat { get; set; }
+
+    [MaxLength(500)]
+    public string? ExcelAlbaranesSabospaMonforte { get; set; }
+    [MaxLength(255)]
+    public string? ExcelAlbaranesSabospaAlicanteNombre { get; set; }
+
+    [MaxLength(255)]
+    public string? ExcelAlbaranesSabospaFinestratNombre { get; set; }
+
+    [MaxLength(255)]
+    public string? ExcelAlbaranesSabospaMonforteNombre { get; set; }
 
     [MaxLength(255)]
     [Column(TypeName = "varchar(255)")]

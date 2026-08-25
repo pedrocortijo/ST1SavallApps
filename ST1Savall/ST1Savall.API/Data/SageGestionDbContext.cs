@@ -18,6 +18,10 @@ public class SageGestionDbContext : DbContext
     public DbSet<ArticuloSage50> Articulos { get; set; } = null!;
     public DbSet<AlbaranVentaSage50> AlbaranesVenta { get; set; } = null!;
     public DbSet<LineaAlbaranVentaSage50> LineasAlbaranesVenta { get; set; } = null!;
+    public DbSet<SerieSage50> Series { get; set; } = null!;
+    public DbSet<DireccionEnvioClienteSage50> DireccionesEnvioClientes { get; set; } = null!;
+    public DbSet<CampoAdicionalSage50> CamposAdicionales { get; set; } = null!;
+    public DbSet<CampoAdicionalDocumentoVentaSage50> CamposAdicionalesDocumentosVenta { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +37,52 @@ public class SageGestionDbContext : DbContext
         {
             entity.ToTable("d_albven");
             entity.HasKey(a => new { a.EMPRESA, a.NUMERO, a.LETRA, a.LINIA });
+        });
+
+        modelBuilder.Entity<SerieSage50>(entity =>
+        {
+            entity.ToTable("series");
+            entity.HasKey(s => new { s.EMPRESA, s.TIPODOC, s.SERIE });
+            entity.Property(s => s.EMPRESA).HasColumnName("EMPRESA").HasMaxLength(2).IsFixedLength();
+            entity.Property(s => s.TIPODOC).HasColumnName("TIPODOC");
+            entity.Property(s => s.SERIE).HasColumnName("SERIE").HasMaxLength(2).IsFixedLength();
+            entity.Property(s => s.CONTADOR).HasColumnName("CONTADOR").HasPrecision(20, 0);
+            entity.Ignore(s => s.Clave);
+        });
+
+        modelBuilder.Entity<DireccionEnvioClienteSage50>(entity =>
+        {
+            entity.ToTable("ENV_CLI");
+            entity.HasKey(d => new { d.CLIENTE, d.LINEA });
+            entity.Property(d => d.CLIENTE).HasColumnName("CLIENTE").HasMaxLength(8).IsFixedLength();
+            entity.Property(d => d.LINEA).HasColumnName("LINEA");
+            entity.Property(d => d.DIRECCION).HasColumnName("DIRECCION").HasMaxLength(80).IsFixedLength();
+            entity.Property(d => d.CODPOS).HasColumnName("CODPOS").HasMaxLength(10).IsFixedLength();
+            entity.Property(d => d.POBLACION).HasColumnName("POBLACION").HasMaxLength(30).IsFixedLength();
+            entity.Property(d => d.PROVINCIA).HasColumnName("PROVINCIA").HasMaxLength(30).IsFixedLength();
+        });
+
+        modelBuilder.Entity<CampoAdicionalSage50>(entity =>
+        {
+            entity.ToTable("MULTICAM");
+            entity.HasKey(c => new { c.FICHERO, c.CODIGO, c.CAMPO });
+            entity.Property(c => c.FICHERO).HasMaxLength(8).IsFixedLength();
+            entity.Property(c => c.CODIGO).HasMaxLength(20).IsFixedLength();
+            entity.Property(c => c.CAMPO).HasMaxLength(3).IsFixedLength();
+            entity.Property(c => c.VALOR).HasMaxLength(100).IsFixedLength();
+            entity.Property(c => c.GUID_ID).HasMaxLength(50).IsFixedLength();
+        });
+
+        modelBuilder.Entity<CampoAdicionalDocumentoVentaSage50>(entity =>
+        {
+            entity.ToTable("MULTICA2");
+            entity.HasKey(c => new { c.EMPRESA, c.NUMERO, c.LETRA, c.FICHERO, c.CAMPO });
+            entity.Property(c => c.EMPRESA).HasMaxLength(2).IsFixedLength();
+            entity.Property(c => c.NUMERO).HasMaxLength(10).IsFixedLength();
+            entity.Property(c => c.LETRA).HasMaxLength(2).IsFixedLength();
+            entity.Property(c => c.CAMPO).HasMaxLength(3).IsFixedLength();
+            entity.Property(c => c.VALOR).HasMaxLength(100).IsFixedLength();
+            entity.Property(c => c.GUID_ID).HasMaxLength(50).IsFixedLength();
         });
 
         modelBuilder.Entity<ClienteSage50>(entity =>
@@ -169,7 +219,7 @@ public class SageGestionDbContext : DbContext
             entity.Property(c => c.Validcheck).HasColumnName("VALIDCHECK").HasMaxLength(64).IsFixedLength();
             entity.Property(c => c.ValorAlb).HasColumnName("VALOR_ALB");
             entity.Property(c => c.Valportes).HasColumnName("VALPORTES").HasPrecision(20, 6);
-            entity.Property(c => c.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(2).IsFixedLength();
+            entity.Property(c => c.Vendedor).HasColumnName("VENDEDOR").HasMaxLength(5).IsFixedLength();
             entity.Property(c => c.Vista).HasColumnName("VISTA");
             entity.Property(c => c.Zona).HasColumnName("ZONA").HasMaxLength(4).IsFixedLength();
         });

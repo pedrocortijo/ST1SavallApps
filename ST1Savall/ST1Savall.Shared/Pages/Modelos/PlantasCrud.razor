@@ -47,7 +47,7 @@
                         DataItemDeleting="OnDataItemDeleting"
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormHeaderText="Formulario - Planta"
-                        PopupEditFormCssClass="crud-popup"
+                        PopupEditFormCssClass="crud-popup plantas-popup"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
                         AllowSort="true"
@@ -97,17 +97,17 @@
                         @{
                             var planta = (Planta)EditFormContext.EditModel;
                         }
-                        <DxFormLayout CssClass="w-100 p-3">
+                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
                             <DxFormLayoutItem Caption="Nombre" ColSpanMd="12">
                                 <DxTextBox @bind-Text="@planta.Nombre" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Dirección" ColSpanMd="12">
                                 <DxTextBox @bind-Text="@planta.Direccion" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Población" ColSpanMd="7">
+                            <DxFormLayoutItem Caption="Población" ColSpanMd="8">
                                 <DxTextBox @bind-Text="@planta.Poblacion" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Código Postal" ColSpanMd="5">
+                            <DxFormLayoutItem Caption="Código Postal" ColSpanMd="4">
                                 <DxTextBox @bind-Text="@planta.CodigoPostal" MaxLength="5" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="NIMA" ColSpanMd="6">
@@ -116,21 +116,21 @@
                             <DxFormLayoutItem Caption="Autorización" ColSpanMd="6">
                                 <DxTextBox @bind-Text="@planta.Autorizacion" MaxLength="30" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Latitud" ColSpanMd="6">
-                                <DxSpinEdit @bind-Value="@planta.Latitud" MinValue="-90m" MaxValue="90m" Increment="0.000001m" />
+                            <DxFormLayoutItem Caption="Latitud" ColSpanMd="3">
+                                <DxSpinEdit @bind-Value="@planta.Latitud" DecimalPlaces="6" ShowSpinButtons="false" MinValue="-90m" MaxValue="90m" Increment="0.000001m" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem Caption="Longitud" ColSpanMd="6">
-                                <DxSpinEdit @bind-Value="@planta.Longitud" MinValue="-180m" MaxValue="180m" Increment="0.000001m" />
+                            <DxFormLayoutItem Caption="Longitud" ColSpanMd="3">
+                                <DxSpinEdit @bind-Value="@planta.Longitud" DecimalPlaces="6" ShowSpinButtons="false" MinValue="-180m" MaxValue="180m" Increment="0.000001m" />
                             </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="7" BeginRow="true" CssClass="d-flex align-items-end pb-1">
-                                <button type="button" class="btn btn-outline-primary btn-sm w-100" @onclick="async () => await ObtenerUbicacionActualAsync(planta)" style="height: 38px;">
-                                    <i class="oi oi-map-marker me-1"></i>Obtener coordenadas del dispositivo
-                                </button>
-                            </DxFormLayoutItem>
-                            <DxFormLayoutItem ColSpanMd="5" CssClass="d-flex align-items-end pb-1">
-                                <button type="button" class="btn btn-outline-success btn-sm w-100" @onclick="async () => await VerEnMapaAsync(planta)" style="height: 38px;" title="Ver en Google Maps">
-                                    <i class="oi oi-eye me-1"></i> Ver en Maps
-                                </button>
+                            <DxFormLayoutItem ColSpanMd="6" CssClass="align-bottom-to-input pb-1">
+                                <div class="d-flex gap-2 w-100 mt-4">
+                                    <button type="button" class="btn btn-outline-primary btn-sm flex-fill d-flex align-items-center justify-content-center text-nowrap" @onclick="async () => await ObtenerUbicacionActualAsync(planta)" style="height: 33px;">
+                                        <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm flex-fill d-flex align-items-center justify-content-center text-nowrap" @onclick="async () => await VerEnMapaAsync(planta)" style="height: 33px;" title="Ver en Google Maps">
+                                        <i class="oi oi-eye me-1"></i> Ver en Maps
+                                    </button>
+                                </div>
                             </DxFormLayoutItem>
                         </DxFormLayout>
                     </EditFormTemplate>
@@ -145,6 +145,22 @@
     [Parameter]
     [SupplyParameterFromQuery(Name = "edit")]
     public int? EditPlantId { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "lat")]
+    public double? QueryLat { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "lon")]
+    public double? QueryLon { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "mapLat")]
+    public double? QueryMapLat { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "mapLon")]
+    public double? QueryMapLon { get; set; }
 
     private IGrid? grid;
     private List<Planta>? plantas;
@@ -190,6 +206,26 @@
         try
         {
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas");
+            if (EditPlantId.HasValue && plantas != null)
+            {
+                var targetPlanta = plantas.FirstOrDefault(p => p.IdPlanta == EditPlantId.Value);
+                if (targetPlanta != null)
+                {
+                    var returnLat = QueryLat ?? QueryMapLat;
+                    var returnLon = QueryLon ?? QueryMapLon;
+                    if (returnLat.HasValue && returnLon.HasValue && (returnLat.Value != 0 || returnLon.Value != 0))
+                    {
+                        targetPlanta.Latitud = (decimal)returnLat.Value;
+                        targetPlanta.Longitud = (decimal)returnLon.Value;
+                        try
+                        {
+                            await SetupHeadersAsync();
+                            await Http.PutAsJsonAsync($"api/plantas/{targetPlanta.IdPlanta}", targetPlanta);
+                        }
+                        catch { }
+                    }
+                }
+            }
             errorMessage = null;
         }
         catch (Exception ex)
@@ -356,7 +392,7 @@
             return;
         }
 
-        // Si no hay coordenadas, geocodificar para rellenar Latitud/Longitud
+        // Si no hay coordenadas, geocodificar desde el mapa (OpenStreetMap) para rellenar Latitud/Longitud
         if (!planta.Latitud.HasValue || !planta.Longitud.HasValue)
         {
             try
@@ -364,12 +400,26 @@
                 var searchQuery = (query + ", España").Replace("'", "\\'");
                 var jsScript = @"
                     (async () => {
-                        const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent('" + searchQuery + @"') + '&limit=1');
-                        if (!res.ok) return null;
-                        const data = await res.json();
-                        if (data && data.length > 0) {
-                            return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
-                        }
+                        try {
+                            const fullQuery = '" + searchQuery + @"';
+                            let res = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fullQuery) + '&limit=1');
+                            if (res.ok) {
+                                let data = await res.json();
+                                if (data && data.length > 0) {
+                                    return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                                }
+                            }
+                            // Fallback por partes si la consulta contiene texto adicional como nombre de empresa
+                            let parts = fullQuery.split(',').map(p => p.trim()).filter(Boolean);
+                            let fallbackQuery = parts.length > 1 ? parts.slice(-2).join(', ') : fullQuery;
+                            res = await fetch('https://nominatim.openstreetmap.org/search?format=json&countrycodes=es&q=' + encodeURIComponent(fallbackQuery) + '&limit=1');
+                            if (res.ok) {
+                                let data = await res.json();
+                                if (data && data.length > 0) {
+                                    return { latitud: parseFloat(data[0].lat), longitud: parseFloat(data[0].lon) };
+                                }
+                            }
+                        } catch (e) {}
                         return null;
                     })()
                 ";
@@ -379,12 +429,21 @@
                 {
                     planta.Latitud = (decimal)geocodeResult.Latitud;
                     planta.Longitud = (decimal)geocodeResult.Longitud;
+                    if (planta.IdPlanta > 0)
+                    {
+                        try
+                        {
+                            await SetupHeadersAsync();
+                            await Http.PutAsJsonAsync($"api/plantas/{planta.IdPlanta}", planta);
+                        }
+                        catch { }
+                    }
                     StateHasChanged();
                 }
             }
             catch
             {
-                // Si falla la geocodificación, no hacer nada — el mapa ya se abrió
+                // Si falla la geocodificación, continuar al mapa
             }
         }
 

@@ -14,7 +14,9 @@ public class PlanificacionService
         _context = context;
     }
 
-    public async Task<string?> PrepararYValidarAsync(Solicitud solicitud)
+    public async Task<string?> PrepararYValidarAsync(
+        Solicitud solicitud,
+        IReadOnlyCollection<int>? excluirSolicitudes = null)
     {
         if (!solicitud.FechaHoraInicioPlanificada.HasValue)
             return null;
@@ -53,10 +55,86 @@ public class PlanificacionService
             solicitud.IdConductor.Value,
             solicitud.FechaHoraInicioPlanificada.Value,
             solicitud.FechaHoraFinPlanificada.Value,
-            solicitud.IdSolicitud);
+            solicitud.IdSolicitud,
+            excluirSolicitudes);
     }
 
-    public async Task<string?> ValidarDisponibilidadAsync(int idConductor, DateTime inicio, DateTime fin, int excluirSolicitudId = 0)
+    /// <summary>
+    /// Normaliza y valida una planificación completa. Las solicitudes incluidas en el lote
+    /// se excluyen de la consulta a base de datos y se comprueban entre sí con sus horarios finales.
+    /// </summary>
+    public async Task<string?> PrepararYValidarLoteAsync(IReadOnlyCollection<Solicitud> solicitudes)
+    {
+        if (solicitudes.Count == 0)
+            return "Debe incluir al menos un servicio para guardar la planificación.";
+
+        var idsLote = solicitudes.Select(s => s.IdSolicitud).ToHashSet();
+        if (idsLote.Count != solicitudes.Count || idsLote.Any(id => id <= 0))
+            return "La planificación contiene servicios no válidos o repetidos.";
+
+        foreach (var solicitud in solicitudes)
+        {
+            var error = await PrepararYValidarLoteItemAsync(solicitud, idsLote);
+            if (error != null)
+                return $"Servicio #{solicitud.IdSolicitud}: {error}";
+        }
+
+        var solapeInterno = solicitudes
+            .Where(s => s.Estado != EstadoAnulado && s.IdConductor.HasValue &&
+                        s.FechaHoraInicioPlanificada.HasValue && s.FechaHoraFinPlanificada.HasValue)
+            .GroupBy(s => s.IdConductor!.Value)
+            .SelectMany(grupo => grupo
+                .OrderBy(s => s.FechaHoraInicioPlanificada)
+                .Zip(grupo.OrderBy(s => s.FechaHoraInicioPlanificada).Skip(1), (anterior, siguiente) => new { anterior, siguiente }))
+            .FirstOrDefault(par => par.siguiente.FechaHoraInicioPlanificada!.Value < par.anterior.FechaHoraFinPlanificada!.Value);
+
+        return solapeInterno == null
+            ? null
+            : $"Los servicios #{solapeInterno.anterior.IdSolicitud} y #{solapeInterno.siguiente.IdSolicitud} se solapan en la planificación propuesta.";
+    }
+
+    private async Task<string?> PrepararYValidarLoteItemAsync(
+        Solicitud solicitud,
+        IReadOnlyCollection<int> idsLote)
+    {
+        if (!solicitud.FechaHoraInicioPlanificada.HasValue || !solicitud.FechaHoraFinPlanificada.HasValue)
+            return "Debe indicar la hora de inicio y de fin.";
+
+        var fecha = solicitud.FechaTarea?.Date ?? solicitud.FechaHoraInicioPlanificada.Value.Date;
+        solicitud.FechaTarea = fecha;
+        solicitud.FechaPrevista = fecha;
+
+        var redondeoHora = await ObtenerRedondeoHoraAsync();
+        solicitud.FechaHoraInicioPlanificada = RedondearAlIntervalo(
+            fecha + solicitud.FechaHoraInicioPlanificada.Value.TimeOfDay, redondeoHora);
+        solicitud.FechaHoraFinPlanificada = RedondearAlIntervalo(
+            fecha + solicitud.FechaHoraFinPlanificada.Value.TimeOfDay, redondeoHora);
+
+        if (solicitud.FechaHoraFinPlanificada <= solicitud.FechaHoraInicioPlanificada)
+            return "La hora de finalización debe ser posterior a la hora de inicio.";
+
+        if (solicitud.DuracionPlanificadaMinutos.GetValueOrDefault() <= 0)
+            solicitud.DuracionPlanificadaMinutos = (int)Math.Ceiling(
+                (solicitud.FechaHoraFinPlanificada.Value - solicitud.FechaHoraInicioPlanificada.Value).TotalMinutes);
+
+        if (!solicitud.IdConductor.HasValue)
+            return "Debe seleccionar un conductor para planificar el servicio.";
+
+        solicitud.HoraLlegada = solicitud.FechaHoraInicioPlanificada;
+        return await ValidarDisponibilidadAsync(
+            solicitud.IdConductor.Value,
+            solicitud.FechaHoraInicioPlanificada.Value,
+            solicitud.FechaHoraFinPlanificada.Value,
+            solicitud.IdSolicitud,
+            idsLote);
+    }
+
+    public async Task<string?> ValidarDisponibilidadAsync(
+        int idConductor,
+        DateTime inicio,
+        DateTime fin,
+        int excluirSolicitudId = 0,
+        IReadOnlyCollection<int>? excluirSolicitudes = null)
     {
         if (fin <= inicio)
             return "La hora de finalización debe ser posterior a la hora de inicio.";
@@ -80,8 +158,10 @@ public class PlanificacionService
         if (EstaInactivo(operario, inicio, fin))
             return $"El conductor está inactivo{GetMotivo(operario)} durante el intervalo seleccionado.";
 
+        var idsExcluidos = excluirSolicitudes?.ToArray() ?? [];
         var solape = await _context.Solicitudes.AsNoTracking().AnyAsync(s =>
             s.IdSolicitud != excluirSolicitudId &&
+            !idsExcluidos.Contains(s.IdSolicitud) &&
             s.IdConductor == idConductor &&
             s.Estado != EstadoAnulado &&
             s.FechaHoraInicioPlanificada.HasValue &&

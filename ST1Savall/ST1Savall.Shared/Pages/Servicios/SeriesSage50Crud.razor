@@ -1,0 +1,123 @@
+@page "/servicios/series-sage50"
+@using System.Net.Http.Json
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<style>
+    .series-sage-popup { max-width: 520px !important; }
+</style>
+
+<PageTitle>Series de Sage</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h2 class="fw-bold text-primary mb-1">Series de Sage</h2><p class="text-muted mb-0">Contadores de documentos de Sage 50.</p></div>
+        <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
+    </div>
+
+    @if (errorMessage is not null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">@errorMessage <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button></div>
+    }
+
+    <div class="card shadow-sm"><div class="card-body p-0">
+        @if (series is null)
+        {
+            <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted mb-0">Cargando series...</p></div>
+        }
+        else
+        {
+            <DxGrid @ref="grid" Data="@series" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Serie de Sage" PopupEditFormCssClass="series-sage-popup" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar serie..." HorizontalScrollBarMode="ScrollBarMode.Auto">
+                <Columns>
+                    <DxGridCommandColumn Width="90px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                        <HeaderTemplate><button type="button" class="btn btn-sm btn-primary w-100" @onclick="() => grid?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i> Nuevo</button></HeaderTemplate>
+                        <CellDisplayTemplate>@{ var item = (SerieSage50)context.DataItem; }<div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(item)"><i class="oi oi-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(item)"><i class="oi oi-trash"></i></button></div></CellDisplayTemplate>
+                    </DxGridCommandColumn>
+                    <DxGridDataColumn FieldName="EMPRESA" Caption="Empresa" Width="100px" />
+                    <DxGridDataColumn FieldName="TIPODOC" Caption="Tipo doc." Width="110px" />
+                    <DxGridDataColumn FieldName="SERIE" Caption="Serie" Width="100px" />
+                    <DxGridDataColumn FieldName="CONTADOR" Caption="Contador" Width="140px" TextAlignment="GridTextAlignment.Right" />
+                    <DxGridDataColumn Caption="Documento" Width="220px"><CellDisplayTemplate>@NombreDocumento(((SerieSage50)context.DataItem).TIPODOC)</CellDisplayTemplate></DxGridDataColumn>
+                </Columns>
+                <EditFormTemplate Context="editContext">
+                    @{ var item = (SerieSage50)editContext.EditModel; }
+                    <div class="p-3"><DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+                        <DxFormLayoutItem Caption="Empresa Sage" ColSpanMd="12"><DxTextBox @bind-Text="item.EMPRESA" MaxLength="2" NullText="01" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Tipo de documento" ColSpanMd="12"><DxComboBox Data="@tiposDocumento" TData="TipoDocumento" TValue="int" TextFieldName="Nombre" ValueFieldName="Codigo" @bind-Value="item.TIPODOC" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Serie" ColSpanMd="12"><DxTextBox @bind-Text="item.SERIE" MaxLength="2" NullText="A" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Contador" ColSpanMd="12"><DxSpinEdit @bind-Value="item.CONTADOR" MinValue="0" /></DxFormLayoutItem>
+                    </DxFormLayout></div>
+                </EditFormTemplate>
+            </DxGrid>
+        }
+    </div></div>
+</div>
+
+@code {
+    private IGrid? grid;
+    private List<SerieSage50>? series;
+    private string? errorMessage;
+    private readonly List<TipoDocumento> tiposDocumento = [
+        new(1, "Pedido de venta"), new(2, "Depósito de venta"), new(3, "Presupuesto de venta"), new(4, "Albarán de venta"),
+        new(5, "Factura de venta"), new(6, "Albarán de traspaso"), new(7, "Albarán de regularización"), new(8, "Pedido de compra")];
+
+    protected override async Task OnInitializedAsync() { await SetupHeadersAsync(); await LoadDataAsync(); }
+
+    private async Task SetupHeadersAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = state.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try { series = await Http.GetFromJsonAsync<List<SerieSage50>>("api/series-sage50") ?? []; errorMessage = null; }
+        catch (Exception ex) { errorMessage = $"Error al cargar las series: {ex.Message}"; series ??= []; }
+    }
+
+    private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
+    {
+        var item = (SerieSage50)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            HttpResponseMessage response;
+            if (e.IsNew) response = await Http.PostAsJsonAsync("api/series-sage50", item);
+            else
+            {
+                var original = (SerieSage50)e.DataItem;
+                var url = $"api/series-sage50?empresa={Uri.EscapeDataString(original.EMPRESA)}&tipodoc={original.TIPODOC}&serie={Uri.EscapeDataString(original.SERIE)}";
+                response = await Http.PutAsJsonAsync(url, item);
+            }
+            if (!response.IsSuccessStatusCode) { errorMessage = await ObtenerErrorAsync(response); e.Cancel = true; return; }
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { errorMessage = $"Error al guardar la serie: {ex.Message}"; e.Cancel = true; }
+    }
+
+    private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var item = (SerieSage50)e.DataItem;
+        try
+        {
+            await SetupHeadersAsync();
+            var url = $"api/series-sage50?empresa={Uri.EscapeDataString(item.EMPRESA)}&tipodoc={item.TIPODOC}&serie={Uri.EscapeDataString(item.SERIE)}";
+            var response = await Http.DeleteAsync(url);
+            if (!response.IsSuccessStatusCode) { errorMessage = await ObtenerErrorAsync(response); e.Cancel = true; return; }
+            await LoadDataAsync();
+        }
+        catch (Exception ex) { errorMessage = $"Error al eliminar la serie: {ex.Message}"; e.Cancel = true; }
+    }
+
+    private static async Task<string> ObtenerErrorAsync(HttpResponseMessage response)
+    {
+        try { return (await response.Content.ReadFromJsonAsync<ApiMessage>())?.Message ?? $"Error: {response.ReasonPhrase}"; }
+        catch { return $"Error: {response.ReasonPhrase}"; }
+    }
+
+    private string NombreDocumento(int codigo) => tiposDocumento.FirstOrDefault(t => t.Codigo == codigo)?.Nombre ?? string.Empty;
+    private sealed record TipoDocumento(int Codigo, string Nombre);
+    private sealed class ApiMessage { public string? Message { get; set; } }
+}

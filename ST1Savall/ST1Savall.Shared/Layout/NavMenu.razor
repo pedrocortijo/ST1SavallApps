@@ -1,38 +1,5 @@
 <div id="sidebar">
     @* The responsive Drawer renders this single DxMenu on every device. *@
-    @*
-    <style>
-        #sidebar .mobile-navigation .mobile-menu-children a {
-            color: #ffffff !important;
-            text-decoration: none !important;
-        }
-        #sidebar .mobile-navigation .mobile-menu-children a:hover,
-        #sidebar .mobile-navigation .mobile-menu-children a.active {
-            color: #f59e0b !important;
-        }
-    </style>
-    @if (false && isSmallScreen && !isConductor)
-    {
-        <nav class="mobile-navigation">
-            <NavLink href="/" class="mobile-menu-link">Inicio</NavLink>
-            <button class="mobile-menu-group" @onclick="() => maestrosOpen = !maestrosOpen">Maestros <span>⌄</span></button>
-            @if (maestrosOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/contenedores">Contenedores</NavLink><NavLink href="/modelos/contenedores-tipos">Tipos de contenedores</NavLink><NavLink href="/modelos/obrasmnto">Obras</NavLink><NavLink href="/modelos/clientes">Clientes</NavLink><NavLink href="/modelos/estados">Estados</NavLink><NavLink href="/modelos/prioridades">Prioridades</NavLink><NavLink href="/modelos/tareas">Tareas</NavLink><NavLink href="/modelos/tareas-relaciones">Relaciones de tareas</NavLink><NavLink href="/modelos/poblaciones">Poblaciones</NavLink><NavLink href="/modelos/plantas">Plantas</NavLink><NavLink href="/modelos/motivos">Motivos</NavLink></div> }
-            <button class="mobile-menu-group" @onclick="() => laboralOpen = !laboralOpen">Laboral <span>⌄</span></button>
-            @if (laboralOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/operarios">Operarios</NavLink><NavLink href="/modelos/cargos">Cargos</NavLink><NavLink href="/laboral/usuarios">Usuarios</NavLink></div> }
-            <button class="mobile-menu-group" @onclick="() => serviciosOpen = !serviciosOpen">Servicios <span>⌄</span></button>
-            @if (serviciosOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/solicitudes">Solicitudes</NavLink><NavLink href="/servicios/asignacion-secuencial">Programación</NavLink><NavLink href="/servicios/mis-servicios">Mis servicios</NavLink><NavLink href="/servicios/asignacion-tareas">Asignación de tareas</NavLink><NavLink href="/servicios/informes">Informes</NavLink></div> }
-            <button class="mobile-menu-group" @onclick="() => configuracionOpen = !configuracionOpen">Configuración <span>⌄</span></button>
-            @if (configuracionOpen) { <div class="mobile-menu-children"><NavLink href="/modelos/parametros">Parámetros</NavLink></div> }
-        </nav>
-    }
-    @if (false && isSmallScreen && isConductor)
-    {
-        <nav class="mobile-navigation">
-            <NavLink href="/servicios/mis-servicios" class="mobile-menu-link">Mis servicios</NavLink>
-            <button class="mobile-menu-group" @onclick="CerrarSesionAsync">Cerrar sesión</button>
-        </nav>
-    }
-    *@
     <DxMenu Orientation="@Orientation.Vertical" CssClass="menu">
         <Items>
             @if (isConductor)
@@ -51,15 +18,14 @@
                 <Items>
                     <DxMenuItem NavigateUrl="/modelos/contenedores" Text="Contenedores" CssClass="menu-item" IconCssClass="icon contenedores-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/contenedores-tipos" Text="Tipos de contenedores" CssClass="menu-item" IconCssClass="icon tipos-icon"></DxMenuItem>
-                    <DxMenuItem NavigateUrl="/modelos/obrasmnto" Text="Obras" CssClass="menu-item" IconCssClass="icon obras-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/modelos/obrasmnto" Text="Obras / Precios" CssClass="menu-item" IconCssClass="icon obras-icon"></DxMenuItem>
+                 @* <DxMenuItem NavigateUrl="/servicios/precios-especiales-obra" Text="Precios especiales por obra" CssClass="menu-item" IconCssClass="icon doc-icon"></DxMenuItem> *@
                     <DxMenuItem NavigateUrl="/modelos/clientes" Text="Clientes" CssClass="menu-item" IconCssClass="icon operarios-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/estados" Text="Estados" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/prioridades" Text="Prioridades" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
-                    <DxMenuItem NavigateUrl="/modelos/tareas" Text="Tareas" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
-                    <DxMenuItem NavigateUrl="/modelos/tareas-relaciones" Text="Relaciones de tareas" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/poblaciones" Text="Poblaciones" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/plantas" Text="Plantas" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
-                    <DxMenuItem NavigateUrl="/modelos/motivos" Text="Motivos" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/modelos/motivos" Text="Motivos de aplazamiento" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/modelos/camiones" Text="Camiones" CssClass="menu-item" IconCssClass="icon operarios-icon"></DxMenuItem>
                 </Items>
             </DxMenuItem>
@@ -77,10 +43,19 @@
                     <DxMenuItem NavigateUrl="/modelos/solicitudes" Text="Solicitudes" CssClass="menu-item" IconCssClass="icon solicitudes-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/planificacion" Text="Planificación" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/asignacion-secuencial" Text="Programación" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/modelos/tareas" Text="Tareas" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/modelos/tareas-relaciones" Text=" Transiciones de tareas" CssClass="menu-item" IconCssClass="icon status-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/asignacion-tareas" Text="Asignación de tareas" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/mis-servicios" Text="Mis servicios" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
                     <DxMenuItem NavigateUrl="/servicios/albaranes-venta" Text="Albaranes de venta" CssClass="menu-item" IconCssClass="icon doc-icon"></DxMenuItem>
-                    <DxMenuItem NavigateUrl="/servicios/precios-especiales-obra" Text="Precios especiales por obra" CssClass="menu-item" IconCssClass="icon doc-icon"></DxMenuItem>
-                    <DxMenuItem NavigateUrl="/servicios/asignacion-tareas" Text="Asignación de tareas" CssClass="menu-item" IconCssClass="icon tareas-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/campos-adicionales-albaranes" Text="Campos adicionales (Anteriores)" CssClass="menu-item" IconCssClass="icon doc-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/adjudicar-kg-plantas" Text="Adjudicar Kg Plantas" CssClass="menu-item" IconCssClass="icon doc-icon"></DxMenuItem>
+                    <DxMenuItem NavigateUrl="/servicios/series-sage50" Text="Series de Sage" CssClass="menu-item" IconCssClass="icon doc-icon"></DxMenuItem>
+                </Items>
+            </DxMenuItem>
+
+            <DxMenuItem Text="Informes" CssClass="menu-item" IconCssClass="icon settings-icon">
+                <Items>
                     <DxMenuItem NavigateUrl="/servicios/informes" Text="Informes" CssClass="menu-item" IconCssClass="icon chart-icon"></DxMenuItem>
                 </Items>
             </DxMenuItem>
@@ -211,3 +186,5 @@
         public string Name { get; set; } = string.Empty;
     }
 }
+
+

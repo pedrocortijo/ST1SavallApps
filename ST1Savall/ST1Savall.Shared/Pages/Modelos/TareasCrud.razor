@@ -98,6 +98,7 @@
                         <DxGridDataColumn FieldName="Entrega2" Caption="Entrega {2]" Width="105px" />
                         <DxGridDataColumn FieldName="Recoger1" Caption="Retirada {1]" Width="105px" />
                         <DxGridDataColumn FieldName="Recoger2" Caption="Retirada {2]" Width="105px" />
+                        <DxGridDataColumn FieldName="CreaAlbaran" Caption="Crea albarán" Width="110px" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{
@@ -134,6 +135,12 @@
                                 <div class="d-flex align-items-center gap-2 pt-2">
                                     <DxCheckBox @bind-Checked="@tarea.Recoger2" />
                                     <span>Retirada [2]</span>
+                                </div>
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12">
+                                <div class="d-flex align-items-center gap-2 pt-2">
+                                    <DxCheckBox @bind-Checked="@tarea.CreaAlbaran" />
+                                    <span>Crear albarán al finalizar el servicio</span>
                                 </div>
                             </DxFormLayoutItem>
                         </DxFormLayout>
@@ -244,6 +251,7 @@
         nuevaTarea.Entrega2 = tareaToDuplicate.Entrega2;
         nuevaTarea.Recoger1 = tareaToDuplicate.Recoger1;
         nuevaTarea.Recoger2 = tareaToDuplicate.Recoger2;
+        nuevaTarea.CreaAlbaran = tareaToDuplicate.CreaAlbaran;
         tareaToDuplicate = null;
     }
 

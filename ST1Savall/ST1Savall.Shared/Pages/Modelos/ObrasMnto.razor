@@ -133,7 +133,7 @@
                         </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Encargado" Caption="Encargado" Visible="false"/>
                         <DxGridDataColumn FieldName="Vista" Caption="Visible" Width="100px" Visible="false" />
-                        <DxGridDataColumn FieldName="Terminada" Caption="Finalizada" Width="80px" />
+                        <DxGridDataColumn FieldName="Terminada" Caption="Finalizada" Width="80px" @bind-FilterRowValue="filtroFinalizada" FilterRowOperatorType="GridFilterRowOperatorType.Equal" />
                     </Columns>
                 </DxGrid>
             }
@@ -142,10 +142,31 @@
 </div>
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "obraCodigo")]
+    public string? QueryObraCodigo { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "lat")]
+    public double? QueryLat { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "lon")]
+    public double? QueryLon { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "mapLat")]
+    public double? QueryMapLat { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "mapLon")]
+    public double? QueryMapLon { get; set; }
+
     private IGrid? grid;
     private List<ObraComunSage50>? obras;
     private List<ClienteSage50>? clientesList;
     private string? errorMessage;
+    private object? filtroFinalizada = false;
 
     private void OnCustomizeElement(GridCustomizeElementEventArgs e)
     {
@@ -195,6 +216,34 @@
                     o.Movil = o.Movil?.Trim() ?? "";
                     o.Encargado = o.Encargado?.Trim() ?? "";
                     o.Libre3 = o.Libre3?.Trim() ?? "";
+                }
+
+                if (!string.IsNullOrEmpty(QueryObraCodigo))
+                {
+                    var target = obras.FirstOrDefault(o => o.Codigo?.Trim() == QueryObraCodigo.Trim());
+                    if (target != null)
+                    {
+                        var returnLat = QueryLat ?? QueryMapLat;
+                        var returnLon = QueryLon ?? QueryMapLon;
+                        if (returnLat.HasValue && returnLon.HasValue && (returnLat.Value != 0 || returnLon.Value != 0))
+                        {
+                            var hasLat = TryParseCoordinate(target.Libre1, out var cLat) && cLat != 0;
+                            var hasLon = TryParseCoordinate(target.Libre2, out var cLon) && cLon != 0;
+                            if (!hasLat || !hasLon || string.IsNullOrWhiteSpace(target.Libre1) || string.IsNullOrWhiteSpace(target.Libre2))
+                            {
+                                var latStr = returnLat.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+                                target.Libre1 = latStr.Length > 10 ? latStr[..10] : latStr;
+                                var lonStr = returnLon.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+                                target.Libre2 = lonStr.Length > 10 ? lonStr[..10] : lonStr;
+                                try
+                                {
+                                    await SetupHeadersAsync();
+                                    await Http.PutAsJsonAsync($"api/obrascomunsage50/{Uri.EscapeDataString(target.Codigo)}", target);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
                 }
             }
             clientesList = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
@@ -276,6 +325,12 @@
         return Task.CompletedTask;
     }
 
+    private static bool TryParseCoordinate(string? value, out double coordinate)
+    {
+        return double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out coordinate)
+            || double.TryParse(value?.Trim(), System.Globalization.NumberStyles.Float, new System.Globalization.CultureInfo("es-ES"), out coordinate);
+    }
+
     private void VerEnMapa(ObraComunSage50 obra)
     {
         var query = ST1Savall.MapHelper.BuildNormalizedQuery(obra.Direccion, obra.Poblacion, obra.Provincia, obra.Codpost);
@@ -285,7 +340,10 @@
             return;
         }
 
-        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(obra.Nombre ?? "Obra")}&backUrl={Uri.EscapeDataString("/modelos/obrasmnto")}";
+        var latParam = TryParseCoordinate(obra.Libre1, out var lat) ? $"&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
+        var lonParam = TryParseCoordinate(obra.Libre2, out var lon) ? $"&lon={lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}" : string.Empty;
+        var backUrl = $"/modelos/obrasmnto?obraCodigo={Uri.EscapeDataString(obra.Codigo)}";
+        var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(obra.Nombre ?? "Obra")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
         NavigationManager.NavigateTo(mapsUrl);
     }
 }

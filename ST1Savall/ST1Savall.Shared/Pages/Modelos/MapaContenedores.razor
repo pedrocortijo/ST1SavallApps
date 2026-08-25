@@ -1,6 +1,7 @@
 @page "/modelos/contenedores/mapa"
 @using ST1Savall.Shared.Data
 @using System.Globalization
+@implements IDisposable
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JSRuntime
@@ -99,7 +100,62 @@
         ? "Visualización geográfica del punto seleccionado"
         : "Ubicación en tiempo real de los contenedores entregados en obras";
 
-    private string BackUrl => !string.IsNullOrEmpty(QueryBackUrl) ? QueryBackUrl : "/modelos/contenedores";
+    private double? resolvedLat;
+    private double? resolvedLon;
+    private DotNetObjectReference<MapaContenedores>? dotNetRef;
+
+    [JSInvokable]
+    public void OnLocationResolved(double lat, double lon)
+    {
+        resolvedLat = lat;
+        resolvedLon = lon;
+        StateHasChanged();
+    }
+
+    private string BackUrl
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(QueryBackUrl)) return "/modelos/contenedores";
+            var lat = resolvedLat ?? QueryLat;
+            var lon = resolvedLon ?? QueryLon;
+            if (lat.HasValue && lon.HasValue && (lat.Value != 0 || lon.Value != 0))
+            {
+                var latStr = lat.Value.ToString("F6", CultureInfo.InvariantCulture);
+                var lonStr = lon.Value.ToString("F6", CultureInfo.InvariantCulture);
+                var url = QueryBackUrl;
+
+                var queryIndex = url.IndexOf('?');
+                var basePath = queryIndex >= 0 ? url[..queryIndex] : url;
+                var queryString = queryIndex >= 0 ? url[(queryIndex + 1)..] : string.Empty;
+
+                var queryParams = new List<string>();
+                if (!string.IsNullOrEmpty(queryString))
+                {
+                    foreach (var param in queryString.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var key = param.Split('=')[0];
+                        if (!string.Equals(key, "lat", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(key, "lon", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(key, "mapLat", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(key, "mapLon", StringComparison.OrdinalIgnoreCase))
+                        {
+                            queryParams.Add(param);
+                        }
+                    }
+                }
+
+                queryParams.Add($"lat={latStr}");
+                queryParams.Add($"lon={lonStr}");
+                queryParams.Add($"mapLat={latStr}");
+                queryParams.Add($"mapLon={lonStr}");
+
+                return $"{basePath}?{string.Join("&", queryParams)}";
+            }
+            return QueryBackUrl;
+        }
+    }
+
     private string BackText => !string.IsNullOrEmpty(QueryBackUrl) ? "Volver" : "Volver a Contenedores";
 
     private List<Contenedor>? contenedores;
@@ -127,13 +183,15 @@
             try
             {
                 mapInitialized = true;
+                dotNetRef ??= DotNetObjectReference.Create(this);
                 // Espera breve para asegurar que el DOM del contenedor de mapa se ha renderizado completamente en el cliente
                 await Task.Delay(100);
                 await JSRuntime.InvokeVoidAsync(
                     "initializeLeafletMap", 
                     "map-container", 
                     locations, 
-                    "_content/ST1Savall.Shared/images/marker-sabospa.svg"
+                    "_content/ST1Savall.Shared/images/marker-sabospa.svg",
+                    dotNetRef
                 );
             }
             catch (Exception ex)
@@ -143,6 +201,11 @@
                 StateHasChanged();
             }
         }
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
     }
 
     private async Task SetupHeadersAsync()

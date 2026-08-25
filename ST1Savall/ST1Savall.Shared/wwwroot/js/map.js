@@ -1,4 +1,4 @@
-window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
+window.initializeLeafletMap = async (elementId, locations, iconUrl, dotNetHelper) => {
     var defaultLat = 38.5789;
     var defaultLon = -0.0996; // Alfaz del Pi por defecto
 
@@ -113,6 +113,12 @@ window.initializeLeafletMap = async (elementId, locations, iconUrl) => {
         if (container && container._leafletMap !== map) return;
 
         if (loc.lat && loc.lon && loc.lat !== 0) {
+            if (dotNetHelper && locations.length === 1) {
+                try {
+                    await dotNetHelper.invokeMethodAsync('OnLocationResolved', Number(loc.lat), Number(loc.lon));
+                } catch (e) { }
+            }
+
             // Evita que dos obras con coordenadas idénticas oculten uno de los iconos.
             var positionKey = `${Number(loc.lat).toFixed(6)},${Number(loc.lon).toFixed(6)}`;
             var repetitions = markerPositions.get(positionKey) || 0;

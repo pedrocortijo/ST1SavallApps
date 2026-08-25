@@ -21,7 +21,7 @@ public class TipoIvaSage50Controller : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TipoIvaSage50>>> GetTipoIva()
     {
-        return await _context.TipoIva.ToListAsync();
+        return await _context.TipoIva.AsNoTracking().ToListAsync();
     }
 
     [HttpGet("{codigo}")]

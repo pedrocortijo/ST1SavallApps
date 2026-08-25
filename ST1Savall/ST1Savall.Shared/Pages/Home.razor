@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ST1Savall.Shared.Services.HomeGridState HomeGridState
 
 <PageTitle>Panel de Control - Gestión de Contenedores</PageTitle>
 
@@ -37,6 +38,7 @@
     .dashboard-blocked { background: linear-gradient(135deg, #6f42c1, #43257c); }
     .dashboard-notifications { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
     .dashboard-driver-notes { background: #f365f3; color: #212529; }
+    .dashboard-albaranes-pendientes { background: linear-gradient(135deg, #d5d2c5, #aaa79a); color: #212529; }
     .solicitud-bloqueada-row,
     .solicitud-bloqueada-row td,
     .solicitud-bloqueada-row span,
@@ -71,12 +73,13 @@
     <DxPopup @bind-Visible="notificacionesServiciosVisibles"
              HeaderText="Control de inicio de servicios"
              ShowFooter="true"
-             Width="960px"
+             Width="min(1200px, 95vw)"
+             MaxWidth="95vw"
              HorizontalAlignment="HorizontalAlignment.Center"
              VerticalAlignment="VerticalAlignment.Center">
         <BodyContentTemplate>
 @*             <p class="mb-3">Servicios anulados o que han superado la tolerancia de inicio y aún no están marcados como iniciados:</p>
- *@            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
+*@            <DxGrid Data="@notificacionesServiciosParaMostrar" KeyFieldName="IdSolicitud" PageSize="8" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
                 <Columns>
                     <DxGridDataColumn FieldName="IdSolicitud" Caption="#" Width="60px" />
                     <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio previsto" DisplayFormat="HH:mm" Width="110px" />
@@ -109,7 +112,8 @@
     <DxPopup @bind-Visible="observacionesConductorVisibles"
              HeaderText="Observaciones del conductor"
              ShowFooter="true"
-             Width="960px"
+             Width="min(1200px, 95vw)"
+             MaxWidth="95vw"
              HorizontalAlignment="HorizontalAlignment.Center"
              VerticalAlignment="VerticalAlignment.Center">
         <BodyContentTemplate>
@@ -135,6 +139,42 @@
         </BodyContentTemplate>
         <FooterContentTemplate>
             <div class="d-flex justify-content-end w-100"><DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="CerrarObservacionesConductor" /></div>
+        </FooterContentTemplate>
+    </DxPopup>
+
+    <DxPopup @bind-Visible="albaranesPendientesVisibles"
+             HeaderText="Servicios pendientes de albarán"
+             ShowFooter="true"
+             Width="min(1200px, 95vw)"
+             MaxWidth="95vw"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <p class="mb-3">Servicios finalizados que todavía no tienen serie o número de albarán de Sage, o les falta el peso de planta.</p>
+            <DxGrid Data="@albaranesPendientesParaMostrar" KeyFieldName="IdSolicitud" PageSize="10" AllowSort="true" ShowSearchBox="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer">
+                <Columns>
+                    <DxGridDataColumn Caption="Acciones" Width="105px" AllowSort="false">
+                        <CellDisplayTemplate Context="celdaAlbaranPendientePopup">
+                            @{ var solicitud = (Solicitud)celdaAlbaranPendientePopup.DataItem; }
+                            <button type="button" class="btn btn-sm btn-outline-primary" title="Editar servicio" @onclick="() => EditarSolicitud(solicitud.IdSolicitud)">
+                                <i class="oi oi-pencil me-1"></i> Editar
+                            </button>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Serv." Width="80px" />
+                    <DxGridDataColumn FieldName="FechaTarea" Caption="Fecha servicio" DisplayFormat="dd/MM/yyyy" Width="135px" />
+                    <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tarea" Width="150px" />
+                    <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="220px" />
+                    <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
+                    <DxGridDataColumn FieldName="AlbaranPlanta" Caption="Albarán planta" Width="140px" />
+                    <DxGridDataColumn FieldName="AlbaranSerieSage" Caption="Serie Sage" Width="110px" />
+                    <DxGridDataColumn FieldName="AlbaranNumeroSage" Caption="Número Sage" Width="130px" />
+                    <DxGridDataColumn FieldName="KgAlbaran" Caption="Kg pesaje" Width="115px" />
+                </Columns>
+            </DxGrid>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <div class="d-flex justify-content-end w-100"><DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="CerrarAlbaranesPendientes" /></div>
         </FooterContentTemplate>
     </DxPopup>
 
@@ -210,6 +250,14 @@
                         <div class="indicator-value mt-3">@CantidadObservacionesConductor</div>
                         <div class="indicator-detail mt-2">Mensajes del conductor para oficina</div>
                     </button>
+                    <button type="button" class="dashboard-indicator dashboard-albaranes-pendientes" @onclick="MostrarAlbaranesPendientesAsync">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="indicator-label">Servicios pdtes. de albarán</span>
+                            <i class="oi oi-document indicator-icon"></i>
+                        </div>
+                        <div class="indicator-value mt-3">@CantidadAlbaranesPendientes</div>
+                        <div class="indicator-detail mt-2">Sin serie, número Sage o Kg de pesaje · Ver detalle</div>
+                    </button>
                 </div>
             }
         </div>
@@ -274,19 +322,21 @@
                 <div class="grid-filter-bar d-flex flex-wrap align-items-center gap-2 p-2">
                     <span class="text-muted fw-semibold small">Filtrar por:</span>
                     @* <span class="text-muted small">Conductor:</span> *@
-                    <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="@selectedConductorId" Width="190px" />
+                    <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" Value="@selectedConductorId" ValueChanged="@((int val) => { selectedConductorId = val; HomeGridState.SelectedConductorId = val; })" Width="190px" />
                     @* <span class="text-muted small">Tipo de tarea:</span> *@
-                    <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" @bind-Value="@selectedTareaId" Width="190px" />
+                    <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" Value="@selectedTareaId" ValueChanged="@((int val) => { selectedTareaId = val; HomeGridState.SelectedTareaId = val; })" Width="190px" />
                     @* <span class="text-muted small">Estado:</span> *@
-                    <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" @bind-Value="@selectedEstadoId" Width="190px" />
+                    <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" Value="@selectedEstadoId" ValueChanged="@((int val) => { selectedEstadoId = val; HomeGridState.SelectedEstadoId = val; })" Width="190px" />
                     @* <span class="text-muted small">Prioridad:</span> *@
-                    <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
+                    <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" Value="@selectedPrioridadId" ValueChanged="@((int val) => { selectedPrioridadId = val; HomeGridState.SelectedPrioridadId = val; })" Width="170px" />
                 </div>
                 <DxGrid CssClass="solicitudes-grid"
                         Data="@GetFilteredSolicitudes()"
                         KeyFieldName="IdSolicitud"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
+                        LayoutAutoLoading="OnGridLayoutAutoLoading"
+                        LayoutAutoSaving="OnGridLayoutAutoSaving"
                         AllowSort="true"
                         ShowFilterRow="true"
                         ShowSearchBox="true"
@@ -309,6 +359,7 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridCommandColumn>
+                        <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Servicio" Width="90px" />
                         <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
                             <CellDisplayTemplate>
                                 @{
@@ -387,10 +438,10 @@
                 {
                     <div class="grid-filter-bar d-flex flex-wrap align-items-center gap-2 p-2">
                         <span class="text-muted fw-semibold small">Filtrar por:</span>
-                        <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="@selectedConductorId" Width="190px" />
-                        <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" @bind-Value="@selectedTareaId" Width="190px" />
-                        <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" @bind-Value="@selectedEstadoId" Width="190px" />
-                        <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
+                        <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" Value="@selectedConductorId" ValueChanged="@((int val) => { selectedConductorId = val; HomeGridState.SelectedConductorId = val; })" Width="190px" />
+                        <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" Value="@selectedTareaId" ValueChanged="@((int val) => { selectedTareaId = val; HomeGridState.SelectedTareaId = val; })" Width="190px" />
+                        <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" Value="@selectedEstadoId" ValueChanged="@((int val) => { selectedEstadoId = val; HomeGridState.SelectedEstadoId = val; })" Width="190px" />
+                        <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" Value="@selectedPrioridadId" ValueChanged="@((int val) => { selectedPrioridadId = val; HomeGridState.SelectedPrioridadId = val; })" Width="170px" />
                     </div>
                     <DxGrid Data="@GetFilteredSolicitudesBloqueadas()"
                             KeyFieldName="IdSolicitud"
@@ -422,6 +473,7 @@
                                     }
                                 </CellDisplayTemplate>
                             </DxGridCommandColumn>
+                            <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Servicio" Width="90px" />
                             <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
                                 <CellDisplayTemplate>
                                     @{
@@ -591,8 +643,10 @@
     private string? errorMessage;
     private bool notificacionesServiciosVisibles;
     private bool observacionesConductorVisibles;
+    private bool albaranesPendientesVisibles;
     private List<Solicitud> notificacionesServiciosParaMostrar = [];
     private List<Solicitud> observacionesConductorParaMostrar = [];
+    private List<Solicitud> albaranesPendientesParaMostrar = [];
     private readonly CancellationTokenSource cancelacionRefresco = new();
     private Task? tareaRefrescoAutomatico;
     private int selectedConductorId = -1;
@@ -601,7 +655,7 @@
     private int selectedPrioridadId = -1;
     private VistaDashboard vistaDashboard = VistaDashboard.Servicios;
 
-    private int CantidadServiciosHoy => solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today && s.Estado != 4) ?? 0;
+    private int CantidadServiciosHoy => solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today && !EsEstadoAnulado(s.Estado)) ?? 0;
     private int CantidadSolicitudesBloqueadas => GetSolicitudesBloqueadas().Count();
     private int CantidadOperariosInactivos => operarios?.Count(o =>
         string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || o.Activo == false) ?? 0;
@@ -610,6 +664,7 @@
     private int ToleranciaInicioServicioMinutos => parametros?.FirstOrDefault()?.AvisoTiempoServicio ?? 0;
     private int CantidadNotificacionesServicios => GetNotificacionesServicios().Count();
     private int CantidadObservacionesConductor => GetObservacionesConductor().Count();
+    private int CantidadAlbaranesPendientes => GetAlbaranesPendientes().Count();
 
     private enum VistaDashboard { Servicios, SolicitudesBloqueadas, OperariosInactivos, OvpARetirar, ClientesBloqueados, NotificacionesServicios }
 
@@ -619,8 +674,15 @@
         await DesplazarAGridAsync();
     }
     private async Task MostrarServiciosHoy() => await MostrarServiciosHoyAsync();
-    private void EditarSolicitud(int idSolicitud) =>
-        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{idSolicitud}");
+    private void EditarSolicitud(int idSolicitud)
+    {
+        HomeGridState.SelectedConductorId = selectedConductorId;
+        HomeGridState.SelectedTareaId = selectedTareaId;
+        HomeGridState.SelectedEstadoId = selectedEstadoId;
+        HomeGridState.SelectedPrioridadId = selectedPrioridadId;
+        HomeGridState.VistaDashboardIndex = (int)vistaDashboard;
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{idSolicitud}?returnUrl={Uri.EscapeDataString("/")}");
+    }
     private async Task MostrarSolicitudesBloqueadasAsync()
     {
         vistaDashboard = VistaDashboard.SolicitudesBloqueadas;
@@ -664,6 +726,13 @@
         return Task.CompletedTask;
     }
     private void CerrarObservacionesConductor() => observacionesConductorVisibles = false;
+    private Task MostrarAlbaranesPendientesAsync()
+    {
+        albaranesPendientesParaMostrar = GetAlbaranesPendientes().ToList();
+        albaranesPendientesVisibles = albaranesPendientesParaMostrar.Count > 0;
+        return Task.CompletedTask;
+    }
+    private void CerrarAlbaranesPendientes() => albaranesPendientesVisibles = false;
     private void CerrarNotificacionesServicios() => notificacionesServiciosVisibles = false;
 
     private async Task DesplazarAGridAsync()
@@ -683,7 +752,16 @@
         catch { }
     }
 
-    private IEnumerable<Solicitud> GetSolicitudesBloqueadas() => solicitudes?.Where(s => s.Bloqueado) ?? Enumerable.Empty<Solicitud>();
+    private bool EsEstadoAnulado(int idEstado)
+    {
+        var param = parametros?.FirstOrDefault();
+        if (param?.EstadoReprogramacion.HasValue == true && param.EstadoReprogramacion.Value == idEstado) return true;
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        if (descripcion?.Contains("anulad", StringComparison.OrdinalIgnoreCase) == true) return true;
+        return false;
+    }
+
+    private IEnumerable<Solicitud> GetSolicitudesBloqueadas() => solicitudes?.Where(s => s.Bloqueado && !EsEstadoAnulado(s.Estado)) ?? Enumerable.Empty<Solicitud>();
 
     private IEnumerable<Operario> GetOperariosInactivos() => operarios?.Where(o =>
         string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) || o.Activo == false)
@@ -696,11 +774,17 @@
         if (solicitudes is null) return Enumerable.Empty<Solicitud>();
 
         int diasAviso = AvisoTiempoContenedorDias;
+        var param = parametros?.FirstOrDefault();
+        int estadoFinalizadoId = param?.EstadoFinalizado ?? 5;
+        int estadoReprogramacionId = param?.EstadoReprogramacion ?? 6;
 
         return solicitudes.Where(s =>
             s.RequiereOVP &&
             s.FechaFinOVP.HasValue &&
             s.Estado != 5 && s.Estado != 6 &&
+            s.Estado != estadoFinalizadoId && s.Estado != estadoReprogramacionId &&
+            !EsEstadoAnulado(s.Estado) &&
+            !(s.EstadoDescripcion != null && s.EstadoDescripcion.Contains("Finaliz", StringComparison.OrdinalIgnoreCase)) &&
             (DateTime.Today >= s.FechaFinOVP.Value.Date.AddDays(-diasAviso) && DateTime.Today <= s.FechaFinOVP.Value.Date)
         );
     }
@@ -732,12 +816,24 @@
     {
         if (solicitudes is null) return Enumerable.Empty<Solicitud>();
 
+        var param = parametros?.FirstOrDefault();
+        int estadoFinalizadoId = param?.EstadoFinalizado ?? 5;
+        int estadoIniciadoId = param?.EstadoIniciado ?? 8;
+        int estadoReprogramacionId = param?.EstadoReprogramacion ?? 6;
+
         var limite = DateTime.Now.AddMinutes(-ToleranciaInicioServicioMinutos);
         return solicitudes
             .Where(s => s.FechaHoraInicioPlanificada.HasValue &&
                         s.FechaHoraInicioPlanificada.Value.Date == DateTime.Today &&
                         s.FechaHoraInicioPlanificada.Value <= limite &&
-                        s.Estado is not 5 and not 6 and not 8)
+                        s.Estado != estadoFinalizadoId &&
+                        s.Estado != estadoIniciadoId &&
+                        s.Estado != estadoReprogramacionId &&
+                        s.Estado != 5 && s.Estado != 6 && s.Estado != 8 &&
+                        !EsEstadoAnulado(s.Estado) &&
+                        !(s.EstadoDescripcion != null && s.EstadoDescripcion.Contains("Finaliz", StringComparison.OrdinalIgnoreCase)) &&
+                        !(s.EstadoDescripcion != null && s.EstadoDescripcion.Contains("Inicia", StringComparison.OrdinalIgnoreCase)) &&
+                        !(s.EstadoDescripcion != null && s.EstadoDescripcion.Contains("Anulad", StringComparison.OrdinalIgnoreCase)))
             .OrderBy(s => s.FechaHoraInicioPlanificada);
     }
 
@@ -746,15 +842,62 @@
         .OrderByDescending(s => s.FechaActualizacion ?? s.FechaSolicitud)
         ?? Enumerable.Empty<Solicitud>();
 
+    private IEnumerable<Solicitud> GetAlbaranesPendientes()
+    {
+        if (solicitudes is null || tareasList is null)
+            return Enumerable.Empty<Solicitud>();
+
+        var tareasQueCreanAlbaran = tareasList
+            .Where(t => t.CreaAlbaran)
+            .Select(t => t.IdTarea)
+            .ToHashSet();
+
+        return solicitudes
+            .Where(s => tareasQueCreanAlbaran.Contains(s.IdTipoTarea)
+                && EsEstadoFinalizado(s)
+                && (string.IsNullOrWhiteSpace(s.AlbaranSerieSage)
+                    || string.IsNullOrWhiteSpace(s.AlbaranNumeroSage)
+                    || !s.KgAlbaran.HasValue))
+            .OrderByDescending(s => s.FechaTarea ?? s.FechaSolicitud);
+    }
+
+    private bool EsEstadoFinalizado(Solicitud solicitud)
+    {
+        var estadoFinalizado = parametros?.FirstOrDefault()?.EstadoFinalizado;
+        return estadoFinalizado.HasValue
+            ? solicitud.Estado == estadoFinalizado.Value
+            : solicitud.EstadoDescripcion?.Contains("finaliz", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
     private IEnumerable<Solicitud> GetNotificacionesServiciosNoVisualizadas() =>
         GetNotificacionesServicios().Where(s => !s.NotificacionInicioVisualizada);
 
     private void ToggleEstadoFilter(int estado)
     {
         selectedEstadoId = selectedEstadoId == estado ? -1 : estado;
+        HomeGridState.SelectedEstadoId = selectedEstadoId;
     }
 
-    private void ClearEstadoFilter() => selectedEstadoId = -1;
+    private void ClearEstadoFilter()
+    {
+        selectedEstadoId = -1;
+        HomeGridState.SelectedEstadoId = -1;
+    }
+
+    private Task OnGridLayoutAutoLoading(GridPersistentLayoutEventArgs e)
+    {
+        if (HomeGridState.Layout != null)
+        {
+            e.Layout = HomeGridState.Layout;
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGridLayoutAutoSaving(GridPersistentLayoutEventArgs e)
+    {
+        HomeGridState.Layout = e.Layout;
+        return Task.CompletedTask;
+    }
 
     private IEnumerable<Solicitud> GetFilteredSolicitudes()
     {
@@ -762,16 +905,27 @@
 
         var filteredSolicitudes = solicitudes.Where(EsDeFechaPanel);
 
+        if (selectedEstadoId >= 0)
+        {
+            filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
+        }
+        else
+        {
+            filteredSolicitudes = filteredSolicitudes.Where(s => !EsEstadoAnulado(s.Estado));
+        }
+
         if (selectedConductorId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdConductor == selectedConductorId);
         if (selectedTareaId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.IdTipoTarea == selectedTareaId);
-        if (selectedEstadoId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Estado == selectedEstadoId);
         if (selectedPrioridadId >= 0) filteredSolicitudes = filteredSolicitudes.Where(s => s.Prioridad == selectedPrioridadId);
         return filteredSolicitudes.OrderByDescending(s => s.FechaSolicitud ?? DateTime.MinValue);
     }
 
     private static bool EsDeFechaPanel(Solicitud solicitud)
     {
-        return solicitud.FechaTarea?.Date == DateTime.Today;
+        if (solicitud == null) return false;
+        return solicitud.FechaTarea?.Date == DateTime.Today
+            || solicitud.FechaAnulacion?.Date == DateTime.Today
+            || (solicitud.FechaInicial?.Date == DateTime.Today && !solicitud.FechaTarea.HasValue);
     }
 
     private IEnumerable<Solicitud> GetFilteredSolicitudesBloqueadas()
@@ -780,9 +934,17 @@
 
         var filtered = solicitudes.Where(s => s.Bloqueado && EsDeFechaPanel(s));
 
+        if (selectedEstadoId >= 0)
+        {
+            filtered = filtered.Where(s => s.Estado == selectedEstadoId);
+        }
+        else
+        {
+            filtered = filtered.Where(s => !EsEstadoAnulado(s.Estado));
+        }
+
         if (selectedConductorId >= 0) filtered = filtered.Where(s => s.IdConductor == selectedConductorId);
         if (selectedTareaId >= 0) filtered = filtered.Where(s => s.IdTipoTarea == selectedTareaId);
-        if (selectedEstadoId >= 0) filtered = filtered.Where(s => s.Estado == selectedEstadoId);
         if (selectedPrioridadId >= 0) filtered = filtered.Where(s => s.Prioridad == selectedPrioridadId);
         return filtered;
     }
@@ -810,6 +972,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        selectedConductorId = HomeGridState.SelectedConductorId;
+        selectedTareaId = HomeGridState.SelectedTareaId;
+        selectedEstadoId = HomeGridState.SelectedEstadoId;
+        selectedPrioridadId = HomeGridState.SelectedPrioridadId;
+        vistaDashboard = (VistaDashboard)HomeGridState.VistaDashboardIndex;
+
         await SetupHeadersAsync();
         await Http.PostAsync("api/operarios/sincronizar-ausencias", null);
         await LoadDataAsync();
@@ -858,6 +1026,7 @@
         try
         {
             loading = true;
+            await ProcesarAlbaranesPendientesAsync();
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
             clientes = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
@@ -870,7 +1039,7 @@
             if (operarios != null)
             {
                 var operariosDisponibles = operarios.Where(o =>
-                    (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+                    (EsConductor(o) && o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
                     || (solicitudes != null && solicitudes.Any(s => s.IdConductor == o.IdOperario))
                 ).OrderBy(o => o.Nombre);
                 comboOperarios.AddRange(operariosDisponibles);
@@ -915,6 +1084,18 @@
     }
 
 
+    private async Task ProcesarAlbaranesPendientesAsync()
+    {
+        try
+        {
+            // Este trabajo se ejecuta únicamente desde Inicio (oficina), nunca desde la tablet.
+            await Http.PostAsync("api/solicitudes/generar-albaranes-pendientes", null);
+        }
+        catch
+        {
+            // Un albarán pendiente no debe impedir que se cargue el panel de Inicio.
+        }
+    }
     private void OnCustomizeElement(GridCustomizeElementEventArgs e)
     {
         if (e.ElementType == GridElementType.DataRow || e.ElementType == GridElementType.DataCell)
@@ -981,7 +1162,7 @@
 
     private int GetStateCount(int estado)
     {
-        return solicitudes?.Count(s => s.FechaTarea?.Date == DateTime.Today && s.Estado == estado) ?? 0;
+        return solicitudes?.Count(s => EsDeFechaPanel(s) && s.Estado == estado) ?? 0;
     }
 
     private IEnumerable<EstadoSolicitud> GetFilterableEstados()
@@ -993,5 +1174,17 @@
     private string GetCardLabel(EstadoSolicitud estado)
     {
         return !string.IsNullOrWhiteSpace(estado.Descripcion) ? estado.Descripcion : $"Estado {estado.IdEstado}";
+    }
+
+    private static bool EsConductor(Operario o)
+    {
+        if (o == null) return false;
+        if (o.IdCargo.HasValue && o.IdCargo == 1) return true;
+        if (o.Cargo != null && !string.IsNullOrWhiteSpace(o.Cargo.Descripcion))
+        {
+            return string.Equals(o.Cargo.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase)
+                || o.Cargo.Descripcion.Contains("conductor", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 }

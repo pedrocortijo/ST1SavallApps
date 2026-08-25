@@ -70,27 +70,30 @@
     </FooterContentTemplate>
 </DxPopup>
 
-<DxPopup Visible="@(!string.IsNullOrWhiteSpace(successMessage))"
-         VisibleChanged="OnSuccessPopupVisibleChanged"
-         HeaderText="Ruta calculada"
-         ShowFooter="true"
-         Width="480px"
-         HorizontalAlignment="HorizontalAlignment.Center"
-         VerticalAlignment="VerticalAlignment.Center">
-    <BodyContentTemplate>
-        <div class="py-2 d-flex align-items-center gap-3">
-            <i class="oi oi-check text-success fs-3"></i>
-            <div>
-                <p class="mb-0 fw-semibold">@successMessage</p>
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <DxPopup Visible="true"
+             VisibleChanged="OnSuccessPopupVisibleChanged"
+             HeaderText="Ruta calculada"
+             ShowFooter="true"
+             Width="480px"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <div class="py-2 d-flex align-items-center gap-3">
+                <i class="oi oi-check text-success fs-3"></i>
+                <div>
+                    <p class="mb-0 fw-semibold">@successMessage</p>
+                </div>
             </div>
-        </div>
-    </BodyContentTemplate>
-    <FooterContentTemplate>
-        <div class="d-flex justify-content-end w-100">
-            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="CerrarMensajeExito" />
-        </div>
-    </FooterContentTemplate>
-</DxPopup>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <div class="d-flex justify-content-end w-100">
+                <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="CerrarMensajeExito" />
+            </div>
+        </FooterContentTemplate>
+    </DxPopup>
+}
 
 <DxPopup @bind-Visible="mostrarConfirmacionCalculoCadena"
          HeaderText="Confirmar cálculo en cadena"
@@ -102,15 +105,15 @@
         <div class="py-2 d-flex align-items-start gap-3">
             <i class="oi oi-info text-primary fs-3 mt-1"></i>
             <div>
-                <p class="mb-2">El cálculo en cadena puede modificar la planificación y ordenará primero los servicios por prioridad (Alta, Media y Baja).</p>
+                <p class="mb-2">El cálculo en cadena organizará los servicios por prioridad (Alta, Media y Baja) y optimizará su distribución en la jornada para minimizar los tiempos muertos antes del descanso y fin de jornada.</p>
                 <p class="mb-0 fw-semibold">¿Desea continuar?</p>
             </div>
         </div>
     </BodyContentTemplate>
     <FooterContentTemplate>
         <div class="d-flex justify-content-end gap-2 w-100">
-            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarCalculoEnCadena" />
-            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="ConfirmarCalculoEnCadena" />
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarCalculoEnCadenaAsync" />
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="ConfirmarCalculoEnCadenaAsync" />
         </div>
     </FooterContentTemplate>
 </DxPopup>
@@ -412,7 +415,7 @@
         {
             loading = true;
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
-            conductores = operarios?.Where(o => o.Activo != false).OrderBy(o => o.Nombre).ToList() ?? [];
+            conductores = operarios?.Where(o => (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase)) && EsConductor(o)).OrderBy(o => o.Nombre).ToList() ?? [];
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
             parametrosList = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
@@ -555,13 +558,22 @@
         mostrarConfirmacionCalculoCadena = true;
     }
 
-    private void ConfirmarCalculoEnCadena()
+    private async Task ConfirmarCalculoEnCadenaAsync()
     {
         mostrarConfirmacionCalculoCadena = false;
-        _ = CalcularHorariosEnCadenaAsync();
+
+        // Cerramos y renderizamos primero el popup. Así DevExpress elimina su capa
+        // modal antes de recalcular y no queda bloqueada la interfaz.
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        await CalcularHorariosEnCadenaAsync();
     }
 
-    private void CancelarCalculoEnCadena() => mostrarConfirmacionCalculoCadena = false;
+    private Task CancelarCalculoEnCadenaAsync()
+    {
+        mostrarConfirmacionCalculoCadena = false;
+        return InvokeAsync(StateHasChanged);
+    }
 
     private async Task CargarSolicitudesConductorAsync()
     {
@@ -581,10 +593,12 @@
                 var targetDate = fechaTrabajo.Date;
                 solicitudesOrdenadas = todas
                     .Where(s => s.IdConductor == selectedConductorId.Value &&
+                        !EsEstadoFinalizado(s.Estado) &&
+                        !EsEstadoAnulado(s.Estado) &&
                         ((s.FechaTarea.HasValue && s.FechaTarea.Value.Date == targetDate) ||
                          (s.FechaPrevista.HasValue && s.FechaPrevista.Value.Date == targetDate) ||
                          (s.FechaHoraInicioPlanificada.HasValue && s.FechaHoraInicioPlanificada.Value.Date == targetDate) ||
-                         s.Estado == 1 || s.Estado == 3)) // Incluir también las no iniciadas/pendientes asignadas a ese conductor
+                         (!s.FechaTarea.HasValue && !s.FechaPrevista.HasValue && !s.FechaHoraInicioPlanificada.HasValue)))
                     .OrderBy(s => s.FechaHoraInicioPlanificada ?? DateTime.MaxValue)
                     .ThenBy(s => s.IdSolicitud)
                     .ToList();
@@ -652,9 +666,9 @@
         try
         {
             calculando = true;
-            OrdenarServiciosPorPrioridad();
+            solicitudesOrdenadas = OptimizarOrdenParaBloques(solicitudesOrdenadas);
             EjecutarCalculoSecuencialCadena();
-            successMessage = $"Horarios calculados en cadena por prioridad para {solicitudesOrdenadas.Count} servicios.";
+            successMessage = $"Horarios calculados y optimizados en cadena para {solicitudesOrdenadas.Count} servicios.";
         }
         catch (Exception ex)
         {
@@ -666,15 +680,137 @@
         }
     }
 
-    private void OrdenarServiciosPorPrioridad()
+    private List<Solicitud> OptimizarOrdenParaBloques(List<Solicitud> items)
     {
-        // Se conserva el orden manual actual dentro de cada nivel de prioridad.
-        solicitudesOrdenadas = solicitudesOrdenadas
-            .Select((solicitud, indice) => new { solicitud, indice })
-            .OrderBy(x => x.solicitud.Prioridad.GetValueOrDefault(3))
-            .ThenBy(x => x.indice)
-            .Select(x => x.solicitud)
+        if (items.Count <= 1) return items;
+
+        // Agrupamos por nivel de prioridad para respetar la prioridad estricta:
+        // Prioridad 1 (Alta), Prioridad 2 (Media), Prioridad 3 / null (Baja)
+        var gruposPrioridad = items
+            .GroupBy(s => s.Prioridad.GetValueOrDefault(3))
+            .OrderBy(g => g.Key)
             .ToList();
+
+        var resultadoFinal = new List<Solicitud>();
+
+        // Calculamos los bloques de tiempo de la jornada
+        var capacidadManana = TieneDescansoValido()
+            ? (int)(horaInicioDescanso!.Value - horaInicioJornada).TotalMinutes
+            : (int)(horaFinJornada - horaInicioJornada).TotalMinutes;
+        var capacidadTarde = TieneDescansoValido()
+            ? (int)(horaFinJornada - horaFinDescanso!.Value).TotalMinutes
+            : 0;
+
+        if (capacidadManana <= 0) capacidadManana = 480;
+
+        int minutosUsadosManana = 0;
+        int minutosUsadosTarde = 0;
+
+        foreach (var grupo in gruposPrioridad)
+        {
+            var pendientes = grupo.ToList();
+
+            while (pendientes.Count > 0)
+            {
+                // ¿Hay espacio disponible en el bloque de la mañana?
+                var espacioManana = capacidadManana - minutosUsadosManana;
+                if (espacioManana > 0)
+                {
+                    // Encontrar la mejor combinación de 'pendientes' que maximice el tiempo antes del descanso
+                    var seleccionManana = EncontrarMejorCombinacion(pendientes, espacioManana);
+                    if (seleccionManana.Count > 0)
+                    {
+                        foreach (var s in seleccionManana)
+                        {
+                            resultadoFinal.Add(s);
+                            pendientes.Remove(s);
+                            minutosUsadosManana += s.DuracionPlanificadaMinutos.GetValueOrDefault(60);
+                        }
+                    }
+                    else
+                    {
+                        // Ningún elemento restante cabe en el hueco de la mañana
+                        minutosUsadosManana = capacidadManana;
+                    }
+                }
+                else if (capacidadTarde > 0 && minutosUsadosTarde < capacidadTarde)
+                {
+                    // Estamos llenando el bloque de la tarde (después del descanso)
+                    var espacioTarde = capacidadTarde - minutosUsadosTarde;
+                    var seleccionTarde = EncontrarMejorCombinacion(pendientes, espacioTarde);
+                    if (seleccionTarde.Count > 0)
+                    {
+                        foreach (var s in seleccionTarde)
+                        {
+                            resultadoFinal.Add(s);
+                            pendientes.Remove(s);
+                            minutosUsadosTarde += s.DuracionPlanificadaMinutos.GetValueOrDefault(60);
+                        }
+                    }
+                    else
+                    {
+                        minutosUsadosTarde = capacidadTarde;
+                    }
+                }
+                else
+                {
+                    // Si ya se llenaron los bloques de la jornada para este día, añadimos el resto
+                    resultadoFinal.AddRange(pendientes);
+                    pendientes.Clear();
+                }
+            }
+        }
+
+        return resultadoFinal;
+    }
+
+    private List<Solicitud> EncontrarMejorCombinacion(List<Solicitud> items, int capacidad)
+    {
+        if (items.Count == 0 || capacidad <= 0) return [];
+
+        int n = items.Count;
+        int[] duraciones = items.Select(x => Math.Max(5, x.DuracionPlanificadaMinutos.GetValueOrDefault(60))).ToArray();
+
+        // Si solo hay 1 elemento, verificar si cabe directamente
+        if (n == 1)
+        {
+            return duraciones[0] <= capacidad ? new List<Solicitud> { items[0] } : [];
+        }
+
+        // Programación dinámica (Knapsack 0/1) para maximizar la suma de duraciones <= capacidad
+        int[,] dp = new int[n + 1, capacidad + 1];
+
+        for (int i = 1; i <= n; i++)
+        {
+            int dur = duraciones[i - 1];
+            for (int w = 0; w <= capacidad; w++)
+            {
+                if (dur <= w)
+                {
+                    dp[i, w] = Math.Max(dp[i - 1, w], dp[i - 1, w - dur] + dur);
+                }
+                else
+                {
+                    dp[i, w] = dp[i - 1, w];
+                }
+            }
+        }
+
+        // Reconstrucción de los elementos seleccionados
+        var seleccionados = new List<Solicitud>();
+        int pesoRestante = capacidad;
+        for (int i = n; i > 0 && pesoRestante > 0; i--)
+        {
+            if (dp[i, pesoRestante] != dp[i - 1, pesoRestante])
+            {
+                seleccionados.Add(items[i - 1]);
+                pesoRestante -= duraciones[i - 1];
+            }
+        }
+
+        // Invertimos para conservar el orden relativo original
+        seleccionados.Reverse();
+        return seleccionados;
     }
 
     private void OnDuracionChanged(Solicitud item, int? val)
@@ -714,19 +850,22 @@
     {
         if (val.HasValue && item.DuracionPlanificadaMinutos.GetValueOrDefault() > 0)
         {
-            var inicioIntroducidoEnDescanso = EsHoraDeDescanso(val.Value);
+            var inicioOriginal = val.Value;
             var inicio = AjustarInicioAlHorarioLaboral(RedondearAIntervaloConfigurado(val.Value), item.DuracionPlanificadaMinutos.Value);
             item.FechaHoraInicioPlanificada = inicio;
             item.FechaHoraFinPlanificada = RedondearAIntervaloConfigurado(CalcularFinConsiderandoDescanso(inicio, item.DuracionPlanificadaMinutos.Value));
             RecalcularServiciosPosteriores(item);
 
-            if (inicioIntroducidoEnDescanso)
+            if (inicio != inicioOriginal)
             {
-                avisoDescanso = $"La hora de inicio indicada ({val.Value:HH:mm}) está dentro del descanso de {horaInicioDescanso:hh\\:mm} a {horaFinDescanso:hh\\:mm}. Se ha ajustado a las {inicio:HH:mm}.";
-            }
-            else if (CruzaDescanso(inicio, item.FechaHoraFinPlanificada.Value))
-            {
-                avisoDescanso = $"El servicio cruza el descanso de {horaInicioDescanso:hh\\:mm} a {horaFinDescanso:hh\\:mm}. Ese intervalo no se cuenta como tiempo de operación y se ha ajustado la hora de finalización.";
+                if (EsHoraDeDescanso(inicioOriginal))
+                {
+                    avisoDescanso = $"La hora de inicio indicada ({inicioOriginal:HH:mm}) está dentro del descanso de {horaInicioDescanso:hh\\:mm} a {horaFinDescanso:hh\\:mm}. Se ha ajustado a las {inicio:HH:mm}.";
+                }
+                else if (TieneDescansoValido() && inicioOriginal.TimeOfDay < horaInicioDescanso!.Value && inicioOriginal.AddMinutes(item.DuracionPlanificadaMinutos.Value).TimeOfDay > horaInicioDescanso.Value)
+                {
+                    avisoDescanso = $"El servicio no cabe antes del descanso de {horaInicioDescanso:hh\\:mm} a {horaFinDescanso:hh\\:mm}. Se ha programado para comenzar después del descanso a las {inicio:HH:mm}.";
+                }
             }
         }
         else
@@ -785,7 +924,7 @@
 
     private bool CruzaDescanso(DateTime inicio, DateTime fin) =>
         TieneDescansoValido() && inicio.Date == fin.Date &&
-        inicio.TimeOfDay < horaInicioDescanso!.Value && fin.TimeOfDay > horaInicioDescanso.Value;
+        inicio.TimeOfDay < horaFinDescanso!.Value && fin.TimeOfDay > horaInicioDescanso!.Value;
 
     private DateTime RedondearAIntervaloConfigurado(DateTime fechaHora)
     {
@@ -796,16 +935,7 @@
 
     private DateTime CalcularFinConsiderandoDescanso(DateTime inicio, int duracion)
     {
-        var fin = inicio.AddMinutes(duracion);
-        if (TieneDescansoValido() &&
-            inicio.Date == fin.Date &&
-            inicio.TimeOfDay < horaInicioDescanso!.Value &&
-            fin.TimeOfDay > horaInicioDescanso.Value)
-        {
-            fin = fin.Add(horaFinDescanso!.Value - horaInicioDescanso.Value);
-        }
-
-        return fin;
+        return inicio.AddMinutes(duracion);
     }
 
     private int CalcularMinutosOperacion(DateTime inicio, DateTime fin)
@@ -851,14 +981,23 @@
                 candidato = candidato.Date.AddDays(candidato.TimeOfDay >= horaFinJornada ? 1 : 0) + horaInicioJornada;
             }
 
-            if (TieneDescansoValido() &&
-                candidato.TimeOfDay >= horaInicioDescanso!.Value &&
-                candidato.TimeOfDay < horaFinDescanso!.Value)
+            if (TieneDescansoValido())
             {
-                candidato = candidato.Date + horaFinDescanso.Value;
+                if (candidato.TimeOfDay >= horaInicioDescanso!.Value && candidato.TimeOfDay < horaFinDescanso!.Value)
+                {
+                    candidato = candidato.Date + horaFinDescanso.Value;
+                }
+                else if (candidato.TimeOfDay < horaInicioDescanso.Value)
+                {
+                    var finEstimado = candidato.AddMinutes(duracion);
+                    if (finEstimado.Date > candidato.Date || finEstimado.TimeOfDay > horaInicioDescanso.Value)
+                    {
+                        candidato = candidato.Date + horaFinDescanso.Value;
+                    }
+                }
             }
 
-            var fin = CalcularFinConsiderandoDescanso(candidato, duracion);
+            var fin = RedondearAIntervaloConfigurado(candidato.AddMinutes(duracion));
             if (fin.Date > candidato.Date || fin.TimeOfDay > horaFinJornada)
             {
                 candidato = candidato.Date.AddDays(1) + horaInicioJornada;
@@ -968,20 +1107,32 @@
         {
             guardando = true;
             await SetupHeadersAsync();
-            int actualizadas = 0;
-
             foreach (var item in solicitudesOrdenadas)
             {
                 ReevaluarItem(item);
-                item.FechaActualizacion = DateTime.Now;
-                var response = await Http.PutAsJsonAsync($"api/solicitudes/{item.IdSolicitud}", item);
-                if (response.IsSuccessStatusCode)
-                {
-                    actualizadas++;
-                }
             }
 
-            successMessage = $"Se han guardado y adjudicado correctamente {actualizadas} solicitudes.";
+            var cambios = solicitudesOrdenadas.Select(item => new ActualizacionPlanificacionSolicitud
+            {
+                IdSolicitud = item.IdSolicitud,
+                IdConductor = item.IdConductor,
+                FechaTarea = item.FechaTarea,
+                FechaPrevista = item.FechaPrevista,
+                FechaHoraInicioPlanificada = item.FechaHoraInicioPlanificada,
+                FechaHoraFinPlanificada = item.FechaHoraFinPlanificada,
+                DuracionPlanificadaMinutos = item.DuracionPlanificadaMinutos,
+                Estado = item.Estado
+            }).ToList();
+
+            var response = await Http.PutAsJsonAsync("api/solicitudes/planificacion-lote", cambios);
+            if (!response.IsSuccessStatusCode)
+            {
+                var contenido = await response.Content.ReadAsStringAsync();
+                errorMessage = $"No se guardó la planificación. {ExtraerMensajeApi(contenido, response.ReasonPhrase)}";
+                return;
+            }
+
+            successMessage = $"Se han guardado y adjudicado correctamente {cambios.Count} solicitudes.";
         }
         catch (Exception ex)
         {
@@ -993,6 +1144,18 @@
         }
     }
 
+    private static string ExtraerMensajeApi(string contenido, string? mensajeAlternativo)
+    {
+        if (string.IsNullOrWhiteSpace(contenido))
+            return mensajeAlternativo ?? "Error desconocido.";
+
+        const string prefijo = "{\"message\":\"";
+        if (contenido.StartsWith(prefijo, StringComparison.OrdinalIgnoreCase) && contenido.EndsWith("\"}"))
+            return contenido[prefijo.Length..^2];
+
+        return contenido;
+    }
+
     private string GetNombreTarea(int idTarea)
     {
         return tareasList?.FirstOrDefault(t => t.IdTarea == idTarea)?.NombreTarea ?? $"Tarea {idTarea}";
@@ -1001,6 +1164,41 @@
     private EstadoSolicitud? GetEstado(int idEstado)
     {
         return estadosList?.FirstOrDefault(e => e.IdEstado == idEstado);
+    }
+
+    private bool EsEstadoFinalizado(int idEstado)
+    {
+        var param = parametrosList?.FirstOrDefault();
+        if (param?.EstadoFinalizado.HasValue == true && param.EstadoFinalizado.Value == idEstado) return true;
+
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        if (descripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (descripcion?.Contains("anulad", StringComparison.OrdinalIgnoreCase) == true) return false;
+
+        return idEstado == 4 || idEstado == 5;
+    }
+
+    private bool EsEstadoAnulado(int idEstado)
+    {
+        var param = parametrosList?.FirstOrDefault();
+        if (param?.EstadoReprogramacion.HasValue == true && param.EstadoReprogramacion.Value == idEstado) return true;
+
+        var descripcion = estadosList?.FirstOrDefault(e => e.IdEstado == idEstado)?.Descripcion;
+        if (descripcion?.Contains("anulad", StringComparison.OrdinalIgnoreCase) == true) return true;
+
+        return idEstado == 6;
+    }
+
+    private static bool EsConductor(Operario? o)
+    {
+        if (o == null) return false;
+        if (o.IdCargo.HasValue && o.IdCargo == 1) return true;
+        if (o.Cargo != null && !string.IsNullOrWhiteSpace(o.Cargo.Descripcion))
+        {
+            return string.Equals(o.Cargo.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase)
+                || o.Cargo.Descripcion.Contains("conductor", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 
     private class PlanificacionHueco

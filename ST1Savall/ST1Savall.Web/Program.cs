@@ -35,10 +35,16 @@ builder.Services.AddAuthentication(options =>
     options.LoginPath = "/login";
 });
 
-// HTTP Client pointing to the REST API project
+// HTTP Client pointing to the REST API project.
+var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://192.168.1.230:4040/";
+if (!Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseAddress))
+{
+    throw new InvalidOperationException("La configuración Api:BaseUrl no contiene una dirección válida.");
+}
+
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:7284/"),
+    BaseAddress = apiBaseAddress,
     // Evita que una API detenida bloquee el circuito interactivo de Blazor.
     Timeout = TimeSpan.FromSeconds(12)
 });
@@ -47,6 +53,18 @@ builder.Services.AddScoped<ST1Savall.Web.Services.IPortalAccessRequestService, S
 builder.Services.AddScoped<ST1Savall.Shared.Services.IUserDisplayService, ST1Savall.Web.Services.ServerUserDisplayService>();
 builder.Services.AddScoped<ST1Savall.Shared.Services.IAuthService, ST1Savall.Web.Services.WebAuthService>();
 builder.Services.AddScoped<ST1Savall.Shared.Services.ObrasMntoGridState>();
+builder.Services.AddScoped<ST1Savall.Shared.Services.SolicitudesGridState>();
+builder.Services.AddScoped<ST1Savall.Shared.Services.HomeGridState>();
+builder.Services.AddScoped<DevExpress.Blazor.Localization.IDxLocalizationService, ST1Savall.Shared.Services.CustomDxLocalizationService>();
+
+DevExpress.Utils.Localization.XtraLocalizer.QueryLocalizedString += (sender, e) =>
+{
+    if (string.Equals(e.Value, "Recursos", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(e.Value, "Resources", StringComparison.OrdinalIgnoreCase))
+    {
+        e.Value = "Conductores";
+    }
+};
 
 var app = builder.Build();
 

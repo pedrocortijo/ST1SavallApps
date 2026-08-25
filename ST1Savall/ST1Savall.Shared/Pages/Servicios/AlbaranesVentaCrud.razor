@@ -2,6 +2,7 @@
 @using ST1Savall.Shared.Data
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>Albaranes de venta</PageTitle>
 
@@ -60,18 +61,34 @@
                     @{ var albaran = (AlbaranVentaEdicion)editContext.EditModel; }
                     <div class="row g-0 p-3 albaran-cabecera">
                         <div class="col-lg-6 pe-lg-3"><section class="albaran-grupo h-100"><h6>Cabecera del albarán</h6><div class="row g-2">
-                            <div class="col-4"><label class="form-label">Serie</label><DxTextBox @bind-Text="albaran.Serie" MaxLength="2" /></div><div class="col-4"><label class="form-label">Número</label><DxTextBox @bind-Text="albaran.Numero" MaxLength="10" /></div><div class="col-4"><label class="form-label">Fecha</label><DxDateEdit @bind-Date="albaran.Fecha" /></div>
-                            <div class="col-6"><label class="form-label">Vendedor</label><DxTextBox @bind-Text="albaran.Vendedor" MaxLength="5" /></div><div class="col-6"><label class="form-label">F. pago</label><DxTextBox @bind-Text="albaran.FormaPago" MaxLength="2" /></div>
-                            <div class="col-6"><label class="form-label">Obra</label><DxComboBox Data="@obrasSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Obra" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione una obra..." /></div><div class="col-6"><label class="form-label">Tarifa</label><input class="form-control" value="@albaran.Tarifa" readonly tabindex="-1" /></div>
+                            <div class="col-1">
+                                <label class="form-label">Serie</label>
+                                <DxTextBox @bind-Text="albaran.Serie" MaxLength="2" />
+                            </div>
+                            <div class="col-2">
+                                <label class="form-label">Número</label>
+                                <DxTextBox @bind-Text="albaran.Numero" MaxLength="10" />
+                            </div><div class="col-3"><label class="form-label">Fecha</label><DxDateEdit @bind-Date="albaran.Fecha" /></div>
+                            <div class="col-6"><label class="form-label">F. pago</label><DxComboBox Data="@formasPago" TData="FpagSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" @bind-Value="albaran.FormaPago" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" NullText="Seleccione..."><ItemTemplate Context="formaPago"><strong>@formaPago.Codigo</strong> - @formaPago.Nombre</ItemTemplate></DxComboBox></div>
+                            <div class="col-12"><label class="form-label">Obra</label><DxComboBox Data="@obrasSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Obra" @bind-Value:after="@(() => ActualizarDatosObraAsync(albaran))" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione una obra..." /></div>
+                            <div class="col-3"><label class="form-label">Vendedor</label><DxTextBox @bind-Text="albaran.Vendedor" MaxLength="5" /></div><div class="col-3"><label class="form-label">Factura</label><input class="form-control" value="@albaran.Factura" readonly tabindex="-1" /></div><div class="col-3"><label class="form-label">Fecha factura</label><input class="form-control" value="@FormatearFecha(albaran.FechaFactura)" readonly tabindex="-1" /></div><div class="col-3"><label class="form-label">Tarifa</label><input class="form-control" value="@albaran.Tarifa" readonly tabindex="-1" /></div>
                         </div></section></div>
                         <div class="col-lg-6 ps-lg-3 pt-3 pt-lg-0"><section class="albaran-grupo h-100"><h6>Datos del cliente</h6><div class="row g-2">
-                            <div class="col-3"><label class="form-label">Código cliente</label><DxComboBox Data="@clientesSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Cliente" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione un cliente..." /></div><div class="col-3"><label class="form-label">CIF</label><input class="form-control" value="@albaran.ClienteCif" readonly tabindex="-1" /></div><div class="col-6"><label class="form-label">Nombre</label><input class="form-control" value="@albaran.ClienteNombre" readonly tabindex="-1" /></div>
+                            <div class="col-3"><label class="form-label">Código cliente</label><input class="form-control" value="@albaran.Cliente" readonly tabindex="-1" /></div><div class="col-3"><label class="form-label">CIF</label><input class="form-control" value="@albaran.ClienteCif" readonly tabindex="-1" /></div><div class="col-6"><label class="form-label">Nombre</label><input class="form-control" value="@albaran.ClienteNombre" readonly tabindex="-1" /></div>
                             <div class="col-12"><label class="form-label">Dirección</label><input class="form-control" value="@albaran.ClienteDireccion" readonly tabindex="-1" /></div>
                             <div class="col-3"><label class="form-label">Cód. postal</label><input class="form-control" value="@albaran.ClienteCodigoPostal" readonly tabindex="-1" /></div><div class="col-5"><label class="form-label">Población</label><input class="form-control" value="@albaran.ClientePoblacion" readonly tabindex="-1" /></div><div class="col-4"><label class="form-label">Provincia</label><input class="form-control" value="@albaran.ClienteProvincia" readonly tabindex="-1" /></div>
                         </div></section></div>
-                        <div class="col-12 border-top mt-3 pt-3"><div class="row g-2">
-                            <div class="col-md-4"><label class="form-label">Usuario Sage</label><DxTextBox @bind-Text="albaran.Usuario" MaxLength="25" /></div><div class="col-md-4"><label class="form-label">Artículo Sage</label><DxTextBox @bind-Text="albaran.Articulo" MaxLength="20" /></div><div class="col-md-2"><label class="form-label">Unidades</label><DxSpinEdit @bind-Value="albaran.Unidades" MinValue="0.000001m" /></div><div class="col-md-2"><label class="form-label">Precio</label><DxSpinEdit @bind-Value="albaran.Precio" MinValue="0m" /></div>
-                        </div></div>
+                        <div class="col-12 border-top mt-3 pt-3"><h6 class="albaran-detalle-titulo">Detalle del albarán</h6><div class="row g-2">
+                            <div class="col-md-2"><label class="form-label">Artículo</label><DxComboBox Data="@articulosSage" TData="ArticuloSage50" TValue="string" TextFieldName="Codigo" ValueFieldName="Codigo" @bind-Value="albaran.Articulo" @bind-Value:after="@(() => ActualizarDefinicionArticulo(albaran))" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" ClearButtonVisible="true" NullText="Seleccione..."><ItemTemplate Context="articulo"><strong>@articulo.Codigo</strong> - @articulo.Nombre</ItemTemplate></DxComboBox></div><div class="col-md-5"><label class="form-label">Definición</label><DxTextBox @bind-Text="albaran.Definicion" MaxLength="100" /></div><div class="col-md-1"><label class="form-label">Unidades</label><DxSpinEdit @bind-Value="albaran.Unidades" MinValue="0.000001m" DecimalPlaces="2" DisplayFormat="n2" /></div><div class="col-md-1"><label class="form-label">Precio</label><DxSpinEdit @bind-Value="albaran.Precio" MinValue="0m" DecimalPlaces="2" DisplayFormat="n2" /></div><div class="col-md-1"><label class="form-label">Dto. 1</label><DxSpinEdit @bind-Value="albaran.Descuento1" MinValue="0m" MaxValue="100m" /></div><div class="col-md-1"><label class="form-label">Dto. 2</label><DxSpinEdit @bind-Value="albaran.Descuento2" MinValue="0m" MaxValue="100m" /></div><div class="col-md-1"><label class="form-label">Importe</label><input class="form-control text-center fw-bold" value="@FormatearImporte(albaran)" readonly tabindex="-1" /></div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-3">
+                            <div class="border rounded px-3 py-2 albaran-totales">
+                                <div class="d-flex justify-content-between gap-4"><span>Base imponible</span><strong>@FormatearBase(albaran) €</strong></div>
+                                <div class="d-flex justify-content-between gap-4 mt-1"><span>IVA (@albaran.PorcentajeIva.ToString("N2")%)</span><strong>@albaran.ImporteIva.ToString("N2") €</strong></div>
+                                <div class="d-flex justify-content-between gap-4 mt-1 border-top pt-1"><span>Total albarán</span><strong class="text-primary">@FormatearTotal(albaran) €</strong></div>
+                            </div>
+                        </div>
+                        </div>
                     </div>
                 </EditFormTemplate>
             </DxGrid>
@@ -80,16 +97,71 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "serie")] public string? SerieSolicitada { get; set; }
+    [SupplyParameterFromQuery(Name = "numero")] public string? NumeroSolicitado { get; set; }
     private IGrid? grid;
     private List<AlbaranVentaEdicion>? albaranes;
     private List<CodigoNombre> clientesSage = [];
     private List<CodigoNombre> obrasSage = [];
+    private List<ClienteSage50> clientesSageDatos = [];
+    private List<FpagSage50> formasPago = [];
+    private List<ArticuloSage50> articulosSage = [];
     private string? errorMessage;
+    private bool abrirAlbaranSolicitado;
     protected override async Task OnInitializedAsync() { await SetupHeadersAsync(); await LoadDataAsync(); }
+    protected override void OnParametersSet() => abrirAlbaranSolicitado = !string.IsNullOrWhiteSpace(SerieSolicitada) && !string.IsNullOrWhiteSpace(NumeroSolicitado);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!abrirAlbaranSolicitado || grid is null || albaranes is null) return;
+        abrirAlbaranSolicitado = false;
+        var albaran = albaranes.FirstOrDefault(a =>
+            string.Equals(a.Serie.Trim(), SerieSolicitada?.Trim(), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.Numero.Trim(), NumeroSolicitado?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (albaran is null)
+        {
+            errorMessage = $"No se ha encontrado el albarán {SerieSolicitada}-{NumeroSolicitado}.";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+        await grid.StartEditDataItemAsync(albaran);
+    }
     private async Task SetupHeadersAsync() { var state = await AuthStateProvider.GetAuthenticationStateAsync(); var token = state.User.FindFirst("token")?.Value; if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token); }
-    private async Task LoadDataAsync() { try { var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>("api/albaranes-venta"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask); albaranes = albaranesTask.Result ?? []; clientesSage = (clientesTask.Result ?? []).GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
+    private static string FormatearFecha(DateTime? fecha) => fecha?.ToString("dd/MM/yyyy") ?? string.Empty;
+    private static string FormatearImporte(AlbaranVentaEdicion albaran) => (albaran.Unidades * albaran.Precio * (1m - albaran.Descuento1 / 100m) * (1m - albaran.Descuento2 / 100m)).ToString("N2");
+    private static string FormatearBase(AlbaranVentaEdicion albaran) => FormatearImporte(albaran);
+    private static string FormatearTotal(AlbaranVentaEdicion albaran) => albaran.TotalDocumento.ToString("N2");
+    private void ActualizarDefinicionArticulo(AlbaranVentaEdicion albaran)
+    {
+        albaran.Articulo = albaran.Articulo?.Trim() ?? string.Empty;
+        albaran.Definicion = articulosSage.FirstOrDefault(a => string.Equals(a.Codigo.Trim(), albaran.Articulo, StringComparison.OrdinalIgnoreCase))?.Nombre.Trim() ?? string.Empty;
+    }
+    private async Task ActualizarDatosObraAsync(AlbaranVentaEdicion albaran)
+    {
+        var obra = obrasSage.FirstOrDefault(o => o.Codigo == albaran.Obra);
+        if (obra is null) return;
+        albaran.ObraNombre = obra.Nombre;
+        albaran.Cliente = obra.Cliente;
+        await ActualizarDatosClienteAsync(albaran);
+    }
+    private async Task ActualizarDatosClienteAsync(AlbaranVentaEdicion albaran)
+    {
+        var cliente = clientesSageDatos.FirstOrDefault(c => string.Equals(c.Codigo.Trim(), albaran.Cliente?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (cliente is null) return;
+        albaran.ClienteCif = cliente.Cif.Trim(); albaran.ClienteNombre = cliente.Nombre.Trim();
+        albaran.ClienteDireccion = cliente.Direccion.Trim(); albaran.ClienteCodigoPostal = cliente.Codpost.Trim();
+        albaran.ClientePoblacion = cliente.Poblacion.Trim(); albaran.ClienteProvincia = cliente.Provincia.Trim();
+        albaran.ClienteTelefono = cliente.Telefono.Trim(); albaran.ClienteEmail = cliente.Email.Trim();
+        albaran.FormaPago = cliente.Fpag.Trim(); albaran.Tarifa = cliente.Tarifa.Trim();
+        try
+        {
+            var direccion = await Http.GetFromJsonAsync<DireccionEnvioClienteSage50>($"api/albaranes-venta/direccion-envio/{Uri.EscapeDataString(albaran.Cliente)}");
+            if (direccion is not null) { albaran.ClienteDireccion = direccion.DIRECCION.Trim(); albaran.ClienteCodigoPostal = direccion.CODPOS.Trim(); albaran.ClientePoblacion = direccion.POBLACION.Trim(); albaran.ClienteProvincia = direccion.PROVINCIA.Trim(); }
+        }
+        catch (HttpRequestException) { }
+    }
+    private async Task LoadDataAsync() { try { var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>("api/albaranes-venta"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50"); var articulosTask = Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask, formasPagoTask, articulosTask); albaranes = albaranesTask.Result ?? []; clientesSageDatos = clientesTask.Result ?? []; clientesSage = clientesSageDatos.GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim(), o.Cliente.Trim())).OrderBy(x => x.Descripcion).ToList(); formasPago = (formasPagoTask.Result ?? []).Select(f => { f.Codigo = f.Codigo.Trim(); f.Nombre = f.Nombre.Trim(); return f; }).OrderBy(f => f.Codigo).ToList(); articulosSage = (articulosTask.Result ?? []).Select(a => { a.Codigo = a.Codigo?.Trim() ?? string.Empty; a.Nombre = a.Nombre?.Trim() ?? string.Empty; return a; }).OrderBy(a => a.Codigo).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e) { var a = (AlbaranVentaEdicion)e.EditModel; try { await SetupHeadersAsync(); var response = e.IsNew ? await Http.PostAsJsonAsync("api/albaranes-venta", a) : await Http.PutAsJsonAsync("api/albaranes-venta", a); if (!response.IsSuccessStatusCode) { var error = await response.Content.ReadFromJsonAsync<ApiMessage>(); errorMessage = error?.Message ?? $"Error al guardar el albarán: {response.ReasonPhrase}"; e.Cancel = true; return; } await LoadDataAsync(); } catch (Exception ex) { errorMessage = $"Error al guardar el albarán: {ex.Message}"; e.Cancel = true; } }
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e) { var a = (AlbaranVentaEdicion)e.DataItem; try { await SetupHeadersAsync(); var url = $"api/albaranes-venta?empresa={Uri.EscapeDataString(a.Empresa)}&numero={Uri.EscapeDataString(a.Numero)}&serie={Uri.EscapeDataString(a.Serie)}"; var response = await Http.DeleteAsync(url); if (!response.IsSuccessStatusCode) { errorMessage = $"Error al eliminar el albarán: {response.ReasonPhrase}"; e.Cancel = true; return; } await LoadDataAsync(); } catch (Exception ex) { errorMessage = $"Error al eliminar el albarán: {ex.Message}"; e.Cancel = true; } }
     private sealed class ApiMessage { public string? Message { get; set; } }
-    private sealed record CodigoNombre(string Codigo, string Nombre) { public string Descripcion => $"{Codigo}-{Nombre}"; }
+    private sealed record CodigoNombre(string Codigo, string Nombre, string Cliente = "") { public string Descripcion => $"{Codigo}-{Nombre}"; }
 }

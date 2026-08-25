@@ -1,0 +1,195 @@
+@page "/servicios/campos-adicionales-albaranes"
+@using System.Net.Http.Json
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Campos adicionales de albaranes</PageTitle>
+<DxPopup Visible="@passwordModalVisible" HeaderText="Acceso a campos adicionales de albaranes" ShowCloseButton="false" CloseOnOutsideClick="false" ShowFooter="true" Width="450px" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p class="mb-3">Introduzca la contraseña de administración para acceder a este mantenimiento.</p>
+            <DxTextBox @bind-Text="@inputPassword" Password="true" NullText="Contraseña" CssClass="w-100" Attributes="@(new Dictionary<string, object> { { "autocomplete", "new-password" } })" />
+            @if (!string.IsNullOrWhiteSpace(passwordError))
+            {
+                <div class="text-danger small mt-2">@passwordError</div>
+            }
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarPasswordPrompt" />
+            <DxButton Text="Acceder" RenderStyle="ButtonRenderStyle.Primary" Click="ValidarPasswordAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+@if (isAuthorized)
+{
+    <div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Campos adicionales - (Anteriores)</h2>
+            <p class="text-muted mb-0">Completa los datos de planta de los albaranes ya creados.</p>
+        </div>
+        <a class="btn btn-secondary" href="/">← Volver al inicio</a>
+    </div>
+
+    <div class="card p-3 mb-3">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label">Fecha desde</label>
+                <DxDateEdit @bind-Date="fechaDesde" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">Fecha hasta</label>
+                <DxDateEdit @bind-Date="fechaHasta" />
+            </div>
+            <div class="col-12 col-md-3">
+                <DxButton Text="Procesar albaranes" RenderStyle="ButtonRenderStyle.Primary" Click="ProcesarAsync" Enabled="@(!procesando)" />
+            </div>
+        </div>
+        <div class="form-text mt-3">Se toma de <code>OBSERVACIO</code>: Kg, número de albarán de planta y fecha, separados por comas.</div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    @if (resultado is not null)
+    {
+        <div class="alert alert-info">Revisados: @resultado.Total · Actualizados: @resultado.Actualizados · Con aviso: @resultado.ConAviso</div>
+        <DxGrid Data="@resultado.Detalles" KeyFieldName="Numero" PageSize="20" ShowSearchBox="true" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" CssClass="solicitudes-grid">
+            <Columns>
+                <DxGridDataColumn FieldName="Fecha" Caption="Fecha" DisplayFormat="dd/MM/yyyy" Width="110px" />
+                <DxGridDataColumn Caption="Albarán Sage" Width="140px">
+                    <CellDisplayTemplate Context="celda">
+                        @{ var detalle = (DetalleProcesoCamposAdicionalesAlbaran)celda.DataItem; }
+                        @string.Concat(detalle.Serie, "-", detalle.Numero)
+                    </CellDisplayTemplate>
+                </DxGridDataColumn>
+                <DxGridDataColumn FieldName="NetoKg" Caption="Kg" Width="100px" />
+                <DxGridDataColumn FieldName="AlbaranPlanta" Caption="Albarán planta" Width="150px" />
+                <DxGridDataColumn FieldName="FechaPlanta" Caption="Fecha planta" Width="130px" />
+                <DxGridDataColumn Caption="Resultado">
+                    <CellDisplayTemplate Context="celda">
+                        @{ var detalle = (DetalleProcesoCamposAdicionalesAlbaran)celda.DataItem; }
+                        @(detalle.Actualizado ? "Actualizado" : detalle.Aviso ?? "Sin cambios")
+                    </CellDisplayTemplate>
+                </DxGridDataColumn>
+            </Columns>
+        </DxGrid>
+    }
+</div>
+}
+
+@code {
+    private DateTime fechaDesde = DateTime.Today.AddMonths(-1);
+    private DateTime fechaHasta = DateTime.Today;
+    private bool procesando;
+    private string? error;
+    private ResultadoProcesoCamposAdicionalesAlbaranes? resultado;
+    private bool isAuthorized;
+    private bool passwordModalVisible = true;
+    private string inputPassword = string.Empty;
+    private string? passwordError;
+    private string? authorizedPassword;
+
+    protected override Task OnInitializedAsync()
+    {
+        passwordModalVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task ValidarPasswordAsync()
+    {
+        passwordError = null;
+        if (string.IsNullOrWhiteSpace(inputPassword))
+        {
+            passwordError = "Introduzca la contraseña.";
+            return;
+        }
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/albaranes-venta/campos-adicionales/validar-acceso");
+            request.Headers.Add("X-Admin-Password", inputPassword);
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                authorizedPassword = inputPassword;
+                inputPassword = string.Empty;
+                isAuthorized = true;
+                passwordModalVisible = false;
+                return;
+            }
+            passwordError = await LeerMensajeErrorAsync(response);
+        }
+        catch
+        {
+            passwordError = "No se pudo validar el acceso.";
+        }
+    }
+
+    private void CancelarPasswordPrompt()
+    {
+        inputPassword = string.Empty;
+        passwordError = null;
+        passwordModalVisible = false;
+        NavigationManager.NavigateTo("/");
+    }
+    private async Task ProcesarAsync()
+    {
+        procesando = true;
+        error = null;
+        resultado = null;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/albaranes-venta/campos-adicionales/procesar");
+            request.Headers.Add("X-Admin-Password", authorizedPassword);
+            request.Content = JsonContent.Create(new ProcesoCamposAdicionalesAlbaranesRequest
+            {
+                FechaDesde = fechaDesde,
+                FechaHasta = fechaHasta
+            });
+            var respuesta = await Http.SendAsync(request);
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                error = await LeerMensajeErrorAsync(respuesta);
+                if (respuesta.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    isAuthorized = false;
+                    passwordModalVisible = true;
+                    authorizedPassword = null;
+                }
+                return;
+            }
+            resultado = await respuesta.Content.ReadFromJsonAsync<ResultadoProcesoCamposAdicionalesAlbaranes>();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+    private static async Task<string> LeerMensajeErrorAsync(HttpResponseMessage response)
+    {
+        var contenido = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var detalle = System.Text.Json.JsonSerializer.Deserialize<MensajeError>(contenido,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (!string.IsNullOrWhiteSpace(detalle?.Message)) return detalle.Message;
+        }
+        catch { }
+        return string.IsNullOrWhiteSpace(contenido) ? "No se pudo validar el acceso." : contenido;
+    }
+
+    private sealed class MensajeError
+    {
+        public string? Message { get; set; }
+    }
+}

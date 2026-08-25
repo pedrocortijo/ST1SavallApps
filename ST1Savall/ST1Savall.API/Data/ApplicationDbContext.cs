@@ -23,7 +23,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TareaRelacion> TareasRelaciones { get; set; } = null!;
     public DbSet<Planta> Plantas { get; set; } = null!;
     public DbSet<Parametro> Parametros { get; set; } = null!;
-    public DbSet<PrecioEspecialObra> PreciosEspecialesObra { get; set; } = null!;
+    public DbSet<PrecioEspecialCabecera> PreciosEspecialesCabeceras { get; set; } = null!;
+    public DbSet<PrecioEspecialDetalle> PreciosEspecialesDetalles { get; set; } = null!;
     public DbSet<RutaCache> RutasCache { get; set; } = null!;
     public DbSet<Ausencia> Ausencias { get; set; } = null!;
     public DbSet<Motivo> Motivos { get; set; } = null!;
@@ -54,20 +55,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .Property(o => o.IdOperario)
             .UseIdentityColumn(0, 1);
 
-        builder.Entity<Camion>()
-            .HasIndex(c => c.Matricula)
-            .IsUnique();
-
-        builder.Entity<Camion>()
-            .HasIndex(c => c.UnidadWialonId)
-            .IsUnique()
-            .HasFilter("[UnidadWialonId] IS NOT NULL");
-
-        builder.Entity<Camion>()
-            .HasOne(c => c.Conductor)
-            .WithMany()
-            .HasForeignKey(c => c.IdConductor)
-            .OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Camion>().HasIndex(c => c.Matricula).IsUnique();
+        builder.Entity<Camion>().HasIndex(c => c.UnidadWialonId).IsUnique().HasFilter("[UnidadWialonId] IS NOT NULL");
+        builder.Entity<Operario>().HasOne(o => o.Camion).WithMany().HasForeignKey(o => o.IdCamion).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Operario>().HasIndex(o => o.IdCamion).IsUnique().HasFilter("[IdCamion] IS NOT NULL");
 
         builder.Entity<Ausencia>()
             .HasOne(a => a.Conductor)
@@ -91,9 +82,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .Property(ct => ct.CapacidadMetrosCubicos)
             .HasPrecision(5, 2);
 
-        builder.Entity<PrecioEspecialObra>()
-            .HasIndex(p => new { p.ClienteSage, p.ObraSage, p.ArticuloSage })
+        builder.Entity<PrecioEspecialCabecera>()
+            .HasIndex(p => p.ObraSage)
             .IsUnique();
+        builder.Entity<PrecioEspecialCabecera>()
+            .HasMany(p => p.Detalles).WithOne().HasForeignKey(p => p.IdPrecioEspecialCabecera).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PrecioEspecialDetalle>()
+            .HasIndex(p => new { p.IdPrecioEspecialCabecera, p.ArticuloSage }).IsUnique();
 
         builder.Entity<Solicitud>()
             .Property(s => s.Latitud)

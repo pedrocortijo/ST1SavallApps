@@ -10,19 +10,28 @@ public static class SolicitudEstadoEvaluator
     {
         if (solicitud == null || parametro == null) return;
 
-        // Cualquier motivo de reprogramación cierra el servicio original.
-        // La nueva solicitud que se genere para atenderlo seguirá su propio ciclo de estados.
-        if (!string.IsNullOrWhiteSpace(solicitud.ObservacionesConductor))
+        bool tieneFechaAnulacion = solicitud.FechaAnulacion.HasValue;
+        bool tieneMotivoAplazamiento = solicitud.MotivoReprogramacion.HasValue && solicitud.MotivoReprogramacion.Value > 0;
+        bool tieneFechaPrevista = solicitud.FechaPrevista.HasValue;
+
+        // Si se han introducido datos de anulación (Fecha de Anulación, o Motivo de anulación/reprogramación, o Próxima fecha con motivo),
+        // el estado pasa a Anulado / Reprogramado (EstadoReprogramacion).
+        if (tieneFechaAnulacion || (tieneFechaPrevista && tieneMotivoAplazamiento) || tieneMotivoAplazamiento)
         {
-            var estadoFinalizado = parametro.EstadoFinalizado ?? 5;
-            if (EsEstadoValido(estadoFinalizado, validEstadoIds))
+            var estadoReprogramacion = parametro.EstadoReprogramacion ?? 6;
+            if (EsEstadoValido(estadoReprogramacion, validEstadoIds))
             {
-                solicitud.Estado = estadoFinalizado;
+                solicitud.Estado = estadoReprogramacion;
+                return;
+            }
+            else if (validEstadoIds != null && validEstadoIds.Contains(6))
+            {
+                solicitud.Estado = 6;
                 return;
             }
         }
 
-        // Si la solicitud está en un estado exclusivo o finalizado/iniciado, se mantiene su estado (si es válido)
+        // Si la solicitud está en un estado exclusivo o finalizado/iniciado (y no es anulación), se mantiene su estado (si es válido)
         if (EsEstadoValido(solicitud.Estado, validEstadoIds) &&
             ((parametro.EstadoFinalizado.HasValue && solicitud.Estado == parametro.EstadoFinalizado.Value) ||
              (parametro.EstadoIniciado.HasValue && solicitud.Estado == parametro.EstadoIniciado.Value) ||
@@ -32,24 +41,15 @@ public static class SolicitudEstadoEvaluator
         }
 
         bool tieneConductor = solicitud.IdConductor.HasValue && solicitud.IdConductor.Value > 0;
-        bool tieneFechaPrevista = solicitud.FechaPrevista.HasValue || solicitud.FechaTarea.HasValue;
+        bool tieneFecha = solicitud.FechaPrevista.HasValue || solicitud.FechaTarea.HasValue;
         bool tieneHoraInicio = solicitud.FechaHoraInicioPlanificada.HasValue;
         bool tieneHoraFin = solicitud.FechaHoraFinPlanificada.HasValue;
         bool tieneTiempo = solicitud.DuracionPlanificadaMinutos.HasValue && solicitud.DuracionPlanificadaMinutos.Value > 0;
-        bool tieneMotivoAplazamiento = solicitud.MotivoReprogramacion.HasValue && solicitud.MotivoReprogramacion.Value > 0;
 
         int? nuevoEstado = null;
 
-        // Rule 3: Si hay fecha Prevista y Motivo del aplazamiento el estado pasa a Reprogramado
-        if (tieneFechaPrevista && tieneMotivoAplazamiento)
-        {
-            if (parametro.EstadoReprogramacion.HasValue && EsEstadoValido(parametro.EstadoReprogramacion.Value, validEstadoIds))
-            {
-                nuevoEstado = parametro.EstadoReprogramacion.Value;
-            }
-        }
-        // Rule 1: Si se le ha asignado un conductor/operario, tiene fecha Prevista, Hora Inicio, Hora Fin y tiempo el estado pasa a Adjudicado/Asignado
-        else if (tieneConductor && tieneFechaPrevista && tieneHoraInicio && tieneHoraFin && tieneTiempo)
+        // Rule 1: Si se le ha asignado un conductor/operario, tiene fecha Prevista/Tarea, Hora Inicio, Hora Fin y tiempo el estado pasa a Adjudicado/Asignado
+        if (tieneConductor && tieneFecha && tieneHoraInicio && tieneHoraFin && tieneTiempo)
         {
             if (parametro.EstadoAdjudicado.HasValue && EsEstadoValido(parametro.EstadoAdjudicado.Value, validEstadoIds))
             {
@@ -60,8 +60,8 @@ public static class SolicitudEstadoEvaluator
                 nuevoEstado = 2;
             }
         }
-        // Rule 2: Si falta alguno de los valores anteriores y no hay Motivo del aplazamiento, el estado pasa a Pendiente
-        else if (!tieneMotivoAplazamiento)
+        // Rule 2: Si falta alguno de los valores anteriores y no hay anulación, el estado pasa a Pendiente
+        else
         {
             if (parametro.EstadoPendiente.HasValue && EsEstadoValido(parametro.EstadoPendiente.Value, validEstadoIds))
             {

@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ST1Savall.Shared.Services.SolicitudesGridState GridState
 
 <PageTitle>Solicitudes de Trabajo</PageTitle>
 
@@ -72,6 +73,11 @@
 </DxPopup>
 
 
+<DxPopup Visible="@(solicitudPendienteEliminar is not null)" HeaderText="Confirmar eliminación" ShowFooter="true" Width="480px" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate><div class="py-2 d-flex align-items-center gap-3"><i class="oi oi-warning text-warning fs-3"></i><p class="mb-0">¿Está seguro de que desea eliminar la solicitud de <strong>@solicitudPendienteEliminar?.NombreCliente</strong>?</p></div></BodyContentTemplate>
+    <FooterContentTemplate><div class="d-flex justify-content-end gap-2 w-100"><DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarEliminacion" /><DxButton Text="Eliminar" RenderStyle="ButtonRenderStyle.Danger" Click="EliminarConfirmadoAsync" /></div></FooterContentTemplate>
+</DxPopup>
+
     <div class="card shadow-sm">
         <div class="card-body p-0">
             @if (solicitudes == null || operarios == null)
@@ -113,13 +119,13 @@
                 <div class="grid-filter-bar d-flex flex-wrap align-items-center gap-2 p-2">
                     <span class="text-muted fw-semibold small">Filtrar por:</span>
                     @* <span class="text-muted small">Conductor:</span> *@
-                    <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" @bind-Value="@selectedConductorId" Width="190px" />
+                    <DxComboBox Data="@comboOperarios" TextFieldName="Nombre" ValueFieldName="IdOperario" Value="@selectedConductorId" ValueChanged="@((int val) => { selectedConductorId = val; GridState.SelectedConductorId = val; })" Width="190px" />
                     @* <span class="text-muted small">Tipo de tarea:</span> *@
-                    <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" @bind-Value="@selectedTareaId" Width="190px" />
+                    <DxComboBox Data="@comboTareas" TextFieldName="NombreTarea" ValueFieldName="IdTarea" Value="@selectedTareaId" ValueChanged="@((int val) => { selectedTareaId = val; GridState.SelectedTareaId = val; })" Width="190px" />
                     @* <span class="text-muted small">Estado:</span> *@
-                    <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" @bind-Value="@selectedEstadoId" Width="190px" />
+                    <DxComboBox Data="@comboEstados" TextFieldName="Descripcion" ValueFieldName="IdEstado" Value="@selectedEstadoId" ValueChanged="@((int val) => { selectedEstadoId = val; GridState.SelectedEstadoId = val; })" Width="190px" />
                     @* <span class="text-muted small">Prioridad:</span> *@
-                    <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" @bind-Value="@selectedPrioridadId" Width="170px" />
+                    <DxComboBox Data="@prioridadesList" TextFieldName="Name" ValueFieldName="Id" Value="@selectedPrioridadId" ValueChanged="@((int val) => { selectedPrioridadId = val; GridState.SelectedPrioridadId = val; })" Width="170px" />
                 </div>
 
                 <DxGrid CssClass="solicitudes-grid"
@@ -127,6 +133,8 @@
                         KeyFieldName="IdSolicitud"
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
+                        LayoutAutoLoading="OnGridLayoutAutoLoading"
+                        LayoutAutoSaving="OnGridLayoutAutoSaving"
                         AllowSort="true"
                         ShowFilterRow="true"
                         ShowSearchBox="true"
@@ -176,8 +184,8 @@
                             </CellDisplayTemplate>
 
                         </DxGridCommandColumn>
-                        <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Soli" Width="65px" />
-                        <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor">
+                        <DxGridDataColumn FieldName="IdSolicitud" Caption="Nº Serv." Width="65px" />
+                        <DxGridDataColumn FieldName="ConductorNombre" Caption="Conductor" Width="90px">
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
@@ -186,7 +194,7 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="250px">
+                        <DxGridDataColumn FieldName="NombreCliente" Caption="Cliente" Width="220px">
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
@@ -200,8 +208,8 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="220px" />
-                        <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tipo Tarea">
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" Width="200px" />
+                        <DxGridDataColumn FieldName="TipoTareaDescripcion" Caption="Tarea" Width="90px">
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
@@ -213,7 +221,7 @@
                         <DxGridDataColumn FieldName="FechaTarea" Caption="F. Servicio" DisplayFormat="dd/MM/yyyy" Width="100px" />
                         <DxGridDataColumn FieldName="FechaHoraInicioPlanificada" Caption="Inicio" DisplayFormat="HH:mm" Width="70px" />
                         <DxGridDataColumn FieldName="DuracionPlanificadaMinutos" Caption="Duración (min)" Width="110px" Visible="false" />
-                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="100px">
+                        <DxGridDataColumn FieldName="EstadoDescripcion" Caption="Estado" Width="90px">
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
@@ -233,6 +241,7 @@
     private List<Solicitud>? solicitudes;
     private List<Operario>? operarios;
     private string? errorMessage;
+    private Solicitud? solicitudPendienteEliminar;
     private int selectedConductorId = -1;
     private int selectedTareaId = -1;
     private int selectedEstadoId = -1;
@@ -262,9 +271,14 @@
     private void ToggleEstadoFilter(int estado)
     {
         selectedEstadoId = selectedEstadoId == estado ? -1 : estado;
+        GridState.SelectedEstadoId = selectedEstadoId;
     }
 
-    private void ClearEstadoFilter() => selectedEstadoId = -1;
+    private void ClearEstadoFilter()
+    {
+        selectedEstadoId = -1;
+        GridState.SelectedEstadoId = -1;
+    }
 
     private IEnumerable<Solicitud> GetFilteredSolicitudes()
     {
@@ -329,9 +343,18 @@
         return est?.TextColor ?? "#000000";
     }
 
+    private void SaveCurrentFilterState()
+    {
+        GridState.SelectedConductorId = selectedConductorId;
+        GridState.SelectedTareaId = selectedTareaId;
+        GridState.SelectedEstadoId = selectedEstadoId;
+        GridState.SelectedPrioridadId = selectedPrioridadId;
+    }
+
     private void NavigateToCreate()
     {
-        NavigationManager.NavigateTo("/modelos/solicitudes/edit");
+        SaveCurrentFilterState();
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit?returnUrl={Uri.EscapeDataString("/modelos/solicitudes")}");
     }
 
     private string GetEditButtonStyle(Solicitud sol)
@@ -370,34 +393,62 @@
 
     private void NavigateToEdit(int id)
     {
-        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}");
+        SaveCurrentFilterState();
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}?returnUrl={Uri.EscapeDataString("/modelos/solicitudes")}");
     }
 
     private void NavigateToDuplicate(int id)
     {
-        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}?duplicate=true");
+        SaveCurrentFilterState();
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}?duplicate=true&returnUrl={Uri.EscapeDataString("/modelos/solicitudes")}");
     }
 
-    private async Task ConfirmDelete(Solicitud sol)
+    private Task OnGridLayoutAutoLoading(GridPersistentLayoutEventArgs e)
     {
-        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de que desea eliminar la solicitud de {sol.NombreCliente}?");
-        if (confirmed)
+        if (GridState.Layout != null)
         {
-            try
+            e.Layout = GridState.Layout;
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnGridLayoutAutoSaving(GridPersistentLayoutEventArgs e)
+    {
+        GridState.Layout = e.Layout;
+        return Task.CompletedTask;
+    }
+
+    private Task ConfirmDelete(Solicitud sol)
+    {
+        solicitudPendienteEliminar = sol;
+        return Task.CompletedTask;
+    }
+
+    private void CancelarEliminacion()
+    {
+        solicitudPendienteEliminar = null;
+    }
+
+    private async Task EliminarConfirmadoAsync()
+    {
+        var sol = solicitudPendienteEliminar;
+        solicitudPendienteEliminar = null;
+        if (sol is null) return;
+
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/solicitudes/{sol.IdSolicitud}");
+            if (!response.IsSuccessStatusCode)
             {
-                await SetupHeadersAsync();
-                var response = await Http.DeleteAsync($"api/solicitudes/{sol.IdSolicitud}");
-                if (!response.IsSuccessStatusCode)
-                {
-                    errorMessage = $"Error al borrar solicitud: {response.ReasonPhrase}";
-                    return;
-                }
-                await LoadDataAsync();
+                errorMessage = $"Error al borrar solicitud: {response.ReasonPhrase}";
+                return;
             }
-            catch (Exception ex)
-            {
-                errorMessage = $"Error al borrar: {ex.Message}";
-            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar: {ex.Message}";
         }
     }
 
@@ -450,6 +501,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        selectedConductorId = GridState.SelectedConductorId;
+        selectedTareaId = GridState.SelectedTareaId;
+        selectedEstadoId = GridState.SelectedEstadoId;
+        selectedPrioridadId = GridState.SelectedPrioridadId;
+
         await SetupHeadersAsync();
         await LoadDataAsync();
     }
@@ -478,7 +534,7 @@
             if (operarios != null)
             {
                 var operariosDisponibles = operarios.Where(o =>
-                    (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+                    (EsConductor(o) && o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
                     || (solicitudes != null && solicitudes.Any(s => s.IdConductor == o.IdOperario))
                 ).OrderBy(o => o.Nombre);
                 comboOperarios.AddRange(operariosDisponibles);
@@ -503,5 +559,17 @@
         {
             errorMessage = $"Error al cargar solicitudes: {ex.Message}";
         }
+    }
+
+    private static bool EsConductor(Operario o)
+    {
+        if (o == null) return false;
+        if (o.IdCargo.HasValue && o.IdCargo == 1) return true;
+        if (o.Cargo != null && !string.IsNullOrWhiteSpace(o.Cargo.Descripcion))
+        {
+            return string.Equals(o.Cargo.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase)
+                || o.Cargo.Descripcion.Contains("conductor", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
     }
 }

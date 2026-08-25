@@ -1,6 +1,7 @@
 @page "/servicios/planificacion"
 @using ST1Savall.Shared.Data
 @using DevExpress.Blazor
+@using System.Collections
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
@@ -91,27 +92,35 @@
     else
     {
         <div class="row g-3 mb-3">
-            <div class="col-md-4">
+            <div class="col-xl-3 col-md-6 col-12">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body">
                         <div class="text-muted small">Servicios planificados</div>
-                        <div class="fs-3 fw-bold text-primary">@serviciosPlanificados.Count</div>
+                        <div class="fs-3 fw-bold text-primary">@CantidadServiciosPlanificadosPeriodo</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-xl-3 col-md-6 col-12">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Nº de conductores planificados</div>
+                        <div class="fs-3 fw-bold text-info">@CantidadConductoresPlanificadosPeriodo</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 col-12">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body">
                         <div class="text-muted small">Horas planificadas</div>
-                        <div class="fs-3 fw-bold text-success">@((serviciosPlanificados.Sum(s => s.DuracionPlanificadaMinutos ?? 0) / 60d).ToString("N2")) h</div>
+                        <div class="fs-3 fw-bold text-success">@HorasPlanificadasPeriodo.ToString("N2") h</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-xl-3 col-md-6 col-12">
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-body">
                         <div class="text-muted small">Solicitudes sin horario</div>
-                        <div class="fs-3 fw-bold text-warning">@solicitudesSinPlanificar.Count</div>
+                        <div class="fs-3 fw-bold text-warning">@CantidadSolicitudesSinPlanificarPeriodo</div>
                     </div>
                 </div>
             </div>
@@ -123,7 +132,12 @@
                 <span class="text-muted small">Los servicios anulados no consumen disponibilidad</span>
             </div>
             <div class="card-body scheduler-card-body">
-                <DxScheduler @bind-StartDate="@startDate"
+                <DxScheduler StartDate="@startDate"
+                             StartDateChanged="OnStartDateChanged"
+                             ActiveViewType="@activeViewType"
+                             ActiveViewTypeChanged="OnActiveViewTypeChanged"
+                             VisibleResourcesDataSource="@visibleConductores"
+                             VisibleResourcesDataSourceChanged="OnVisibleResourcesDataSourceChanged"
                              DataStorage="@schedulerDataStorage"
                              GroupType="SchedulerGroupType.Resource"
                              AllowCreateAppointment="false"
@@ -153,7 +167,7 @@
                     <h5 class="fw-bold mb-0">Pendientes de planificar</h5>
                 </div>
                 <div class="card-body p-0">
-                    <DxGrid Data="@solicitudesSinPlanificar" KeyFieldName="IdSolicitud" PageSize="10" ShowSearchBox="true">
+                    <DxGrid Data="@GetSolicitudesSinPlanificarPeriodo()" KeyFieldName="IdSolicitud" PageSize="10" ShowSearchBox="true">
                         <Columns>
                             <DxGridDataColumn Caption="Acción" Width="90px">
                                 <CellDisplayTemplate>
@@ -180,6 +194,8 @@
     public string? Date { get; set; }
 
     private DateTime startDate = DateTime.Today;
+    private SchedulerViewType activeViewType = SchedulerViewType.Day;
+    private IEnumerable<Operario>? visibleConductores;
     private bool loading = true;
     private string? errorMessage;
     private List<Solicitud> serviciosPlanificados = [];
@@ -199,6 +215,125 @@
         await LoadDataAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                    (() => {
+                        const replaceText = () => {
+                            document.querySelectorAll('.dxbl-sc-header button, .dxbl-sc-header .dxbl-btn').forEach(btn => {
+                                btn.childNodes.forEach(node => {
+                                    if (node.nodeType === Node.TEXT_NODE && (node.textContent.trim() === 'Recursos' || node.textContent.trim() === 'Resources')) {
+                                        node.textContent = node.textContent.replace(/Recursos|Resources/gi, 'Conductores');
+                                    }
+                                });
+                            });
+                        };
+                        replaceText();
+                        const observer = new MutationObserver(replaceText);
+                        const target = document.querySelector('.scheduler-card') || document.body;
+                        observer.observe(target, { childList: true, subtree: true, characterData: true });
+                    })();
+                ");
+            }
+            catch { }
+        }
+    }
+
+    private void OnStartDateChanged(DateTime newDate)
+    {
+        startDate = newDate;
+        StateHasChanged();
+    }
+
+    private void OnActiveViewTypeChanged(SchedulerViewType newView)
+    {
+        activeViewType = newView;
+        StateHasChanged();
+    }
+
+    private void OnVisibleResourcesDataSourceChanged(IEnumerable newResources)
+    {
+        visibleConductores = newResources?.OfType<Operario>().ToList();
+        StateHasChanged();
+    }
+
+    private (DateTime start, DateTime end) GetIntervaloVisible()
+    {
+        var fecha = startDate.Date;
+        if (activeViewType == SchedulerViewType.WorkWeek || activeViewType == SchedulerViewType.Week)
+        {
+            int diff = (7 + (fecha.DayOfWeek - DayOfWeek.Monday)) % 7;
+            var startOfWeek = fecha.AddDays(-diff);
+            var endOfWeek = activeViewType == SchedulerViewType.Week ? startOfWeek.AddDays(7) : startOfWeek.AddDays(5);
+            return (startOfWeek, endOfWeek);
+        }
+        else
+        {
+            return (fecha, fecha.AddDays(1));
+        }
+    }
+
+    private HashSet<int> GetSelectedDriverIds()
+    {
+        var list = (visibleConductores != null && visibleConductores.Any())
+            ? visibleConductores
+            : conductores;
+        return list.Select(c => c.IdOperario).ToHashSet();
+    }
+
+    private List<Solicitud> GetServiciosPlanificadosPeriodo()
+    {
+        if (serviciosPlanificados == null || serviciosPlanificados.Count == 0)
+            return [];
+
+        var (start, end) = GetIntervaloVisible();
+        var driverIds = GetSelectedDriverIds();
+
+        return serviciosPlanificados.Where(s =>
+            s.FechaHoraInicioPlanificada.HasValue &&
+            s.FechaHoraInicioPlanificada.Value.Date >= start &&
+            s.FechaHoraInicioPlanificada.Value.Date < end &&
+            s.IdConductor.HasValue &&
+            driverIds.Contains(s.IdConductor.Value)
+        ).ToList();
+    }
+
+    private int CantidadServiciosPlanificadosPeriodo => GetServiciosPlanificadosPeriodo().Count;
+
+    private int CantidadConductoresPlanificadosPeriodo => GetServiciosPlanificadosPeriodo()
+        .Where(s => s.IdConductor.HasValue && s.IdConductor.Value > 0)
+        .Select(s => s.IdConductor!.Value)
+        .Distinct()
+        .Count();
+
+    private double HorasPlanificadasPeriodo => GetServiciosPlanificadosPeriodo()
+        .Sum(s => s.DuracionPlanificadaMinutos ?? 0) / 60d;
+
+    private List<Solicitud> GetSolicitudesSinPlanificarPeriodo()
+    {
+        if (solicitudesSinPlanificar == null || solicitudesSinPlanificar.Count == 0)
+            return [];
+
+        var (start, end) = GetIntervaloVisible();
+        var driverIds = GetSelectedDriverIds();
+
+        return solicitudesSinPlanificar.Where(s =>
+        {
+            var fecha = s.FechaTarea ?? s.FechaSolicitud;
+            if (!fecha.HasValue) return true;
+            var f = fecha.Value.Date;
+            if (f < start || f >= end) return false;
+            if (s.IdConductor.HasValue && s.IdConductor.Value > 0 && !driverIds.Contains(s.IdConductor.Value)) return false;
+            return true;
+        }).ToList();
+    }
+
+    private int CantidadSolicitudesSinPlanificarPeriodo => GetSolicitudesSinPlanificarPeriodo().Count;
+
     private async Task SetupHeadersAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
@@ -217,7 +352,7 @@
             var todosOperarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? [];
             conductores = todosOperarios
                 .Where(o =>
-                    (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
+                    (EsConductor(o) && o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase))
                     || solicitudes.Any(s => s.IdConductor == o.IdOperario)
                 )
                 .OrderBy(o => o.Nombre)
@@ -284,4 +419,16 @@
     }
 
     private void EditarSolicitud(int id) => NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{id}?returnUrl={Uri.EscapeDataString("/servicios/planificacion")}");
+
+    private static bool EsConductor(Operario? o)
+    {
+        if (o == null) return false;
+        if (o.IdCargo.HasValue && o.IdCargo == 1) return true;
+        if (o.Cargo != null && !string.IsNullOrWhiteSpace(o.Cargo.Descripcion))
+        {
+            return string.Equals(o.Cargo.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase)
+                || o.Cargo.Descripcion.Contains("conductor", StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
+    }
 }

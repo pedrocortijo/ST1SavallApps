@@ -41,12 +41,15 @@
             {
                 <DxGrid Data="@clientes"
                         KeyFieldName="Key"
-                        PagerPosition="GridPagerPosition.Bottom"
-                        PageSize="20"
+                        PagerVisible="false"
+                        PageSize="100"
                         AllowSort="true"
-                        ShowFilterRow="true"
+                        ShowFilterRow="false"
                         ShowSearchBox="true"
-                        SearchBoxNullText="Buscar cliente...">
+                        SearchBoxNullText="Buscar por código, nombre, CIF, dirección o población..."
+                        SearchBoxInputDelay="500"
+                        SearchText="@textoBusqueda"
+                        SearchTextChanged="OnGridSearchTextChanged">
                     <Columns>
                         <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                             <HeaderTemplate>
@@ -101,6 +104,17 @@
                         </DxGridDataColumn>
                     </Columns>
                 </DxGrid>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 border-top">
+                    <small class="text-muted">@ResumenBloque</small>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(!PuedeIrAnterior)" @onclick="IrAnteriorAsync">
+                            <i class="oi oi-chevron-left me-1"></i> Anterior
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(!PuedeIrSiguiente)" @onclick="IrSiguienteAsync">
+                            Siguiente <i class="oi oi-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
             }
         </div>
     </div>
@@ -109,6 +123,17 @@
 @code {
     private List<ClienteSage50>? clientes;
     private string? errorMessage;
+    private const int TamanoBloque = 100;
+    private int paginaActual = 1;
+    private int totalClientes;
+    private string? textoBusqueda;
+
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalClientes / (double)TamanoBloque));
+    private bool PuedeIrAnterior => paginaActual > 1;
+    private bool PuedeIrSiguiente => paginaActual < TotalPaginas;
+    private string ResumenBloque => totalClientes == 0
+        ? "No se han encontrado clientes."
+        : $"Mostrando {(paginaActual - 1) * TamanoBloque + 1}-{Math.Min(paginaActual * TamanoBloque, totalClientes)} de {totalClientes} clientes";
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,13 +155,45 @@
     {
         try
         {
-            clientes = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
+            var filtro = Uri.EscapeDataString(textoBusqueda?.Trim() ?? string.Empty);
+            var resultado = await Http.GetFromJsonAsync<ResultadoPaginado<ClienteSage50>>(
+                $"api/clientessage50/paginados?pagina={paginaActual}&tamanoPagina={TamanoBloque}&buscar={filtro}");
+
+            clientes = resultado?.Datos.ToList() ?? [];
+            totalClientes = resultado?.TotalRegistros ?? 0;
+            if (totalClientes > 0 && paginaActual > TotalPaginas)
+            {
+                paginaActual = TotalPaginas;
+                await LoadDataAsync();
+                return;
+            }
             errorMessage = null;
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar clientes: {ex.Message}";
         }
+    }
+
+    private async Task OnGridSearchTextChanged(string texto)
+    {
+        textoBusqueda = texto;
+        paginaActual = 1;
+        await LoadDataAsync();
+    }
+
+    private async Task IrAnteriorAsync()
+    {
+        if (!PuedeIrAnterior) return;
+        paginaActual--;
+        await LoadDataAsync();
+    }
+
+    private async Task IrSiguienteAsync()
+    {
+        if (!PuedeIrSiguiente) return;
+        paginaActual++;
+        await LoadDataAsync();
     }
 
     private void NavigateToCreate()

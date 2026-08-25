@@ -315,7 +315,8 @@ html.theme-fluent-dark .obra-cliente-detalle {
 }
 
 .prioridad-alta { color: #dc3545; }
-.prioridad-media { color: #fd7e14; }
+.prioridad-media,
+.prioridad-normal { color: #fd7e14; }
 .prioridad-baja { color: #198754; }
 
 html.theme-blazing-dark .prioridad-texto,
@@ -373,13 +374,20 @@ html.theme-fluent-dark .obra-resumen {
 
 /* Custom CRUD Popup styling */
 .crud-popup {
-    min-width: 500px !important;
-    width: 600px !important;
-    max-width: 90vw !important;
+    min-width: 600px !important;
+    width: 920px !important;
+    max-width: 95vw !important;
 }
 
 .operarios-popup {
-    width: 680px !important;
+    width: 920px !important;
+}
+
+.plantas-popup,
+.poblaciones-popup {
+    min-width: 600px !important;
+    width: 920px !important;
+    max-width: 95vw !important;
 }
 
 /* Los diálogos nunca deben desbordar la pantalla disponible. */
@@ -490,3 +498,33 @@ html.theme-fluent-dark .obra-resumen {
         box-shadow: none !important;
     }
 }
+
+/* Alinear controles de DxFormLayoutItem con inputs que tienen caption (alineación vertical al cuadro de texto) */
+.dxbl-fl-item.align-bottom-to-input,
+.dxbl-fl-item.d-flex.align-items-end,
+.dxbl-fl-item.align-items-end,
+.dxbs-fl-item.align-bottom-to-input,
+.dxbs-fl-item.d-flex.align-items-end,
+.dxbs-fl-item.align-items-end,
+.align-bottom-to-input {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+}
+
+.dxbl-fl-item.align-bottom-to-input > .dxbl-fl-ctrl,
+.dxbl-fl-item.d-flex.align-items-end > .dxbl-fl-ctrl,
+.dxbl-fl-item.align-items-end > .dxbl-fl-ctrl,
+.dxbs-fl-item.align-bottom-to-input > .dxbs-fl-ctrl,
+.dxbs-fl-item.d-flex.align-items-end > .dxbs-fl-ctrl,
+.dxbs-fl-item.align-items-end > .dxbs-fl-ctrl,
+.align-bottom-to-input > .dxbl-fl-ctrl,
+.align-bottom-to-input > .dxbs-fl-ctrl {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin-top: auto !important;
+}
+

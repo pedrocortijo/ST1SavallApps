@@ -4,12 +4,12 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 
-<PageTitle>Mantenimiento de Relaciones de Tareas</PageTitle>
+<PageTitle>Asignación de relaciones de tareas</PageTitle>
 
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary mb-1">Relaciones de Tareas</h2>
+            <h2 class="fw-bold text-primary mb-1">Transiciones de tareas</h2>
             <p class="text-muted mb-0">Gestión de transiciones de tareas permitidas en las obras.</p>
         </div>
         <NavLink href="/" class="btn btn-outline-secondary btn-sm">
@@ -118,7 +118,7 @@
                               SearchEnabled="true"
                               NullText="Seleccione las tareas siguientes..." />
                     <small class="text-muted d-block mt-1">
-                        Seleccione una o varias tareas que se podrán realizar después de la tarea origen. No se incluye la propia tarea origen.
+                        Seleccione una o varias tareas que se podrán realizar después de la tarea origen.
                     </small>
                 </div>
             }
@@ -207,7 +207,7 @@
     private IEnumerable<Tarea> GetAvailableDestinoTareas()
     {
         if (tareasList == null) return Array.Empty<Tarea>();
-        return tareasList.Where(t => t.IdTarea != selectedOrigenId);
+        return tareasList;
     }
 
     protected override async Task OnInitializedAsync()

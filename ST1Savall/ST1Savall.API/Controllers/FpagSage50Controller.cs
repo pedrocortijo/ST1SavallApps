@@ -21,7 +21,7 @@ public class FpagSage50Controller : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<FpagSage50>>> GetFpag()
     {
-        return await _context.Fpag.ToListAsync();
+        return await _context.Fpag.AsNoTracking().ToListAsync();
     }
 
     [HttpGet("{codigo}")]

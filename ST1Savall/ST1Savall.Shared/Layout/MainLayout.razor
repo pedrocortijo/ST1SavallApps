@@ -6,6 +6,8 @@
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
 @inject ST1Savall.Shared.Services.IAuthService AuthService
 @inject ST1Savall.Shared.Services.ObrasMntoGridState ObrasMntoGridState
+@inject ST1Savall.Shared.Services.SolicitudesGridState SolicitudesGridState
+@inject ST1Savall.Shared.Services.HomeGridState HomeGridState
 @inject HttpClient Http
 
 <div class="page">
@@ -135,6 +137,7 @@
         var nextPath = new Uri(e.Location).LocalPath;
 
         const string obrasPath = "/modelos/obrasmnto";
+        const string solicitudesPath = "/modelos/solicitudes";
         const string mapPath = "/modelos/contenedores/mapa";
         var comesFromObras = previousPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase);
 
@@ -159,6 +162,33 @@
         }
         else {
             ObrasMntoGridState.Clear();
+        }
+
+        if (nextPath.StartsWith(solicitudesPath, StringComparison.OrdinalIgnoreCase)) {
+            if (nextPath.Equals(solicitudesPath, StringComparison.OrdinalIgnoreCase)
+                && !previousPath.StartsWith($"{solicitudesPath}/edit", StringComparison.OrdinalIgnoreCase)
+                && !previousPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase)
+                && !previousPath.Equals(mapPath, StringComparison.OrdinalIgnoreCase)) {
+                SolicitudesGridState.Clear();
+            }
+        }
+        else if (!nextPath.StartsWith($"{solicitudesPath}/edit", StringComparison.OrdinalIgnoreCase)
+            && !nextPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase)
+            && !nextPath.Equals(mapPath, StringComparison.OrdinalIgnoreCase)) {
+            SolicitudesGridState.Clear();
+        }
+
+        if (nextPath.Equals("/", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(nextPath.Trim('/'))) {
+            if (!previousPath.StartsWith($"{solicitudesPath}/edit", StringComparison.OrdinalIgnoreCase)
+                && !previousPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase)
+                && !previousPath.Equals(mapPath, StringComparison.OrdinalIgnoreCase)) {
+                HomeGridState.Clear();
+            }
+        }
+        else if (!nextPath.StartsWith($"{solicitudesPath}/edit", StringComparison.OrdinalIgnoreCase)
+            && !nextPath.StartsWith(obrasPath, StringComparison.OrdinalIgnoreCase)
+            && !nextPath.Equals(mapPath, StringComparison.OrdinalIgnoreCase)) {
+            HomeGridState.Clear();
         }
 
         currentUrl = NavigationManager.ToBaseRelativePath(e.Location);

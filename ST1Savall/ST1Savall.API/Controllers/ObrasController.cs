@@ -63,6 +63,8 @@ public class ObrasController : ControllerBase
                 Visible = so.Posicion == 0,
                 Posicion = so.Posicion,
                 Nima = so.Libre3.Trim(),
+                Libre1 = so.Libre1?.Trim(),
+                Libre2 = so.Libre2?.Trim(),
                 Telefono = so.Telefono.Trim(),
                 Movil = so.Movil.Trim(),
                 Cliente = so.Cliente.Trim(),
@@ -113,6 +115,8 @@ public class ObrasController : ControllerBase
             Visible = so.Posicion == 0,
             Posicion = so.Posicion,
             Nima = so.Libre3.Trim(),
+            Libre1 = so.Libre1?.Trim(),
+            Libre2 = so.Libre2?.Trim(),
             Telefono = so.Telefono.Trim(),
             Movil = so.Movil.Trim(),
             Cliente = so.Cliente.Trim(),
@@ -191,6 +195,8 @@ public class ObrasController : ControllerBase
             Terminada = obra.Finalizada ?? false,
             Posicion = obra.Posicion ?? (obra.Visible == false ? 1 : 0),
             Vista = obra.Visible ?? true,
+            Libre1 = obra.Libre1 ?? "",
+            Libre2 = obra.Libre2 ?? "",
             Libre3 = obra.Nima ?? "",
             Observacio = obra.Observaciones,
             Created = DateTime.Now,
@@ -286,6 +292,8 @@ public class ObrasController : ControllerBase
         so.Terminada = obra.Finalizada ?? false;
         so.Posicion = obra.Posicion ?? (obra.Visible == false ? 1 : 0);
         so.Vista = obra.Visible ?? true;
+        if (obra.Libre1 != null) so.Libre1 = obra.Libre1;
+        if (obra.Libre2 != null) so.Libre2 = obra.Libre2;
         so.Libre3 = obra.Nima ?? "";
         so.Observacio = obra.Observaciones;
         so.Modified = DateTime.Now;

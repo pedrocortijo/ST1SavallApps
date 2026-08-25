@@ -134,7 +134,7 @@ public class ClienteSage50
     [MaxLength(64)] public string Validcheck { get; set; } = string.Empty;
     public bool ValorAlb { get; set; } = false;
     public decimal Valportes { get; set; } = 0.0m;
-    [MaxLength(2)] public string Vendedor { get; set; } = string.Empty;
+    [MaxLength(5)] public string Vendedor { get; set; } = string.Empty;
     public bool? Vista { get; set; }
     [MaxLength(4)] public string Zona { get; set; } = string.Empty;
     public string Key => $"{Codigo?.Trim()}_{Clienteerp?.Trim()}";

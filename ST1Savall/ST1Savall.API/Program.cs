@@ -9,6 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // Add DbContext
 var connectionString = builder.Configuration.GetConnectionString("SavallAppsConnection") ?? throw new InvalidOperationException("Connection string 'SavallAppsConnection' not found.");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -32,6 +42,8 @@ var sageGestionConnectionString = builder.Configuration.GetConnectionString("Sag
 builder.Services.AddDbContext<SageGestionDbContext>(options =>
     options.UseSqlServer(sageGestionConnectionString));
 builder.Services.AddScoped<ArticulosSage50Service>();
+builder.Services.AddScoped<DatosAlbaranPlantaExcelService>();
+builder.Services.AddScoped<GeneracionAlbaranServicioService>();
 
 // Add SageComun DbContext
 var sageComunConnectionString = builder.Configuration.GetConnectionString("SageComunConnection") 
@@ -79,12 +91,15 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+    app.MapGet("/", () => Results.Redirect("/scalar/v1"));
 }
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();

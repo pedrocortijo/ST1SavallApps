@@ -83,7 +83,7 @@
                         ShowSearchBox="true"
                         SearchBoxNullText="Buscar por email, usuario, técnico...">
                     <Columns>
-                        <DxGridDataColumn Caption="Acciones" Width="145px">
+                        <DxGridDataColumn Caption="Acciones" Width="145px" AllowSort="false" TextAlignment="GridTextAlignment.Center">
                             <HeaderCaptionTemplate>
                                 <button class="btn btn-sm btn-primary d-flex align-items-center justify-content-center shadow-sm w-100" 
                                         @onclick="AbrirFormularioNuevoUsuario"
@@ -95,18 +95,21 @@
                                 @{
                                     var user = (ApplicationUserDto)context.DataItem;
                                 }
-                                <div class="d-flex gap-1">
-                                    <button class="btn btn-sm btn-outline-primary"
+                                <div class="d-flex gap-1 justify-content-center align-items-center">
+                                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
+                                            style="width: 32px; height: 32px;"
                                             @onclick="() => AbrirFichaUsuario(user)"
                                             title="Ver / Editar Ficha">
                                         <i class="oi oi-pencil"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-warning"
+                                    <button class="btn btn-sm btn-outline-warning d-flex align-items-center justify-content-center shadow-sm"
+                                            style="width: 32px; height: 32px;"
                                             @onclick="() => AbrirCambioPassword(user)"
                                             title="Cambiar Contraseña">
                                         <i class="oi oi-key"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger"
+                                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm"
+                                            style="width: 32px; height: 32px;"
                                             @onclick="() => ConfirmarEliminarUsuario(user)"
                                             title="Eliminar Usuario">
                                         <i class="oi oi-trash"></i>

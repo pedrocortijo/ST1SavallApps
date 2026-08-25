@@ -104,14 +104,22 @@
                                     <DxFormLayoutItem Caption="Puerto SMTP *" ColSpanMd="12">
                                         <DxSpinEdit @bind-Value="parametro.SmtpPort" MinValue="1" MaxValue="65535" />
                                     </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="12">
+                                        <DxComboBox TData="string" Data="@tiposSslSmtp"
+                                                    TValue="string"
+                                                    @bind-Value="parametro.SslSmtpType"
+                                                    NullText="Seleccione el tipo de seguridad..." />
+                                    </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Usuario SMTP" ColSpanMd="12">
                                         <DxTextBox @bind-Text="parametro.SmtpUser" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Contraseña SMTP" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.SmtpPassword" Password="true" />
-                                    </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Tipo SSL SMTP" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.SslSmtpType" />
+                                        <input type="password"
+                                               class="form-control"
+                                               @bind="parametro.SmtpPassword"
+                                               @bind:event="oninput"
+                                               autocomplete="new-password"
+                                               aria-label="Contraseña SMTP" />
                                     </DxFormLayoutItem>
                                 </DxFormLayout>
                             </DxTabPage>
@@ -135,58 +143,66 @@
                                     <DxFormLayoutItem Caption="Ruta de firmas" ColSpanMd="12">
                                         <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas..." />
                                     </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Estado al reprogramar" ColSpanMd="12">
-                                        <DxComboBox Data="@estadosList"
-                                                    TData="EstadoSolicitud"
-                                                    TValue="int?"
-                                                    TextFieldName="Descripcion"
-                                                    ValueFieldName="IdEstado"
-                                                    @bind-Value="parametro.EstadoReprogramacion"
-                                                    ClearButtonVisible="true"
-                                                    NullText="Seleccione estado al reprogramar..." />
-                                    </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Estado iniciado" ColSpanMd="12">
-                                        <DxComboBox Data="@estadosList"
-                                                    TData="EstadoSolicitud"
-                                                    TValue="int?"
-                                                    TextFieldName="Descripcion"
-                                                    ValueFieldName="IdEstado"
-                                                    @bind-Value="parametro.EstadoIniciado"
-                                                    ClearButtonVisible="true"
-                                                    NullText="Seleccione estado iniciado..." />
-                                    </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Estado finalizado" ColSpanMd="12">
-                                        <DxComboBox Data="@estadosList"
-                                                    TData="EstadoSolicitud"
-                                                    TValue="int?"
-                                                    TextFieldName="Descripcion"
-                                                    ValueFieldName="IdEstado"
-                                                    @bind-Value="parametro.EstadoFinalizado"
-                                                    ClearButtonVisible="true"
-                                                    NullText="Seleccione estado finalizado..." />
-                                    </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Estado adjudicado" ColSpanMd="12">
-                                        <DxComboBox Data="@estadosList"
-                                                    TData="EstadoSolicitud"
-                                                    TValue="int?"
-                                                    TextFieldName="Descripcion"
-                                                    ValueFieldName="IdEstado"
-                                                    @bind-Value="parametro.EstadoAdjudicado"
-                                                    ClearButtonVisible="true"
-                                                    NullText="Seleccione estado adjudicado..." />
-                                    </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Estado pendiente" ColSpanMd="12">
-                                        <DxComboBox Data="@estadosList"
-                                                    TData="EstadoSolicitud"
-                                                    TValue="int?"
-                                                    TextFieldName="Descripcion"
-                                                    ValueFieldName="IdEstado"
-                                                    @bind-Value="parametro.EstadoPendiente"
-                                                    ClearButtonVisible="true"
-                                                    NullText="Seleccione estado pendiente..." />
-                                    </DxFormLayoutItem>
+                                    <DxFormLayoutGroup Caption="Estados" ColSpanMd="12">
+                                        <DxFormLayoutItem Caption="Estado iniciado" ColSpanMd="6">
+                                            <DxComboBox Data="@estadosList"
+                                                        TData="EstadoSolicitud"
+                                                        TValue="int?"
+                                                        TextFieldName="Descripcion"
+                                                        ValueFieldName="IdEstado"
+                                                        @bind-Value="parametro.EstadoIniciado"
+                                                        ClearButtonVisible="true"
+                                                        NullText="Seleccione estado iniciado..." />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Estado finalizado" ColSpanMd="6">
+                                            <DxComboBox Data="@estadosList"
+                                                        TData="EstadoSolicitud"
+                                                        TValue="int?"
+                                                        TextFieldName="Descripcion"
+                                                        ValueFieldName="IdEstado"
+                                                        @bind-Value="parametro.EstadoFinalizado"
+                                                        ClearButtonVisible="true"
+                                                        NullText="Seleccione estado finalizado..." />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Estado adjudicado" ColSpanMd="6">
+                                            <DxComboBox Data="@estadosList"
+                                                        TData="EstadoSolicitud"
+                                                        TValue="int?"
+                                                        TextFieldName="Descripcion"
+                                                        ValueFieldName="IdEstado"
+                                                        @bind-Value="parametro.EstadoAdjudicado"
+                                                        ClearButtonVisible="true"
+                                                        NullText="Seleccione estado adjudicado..." />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Estado pendiente" ColSpanMd="6">
+                                            <DxComboBox Data="@estadosList"
+                                                        TData="EstadoSolicitud"
+                                                        TValue="int?"
+                                                        TextFieldName="Descripcion"
+                                                        ValueFieldName="IdEstado"
+                                                        @bind-Value="parametro.EstadoPendiente"
+                                                        ClearButtonVisible="true"
+                                                        NullText="Seleccione estado pendiente..." />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Estado al reprogramar" ColSpanMd="12">
+                                            <DxComboBox Data="@estadosList"
+                                                        TData="EstadoSolicitud"
+                                                        TValue="int?"
+                                                        TextFieldName="Descripcion"
+                                                        ValueFieldName="IdEstado"
+                                                        @bind-Value="parametro.EstadoReprogramacion"
+                                                        ClearButtonVisible="true"
+                                                        NullText="Seleccione estado al reprogramar..." />
+                                        </DxFormLayoutItem>
+                                    </DxFormLayoutGroup>
                                     <DxFormLayoutItem Caption="Contraseña administración estados" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.AdminPassword" Password="true" NullText="Introduce la contraseña de administración..." />
+                                        <input type="password"
+                                               class="form-control"
+                                               @bind="parametro.AdminPassword"
+                                               @bind:event="oninput"
+                                               autocomplete="new-password"
+                                               placeholder="Introduce la contraseña de administración..."
+                                               aria-label="Contraseña de administración" />
                                     </DxFormLayoutItem>
                                 </DxFormLayout>
                             </DxTabPage>
@@ -195,8 +211,23 @@
                                     <DxFormLayoutItem Caption="Serie de albaranes" ColSpanMd="6">
                                         <DxTextBox @bind-Text="parametro.SerieAlbaranes" MaxLength="2" NullText="Ej.: A" />
                                     </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Empresa Sage" ColSpanMd="6">
+                                        <DxTextBox @bind-Text="parametro.EmpresaAlbaranes" MaxLength="2" NullText="Ej.: 01" />
+                                    </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Almacén de albaranes" ColSpanMd="6">
                                         <DxTextBox @bind-Text="parametro.AlmacenAlbaranes" MaxLength="3" NullText="Ej.: AL1" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Usuario Sage para albaranes" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.UsuarioAlbaranes" MaxLength="25" NullText="Ej.: MAYCA_NET" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta Excel albaranes de planta · Sabospa Alicante" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.ExcelAlbaranesSabospaAlicante" MaxLength="500" NullText="Ej.: E:\BDClientes\ST1Savall\ALICANTE 2026.xlsx" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta Excel albaranes de planta · Sabospa Finestrat" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.ExcelAlbaranesSabospaFinestrat" MaxLength="500" NullText="Ej.: E:\BDClientes\ST1Savall\FINESTRAT 2026.xlsx" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta Excel albaranes de planta · Sabospa Monforte" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.ExcelAlbaranesSabospaMonforte" MaxLength="500" NullText="Ej.: E:\BDClientes\ST1Savall\MONFORTE 2026.xlsx" />
                                     </DxFormLayoutItem>
                                 </DxFormLayout>
                             </DxTabPage>
@@ -209,6 +240,7 @@
 </div>
 
 @code {
+    private readonly List<string> tiposSslSmtp = new() { "Ninguno", "SSL/TLS", "STARTTLS" };
     private IGrid? grid;
     private List<Parametro>? parametros;
     private List<EstadoSolicitud>? estadosList;
@@ -293,4 +325,5 @@
             e.Cancel = true;
         }
     }
+
 }

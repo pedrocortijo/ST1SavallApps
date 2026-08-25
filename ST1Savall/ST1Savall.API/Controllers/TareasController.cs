@@ -32,7 +32,8 @@ public class TareasController : ControllerBase
         return tarea;
     }
 
-    [HttpGet("{id}/siguientes")]
+    [HttpGet("{id}/siguientes"
+        )]
     public async Task<ActionResult<IEnumerable<Tarea>>> GetTareasSiguientes(int id)
     {
         var siguientes = await _context.TareasRelaciones
@@ -82,7 +83,8 @@ public class TareasController : ControllerBase
             Recoger1 = tareaOrigen.Recoger1,
             Recoger2 = tareaOrigen.Recoger2,
             Entrega1 = tareaOrigen.Entrega1,
-            Entrega2 = tareaOrigen.Entrega2
+            Entrega2 = tareaOrigen.Entrega2,
+            CreaAlbaran = tareaOrigen.CreaAlbaran
         };
 
         _context.Tareas.Add(copia);
@@ -106,6 +108,7 @@ public class TareasController : ControllerBase
         dbTarea.Recoger2 = tarea.Recoger2;
         dbTarea.Entrega1 = tarea.Entrega1;
         dbTarea.Entrega2 = tarea.Entrega2;
+        dbTarea.CreaAlbaran = tarea.CreaAlbaran;
 
         try
         {

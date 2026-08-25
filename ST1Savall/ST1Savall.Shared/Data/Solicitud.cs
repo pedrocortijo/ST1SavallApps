@@ -17,6 +17,8 @@ public class Solicitud
     public DateTime? FechaSolicitud { get; set; }
     public DateTime? FechaTarea { get; set; }
     public DateTime? FechaPrevista { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
+    public int? IdSolicitudReprogramada { get; set; }
 
     public int? IdHoraDisponible { get; set; }
     public int IdUsuario { get; set; }
@@ -31,6 +33,9 @@ public class Solicitud
 
     [MaxLength(20)]
     public string? AlbaranPlanta { get; set; }
+
+    /// <summary>Kg del pesaje del contenedor en la planta de reciclaje.</summary>
+    public int? KgAlbaran { get; set; }
 
     [MaxLength(2)]
     public string? AlbaranSerieSage { get; set; }

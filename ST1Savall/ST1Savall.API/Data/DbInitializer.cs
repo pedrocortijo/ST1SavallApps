@@ -24,30 +24,66 @@ public static class DbInitializer
                     Matricula NVARCHAR(20) NOT NULL,
                     Descripcion NVARCHAR(100) NULL,
                     UnidadWialonId NVARCHAR(50) NULL,
-                    IdConductor INT NULL,
-                    Activo BIT NOT NULL CONSTRAINT DF_Camiones_Activo DEFAULT (1),
-                    CONSTRAINT FK_Camiones_Operarios_IdConductor FOREIGN KEY (IdConductor)
-                        REFERENCES Operarios(IdOperario) ON DELETE SET NULL
+                    Activo BIT NOT NULL CONSTRAINT DF_Camiones_Activo DEFAULT (1)
                 );
                 CREATE UNIQUE INDEX IX_Camiones_Matricula ON Camiones(Matricula);
                 CREATE UNIQUE INDEX IX_Camiones_UnidadWialonId ON Camiones(UnidadWialonId) WHERE UnidadWialonId IS NOT NULL;
             END;
+
+            IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Camiones_Operarios_IdConductor')
+                ALTER TABLE Camiones DROP CONSTRAINT FK_Camiones_Operarios_IdConductor;
+            IF COL_LENGTH(N'Camiones', N'IdConductor') IS NOT NULL
+                ALTER TABLE Camiones DROP COLUMN IdConductor;
+
+            IF COL_LENGTH(N'Operarios', N'IdCamion') IS NULL
+                EXEC(N'ALTER TABLE Operarios ADD IdCamion INT NULL;');
+            IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Operarios_Camiones_IdCamion')
+                EXEC(N'ALTER TABLE Operarios ADD CONSTRAINT FK_Operarios_Camiones_IdCamion FOREIGN KEY (IdCamion) REFERENCES Camiones(IdCamion) ON DELETE SET NULL;');
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'Operarios') AND name = N'IX_Operarios_IdCamion')
+                EXEC(N'CREATE UNIQUE INDEX IX_Operarios_IdCamion ON Operarios(IdCamion) WHERE IdCamion IS NOT NULL;');
         ");
 
         await context.Database.ExecuteSqlRawAsync(@"
-            IF OBJECT_ID(N'PreciosEspecialesObra', N'U') IS NULL
+            IF OBJECT_ID(N'PreciosEspecialesCabecera', N'U') IS NULL
             BEGIN
-                CREATE TABLE PreciosEspecialesObra (
-                    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-                    ClienteSage CHAR(8) NOT NULL,
+                CREATE TABLE PreciosEspecialesCabecera (
+                    IdPrecioEspecialCabecera INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                     ObraSage CHAR(5) NOT NULL,
-                    ArticuloSage CHAR(20) NOT NULL,
-                    Precio DECIMAL(15,6) NOT NULL,
                     VigenteDesde DATETIME2 NULL,
                     VigenteHasta DATETIME2 NULL,
                     Observaciones NVARCHAR(250) NULL,
-                    CONSTRAINT UQ_PreciosEspecialesObra UNIQUE (ClienteSage, ObraSage, ArticuloSage)
+                    CONSTRAINT UQ_PreciosEspecialesCabecera UNIQUE (ObraSage)
                 );
+                CREATE TABLE PreciosEspecialesDetalles (
+                    IdPrecioEspecialDetalle INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    IdPrecioEspecialCabecera INT NOT NULL,
+                    ArticuloSage CHAR(20) NOT NULL,
+                    Precio DECIMAL(15,6) NOT NULL,
+                    CONSTRAINT FK_PreciosEspecialesDetalles_Cabecera FOREIGN KEY (IdPrecioEspecialCabecera) REFERENCES PreciosEspecialesCabecera(IdPrecioEspecialCabecera) ON DELETE CASCADE,
+                    CONSTRAINT UQ_PreciosEspecialesDetalles UNIQUE (IdPrecioEspecialCabecera, ArticuloSage)
+                );
+                IF OBJECT_ID(N'PreciosEspecialesObra', N'U') IS NOT NULL
+                BEGIN
+                    INSERT INTO PreciosEspecialesCabecera (ObraSage, VigenteDesde, VigenteHasta, Observaciones)
+                    SELECT ObraSage, MAX(VigenteDesde), MAX(VigenteHasta), MAX(Observaciones)
+                    FROM PreciosEspecialesObra GROUP BY ObraSage;
+                    INSERT INTO PreciosEspecialesDetalles (IdPrecioEspecialCabecera, ArticuloSage, Precio)
+                    SELECT c.IdPrecioEspecialCabecera, o.ArticuloSage, o.Precio FROM PreciosEspecialesObra o
+                    INNER JOIN PreciosEspecialesCabecera c ON c.ObraSage = o.ObraSage;
+                END;
+            END;
+
+            IF COL_LENGTH(N'PreciosEspecialesCabecera', N'ClienteSage') IS NOT NULL
+            BEGIN
+                DECLARE @constraint sysname;
+                SELECT @constraint = kc.name
+                FROM sys.key_constraints kc
+                INNER JOIN sys.index_columns ic ON ic.object_id = kc.parent_object_id AND ic.index_id = kc.unique_index_id
+                INNER JOIN sys.columns col ON col.object_id = ic.object_id AND col.column_id = ic.column_id
+                WHERE kc.parent_object_id = OBJECT_ID(N'PreciosEspecialesCabecera') AND col.name = N'ClienteSage';
+                IF @constraint IS NOT NULL EXEC(N'ALTER TABLE PreciosEspecialesCabecera DROP CONSTRAINT [' + @constraint + N']');
+                ALTER TABLE PreciosEspecialesCabecera DROP COLUMN ClienteSage;
+                ALTER TABLE PreciosEspecialesCabecera ADD CONSTRAINT UQ_PreciosEspecialesCabecera UNIQUE (ObraSage);
             END;
         ");
 
@@ -150,9 +186,33 @@ public static class DbInitializer
                     ALTER TABLE Parametros ADD SerieAlbaranes CHAR(2) NOT NULL
                         CONSTRAINT DF_Parametros_SerieAlbaranes DEFAULT ('');
 
+                IF COL_LENGTH('Parametros', 'EmpresaAlbaranes') IS NULL
+                    ALTER TABLE Parametros ADD EmpresaAlbaranes CHAR(2) NULL;
+
                 IF COL_LENGTH('Parametros', 'AlmacenAlbaranes') IS NULL
                     ALTER TABLE Parametros ADD AlmacenAlbaranes CHAR(3) NOT NULL
                         CONSTRAINT DF_Parametros_AlmacenAlbaranes DEFAULT ('');
+
+                IF COL_LENGTH('Parametros', 'UsuarioAlbaranes') IS NULL
+                    ALTER TABLE Parametros ADD UsuarioAlbaranes CHAR(25) NULL;
+
+                IF COL_LENGTH('Parametros', 'ExcelAlbaranesSabospaAlicante') IS NULL
+                    ALTER TABLE Parametros ADD ExcelAlbaranesSabospaAlicante VARCHAR(500) NULL;
+
+                IF COL_LENGTH('Parametros', 'ExcelAlbaranesSabospaFinestrat') IS NULL
+                    ALTER TABLE Parametros ADD ExcelAlbaranesSabospaFinestrat VARCHAR(500) NULL;
+
+                IF COL_LENGTH('Parametros', 'ExcelAlbaranesSabospaMonforte') IS NULL
+                    ALTER TABLE Parametros ADD ExcelAlbaranesSabospaMonforte VARCHAR(500) NULL;
+
+                IF COL_LENGTH('Parametros', 'ExcelAlbaranesSabospaAlicanteNombre') IS NULL
+                    ALTER TABLE Parametros ADD ExcelAlbaranesSabospaAlicanteNombre VARCHAR(255) NULL;
+
+                IF COL_LENGTH('Parametros', 'ExcelAlbaranesSabospaFinestratNombre') IS NULL
+                    ALTER TABLE Parametros ADD ExcelAlbaranesSabospaFinestratNombre VARCHAR(255) NULL;
+
+                IF COL_LENGTH('Parametros', 'ExcelAlbaranesSabospaMonforteNombre') IS NULL
+                    ALTER TABLE Parametros ADD ExcelAlbaranesSabospaMonforteNombre VARCHAR(255) NULL;
 
                 IF COL_LENGTH('Parametros', 'PathImagenes') IS NULL
                     ALTER TABLE Parametros ADD PathImagenes VARCHAR(255) NULL;
@@ -194,6 +254,12 @@ public static class DbInitializer
 
                 IF COL_LENGTH('Solicitudes', 'ObservacionesConductor') IS NULL
                     ALTER TABLE Solicitudes ADD ObservacionesConductor VARCHAR(MAX) NULL;
+
+                IF COL_LENGTH('Solicitudes', 'FechaAnulacion') IS NULL
+                    ALTER TABLE Solicitudes ADD FechaAnulacion DATETIME2 NULL;
+
+                IF COL_LENGTH('Solicitudes', 'IdSolicitudReprogramada') IS NULL
+                    ALTER TABLE Solicitudes ADD IdSolicitudReprogramada INT NULL;
 
                 IF COL_LENGTH('Solicitudes', 'FirmaNombre') IS NULL
                     ALTER TABLE Solicitudes ADD FirmaNombre VARCHAR(50) NULL;
@@ -337,6 +403,8 @@ public static class DbInitializer
             BEGIN
                 IF COL_LENGTH('Solicitudes', 'AlbaranPlanta') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranPlanta VARCHAR(20) NULL;
+                IF COL_LENGTH('Solicitudes', 'KgAlbaran') IS NULL
+                    ALTER TABLE Solicitudes ADD KgAlbaran INT NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranSerieSage') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranSerieSage VARCHAR(2) NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranNumeroSage') IS NULL
@@ -366,16 +434,19 @@ public static class DbInitializer
                 IF COL_LENGTH('Tareas', 'Recoger2') IS NULL ALTER TABLE Tareas ADD Recoger2 BIT NOT NULL CONSTRAINT DF_Tareas_Recoger2 DEFAULT (0);
                 IF COL_LENGTH('Tareas', 'Entrega1') IS NULL ALTER TABLE Tareas ADD Entrega1 BIT NOT NULL CONSTRAINT DF_Tareas_Entrega1 DEFAULT (0);
                 IF COL_LENGTH('Tareas', 'Entrega2') IS NULL ALTER TABLE Tareas ADD Entrega2 BIT NOT NULL CONSTRAINT DF_Tareas_Entrega2 DEFAULT (0);
+                IF COL_LENGTH('Tareas', 'CreaAlbaran') IS NULL ALTER TABLE Tareas ADD CreaAlbaran BIT NOT NULL CONSTRAINT DF_Tareas_CreaAlbaran DEFAULT (0);
 
                 UPDATE Tareas SET Recoger1 = 0 WHERE Recoger1 IS NULL;
                 UPDATE Tareas SET Recoger2 = 0 WHERE Recoger2 IS NULL;
                 UPDATE Tareas SET Entrega1 = 0 WHERE Entrega1 IS NULL;
                 UPDATE Tareas SET Entrega2 = 0 WHERE Entrega2 IS NULL;
+                UPDATE Tareas SET CreaAlbaran = 0 WHERE CreaAlbaran IS NULL;
 
                 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Recoger1' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Recoger1 BIT NOT NULL;
                 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Recoger2' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Recoger2 BIT NOT NULL;
                 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Entrega1' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Entrega1 BIT NOT NULL;
                 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'Entrega2' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN Entrega2 BIT NOT NULL;
+                IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Tareas') AND name = 'CreaAlbaran' AND is_nullable = 1) ALTER TABLE Tareas ALTER COLUMN CreaAlbaran BIT NOT NULL;
             END
         ");
 
@@ -523,7 +594,8 @@ public static class DbInitializer
                 BEGIN
                     CREATE TABLE Tareas (
                         IdTarea INT PRIMARY KEY,
-                        Tarea NVARCHAR(150) NOT NULL
+                        Tarea NVARCHAR(150) NOT NULL,
+                        CreaAlbaran BIT NOT NULL CONSTRAINT DF_Tareas_CreaAlbaran DEFAULT (0)
                     );
                 END
             ");

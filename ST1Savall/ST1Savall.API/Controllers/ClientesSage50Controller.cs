@@ -58,6 +58,69 @@ public class ClientesSage50Controller : ControllerBase
         return clientes;
     }
 
+    [HttpGet("paginados")]
+    public async Task<ActionResult<ResultadoPaginado<ClienteSage50>>> GetClientesPaginados(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanoPagina = 100,
+        [FromQuery] string? buscar = null)
+    {
+        pagina = Math.Max(1, pagina);
+        tamanoPagina = Math.Clamp(tamanoPagina, 25, 250);
+        var texto = buscar?.Trim();
+
+        IQueryable<ClienteSage50> consulta = _context.Clientes
+            .AsNoTracking()
+            .Where(c => c.Codigo.StartsWith("430"));
+
+        if (!string.IsNullOrWhiteSpace(texto))
+        {
+            var patron = $"%{texto}%";
+            consulta = consulta.Where(c =>
+                EF.Functions.Like(c.Codigo, patron) ||
+                EF.Functions.Like(c.Nombre, patron) ||
+                EF.Functions.Like(c.Cif, patron) ||
+                EF.Functions.Like(c.Direccion, patron) ||
+                EF.Functions.Like(c.Poblacion, patron));
+        }
+
+        var totalRegistros = await consulta.CountAsync();
+        var clientes = await consulta
+            .OrderBy(c => c.Codigo)
+            .ThenBy(c => c.Clienteerp)
+            .Skip((pagina - 1) * tamanoPagina)
+            .Take(tamanoPagina)
+            .ToListAsync();
+
+        await CompletarTelefonosPredeterminadosAsync(clientes);
+
+        return Ok(new ResultadoPaginado<ClienteSage50>
+        {
+            Datos = clientes,
+            TotalRegistros = totalRegistros,
+            Pagina = pagina,
+            TamanoPagina = tamanoPagina
+        });
+    }
+
+    private async Task CompletarTelefonosPredeterminadosAsync(List<ClienteSage50> clientes)
+    {
+        if (clientes.Count == 0) return;
+
+        var codigos = clientes.Select(c => c.Codigo.Trim()).Distinct().ToList();
+        var contactos = await _context.ContlfCli
+            .AsNoTracking()
+            .Where(co => codigos.Contains(co.Cliente.Trim()) && co.Predet)
+            .ToListAsync();
+        var telefonos = contactos
+            .GroupBy(co => co.Cliente.Trim())
+            .ToDictionary(g => g.Key, g => g.First().Telefono?.Trim() ?? string.Empty);
+
+        foreach (var cliente in clientes)
+        {
+            cliente.Telefono = telefonos.GetValueOrDefault(cliente.Codigo.Trim(), string.Empty);
+        }
+    }
+
     [HttpGet("siguiente-codigo")]
     public async Task<ActionResult<string>> GetSiguienteCodigo()
     {
@@ -112,6 +175,10 @@ public class ClientesSage50Controller : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ClienteSage50>> PostCliente(ClienteSage50 cliente)
     {
+        cliente.Codigo = (cliente.Codigo ?? "").Trim();
+        cliente.Clienteerp = (cliente.Clienteerp ?? "").Trim();
+        cliente.TipoIva = (cliente.TipoIva ?? "").Trim();
+
         if (!string.IsNullOrEmpty(cliente.Codigo))
         {
             cliente.Provinerp = cliente.Codigo.Length >= 2 ? cliente.Codigo.Substring(0, 2) : cliente.Codigo;
@@ -124,10 +191,6 @@ public class ClientesSage50Controller : ControllerBase
         {
             cliente.Guid = Guid.NewGuid().ToString();
         }
-        if (cliente.Clienteerp == null)
-        {
-            cliente.Clienteerp = "";
-        }
 
         _context.Clientes.Add(cliente);
         try
@@ -139,11 +202,11 @@ public class ClientesSage50Controller : ControllerBase
         {
             if (await ClienteExistsAsync(cliente.Codigo, cliente.Clienteerp))
             {
-                return Conflict();
+                return Conflict(new { message = $"El código de cliente '{cliente.Codigo}' ya ha sido registrado." });
             }
             throw;
         }
-        return CreatedAtAction(nameof(GetCliente), new { codigo = cliente.Codigo.Trim(), clienteerp = cliente.Clienteerp.Trim() }, cliente);
+        return CreatedAtAction(nameof(GetCliente), new { codigo = cliente.Codigo, clienteerp = cliente.Clienteerp }, cliente);
     }
 
     [HttpPut("{codigo}/{clienteerp?}")]
@@ -152,7 +215,16 @@ public class ClientesSage50Controller : ControllerBase
         var targetCodigo = (codigo ?? "").Trim();
         var targetErp = (clienteerp ?? "").Trim();
 
-        if (targetCodigo != cliente.Codigo.Trim() || targetErp != cliente.Clienteerp.Trim()) return BadRequest();
+        cliente.Codigo = (cliente.Codigo ?? "").Trim();
+        cliente.Clienteerp = (cliente.Clienteerp ?? "").Trim();
+        cliente.TipoIva = (cliente.TipoIva ?? "").Trim();
+
+        if (!string.Equals(targetCodigo, cliente.Codigo, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(targetErp, cliente.Clienteerp, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = $"El código del cliente ('{cliente.Codigo}') o ERP ('{cliente.Clienteerp}') no coincide con la ruta invocada." });
+        }
+
         if (!string.IsNullOrEmpty(cliente.Codigo))
         {
             cliente.Provinerp = cliente.Codigo.Length >= 2 ? cliente.Codigo.Substring(0, 2) : cliente.Codigo;
@@ -161,7 +233,7 @@ public class ClientesSage50Controller : ControllerBase
             .AsNoTracking()
             .AnyAsync(c => c.Codigo.Trim() == targetCodigo && c.Clienteerp.Trim() == targetErp);
 
-        if (!clienteExiste) return NotFound();
+        if (!clienteExiste) return NotFound(new { message = "El cliente especificado no existe." });
 
         _context.Entry(cliente).State = EntityState.Modified;
         try
@@ -174,7 +246,7 @@ public class ClientesSage50Controller : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!await ClienteExistsAsync(codigo, clienteerp)) return NotFound();
+            if (!await ClienteExistsAsync(codigo, clienteerp)) return NotFound(new { message = "El cliente no existe o fue eliminado." });
             throw;
         }
         return NoContent();

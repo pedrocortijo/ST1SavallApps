@@ -115,7 +115,7 @@
                         <DxGridDataColumn FieldName="TelefonoCliente" Caption="Teléfono" Visible="false" />
                         <DxGridDataColumn FieldName="IdEmpresa" Caption="Empresa Sage50" Width="120px" />
                         <DxGridDataColumn FieldName="Visible" Caption="Bloqueada" Width="100px" />
-                        <DxGridDataColumn FieldName="Finalizada" Caption="Finalizada" Width="100px" />
+                        <DxGridDataColumn FieldName="Finalizada" Caption="Finalizada" Width="100px" @bind-FilterRowValue="filtroFinalizada" FilterRowOperatorType="GridFilterRowOperatorType.Equal" />
                     </Columns>
                     <EditFormTemplate Context="EditFormContext">
                         @{
@@ -315,22 +315,11 @@
     private IGrid? grid;
     private Obra? obraToDuplicate;
     private List<Obra>? obras;
-
-    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
-    {
-        if (e.ElementType != GridElementType.DataRow && e.ElementType != GridElementType.DataCell)
-            return;
-
-        if (e.Grid.GetDataItem(e.VisibleIndex) is Obra obra && (obra.Posicion == 1 || obra.Visible == false))
-        {
-            e.CssClass = "obra-bloqueada-row";
-            e.Style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important;";
-        }
-    }
     private List<ClienteSage50>? clientesList;
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
     private string? errorMessage;
+    private object? filtroFinalizada = false;
 
     // New fields for location update confirmation
     private bool showConfirmPopup = false;
@@ -344,6 +333,17 @@
     private string? popupErrorMessage;
     private Obra? activeObra;
 
+    private void OnCustomizeElement(GridCustomizeElementEventArgs e)
+    {
+        if (e.ElementType != GridElementType.DataRow && e.ElementType != GridElementType.DataCell)
+            return;
+
+        if (e.Grid.GetDataItem(e.VisibleIndex) is Obra obra && (obra.Posicion == 1 || obra.Visible == false))
+        {
+            e.CssClass = "obra-bloqueada-row";
+            e.Style = "background-color: #fde7e9 !important; color: #b42318 !important; font-weight: 700 !important;";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

@@ -2,6 +2,8 @@
 @page "/modelos/clientes/edit/{Codigo}"
 @page "/modelos/clientes/edit/{Codigo}/{Clienteerp}"
 @using ST1Savall.Shared.Data
+@using DevExtreme.AspNet.Data
+@using DevExtreme.AspNet.Data.ResponseModel
 @implements IDisposable
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
@@ -73,54 +75,15 @@
                     <DxFormLayoutItem Caption="Población" ColSpanMd="4">
                         <div class="d-flex align-items-center gap-1 w-100">
                             <div class="flex-grow-1">
-                                <DxComboBox Data="@poblaciones"
-                                            TextFieldName="Poblacion"
-                                            ValueFieldName="Poblacion"
-                                            Value="@cliente.Poblacion"
-                                            AllowCustomValue="true"
-                                            NullText="Seleccione o escriba..."
-                                            ListRenderMode="ListRenderMode.Virtual"
-                                            SearchMode="ListSearchMode.AutoSearch"
-                                            SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                            ValueChanged="@((string val) => OnPoblacionChanged(val))">
-                                    <ItemTemplate Context="pob">
-                                        <span style="font-size: 0.9rem;"><strong>@pob.Poblacion</strong> - @pob.Codigo</span>
-                                    </ItemTemplate>
-                                </DxComboBox>
+                                <DxTextBox Text="@cliente.Poblacion" TextExpression="@(() => cliente.Poblacion)" ReadOnly="true" />
                             </div>
-                            <button type="button" class="btn btn-outline-primary btn-sm px-1" title="Editar Población" @onclick="(() => OpenPoblacionPopup(false))" @onclick:stopPropagation>
-                                <i class="oi oi-pencil"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-success btn-sm px-1" title="Nueva Población" @onclick="(() => OpenPoblacionPopup(true))" @onclick:stopPropagation>
-                                <i class="oi oi-plus"></i>
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-2" title="Buscar o crear población" @onclick="AbrirSelectorPoblacion" @onclick:stopPropagation>
+                                <i class="oi oi-magnifying-glass"></i>
                             </button>
                         </div>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Código Postal" ColSpanMd="3">
-                        <div class="d-flex align-items-center gap-1 w-100">
-                            <div class="flex-grow-1">
-                                <DxComboBox Data="@codigosPostales"
-                                            TextFieldName="Codigo"
-                                            ValueFieldName="Codigo"
-                                            Value="@cliente.Codpost"
-                                            AllowCustomValue="true"
-                                            NullText="Seleccione o escriba..."
-                                            ListRenderMode="ListRenderMode.Virtual"
-                                            SearchMode="ListSearchMode.AutoSearch"
-                                            SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                            ValueChanged="@((string val) => OnCodpostChanged(val))">
-                                    <ItemTemplate Context="pob">
-                                        <span style="font-size: 0.9rem;"><strong>@pob.Codigo</strong> - @pob.Poblacion</span>
-                                    </ItemTemplate>
-                                </DxComboBox>
-                            </div>
-                            <button type="button" class="btn btn-outline-primary btn-sm px-1" title="Editar Población" @onclick="(() => OpenPoblacionPopup(false))" @onclick:stopPropagation>
-                                <i class="oi oi-pencil"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-success btn-sm px-1" title="Nueva Población" @onclick="(() => OpenPoblacionPopup(true))" @onclick:stopPropagation>
-                                <i class="oi oi-plus"></i>
-                            </button>
-                        </div>
+                        <DxTextBox Text="@cliente.Codpost" TextExpression="@(() => cliente.Codpost)" ReadOnly="true" />
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Provincia" ColSpanMd="4" BeginRow="true">
                         <DxTextBox @bind-Text="@cliente.Provincia" ReadOnly="true" />
@@ -382,6 +345,7 @@
             </DxFormLayout>
         </BodyTemplate>
     </DxPopup>
+
 </div>
 
 @code {
@@ -390,6 +354,15 @@
 
     [Parameter]
     public string? Clienteerp { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "poblacion")]
+    public string? PoblacionSeleccionada { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "codigoPostal")]
+    public string? CodigoPostalSeleccionado { get; set; }
+
+    [Parameter, SupplyParameterFromQuery(Name = "provincia")]
+    public string? ProvinciaSeleccionada { get; set; }
 
     private ClienteSage50? cliente;
     private List<CodPosSage50>? poblaciones;
@@ -460,8 +433,10 @@
     [JSInvokable]
     public async Task OnWindowFocus()
     {
-        await RefreshPoblacionesAsync();
-        StateHasChanged();
+        // Los catálogos se actualizan al guardar una población. Recargarlos al
+        // recuperar el foco descargaba innecesariamente todos los códigos
+        // postales y retrasaba el formulario de cliente.
+        await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
@@ -483,11 +458,16 @@
     {
         try
         {
+            var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50");
+            var tiposIvaTask = Http.GetFromJsonAsync<List<TipoIvaSage50>>("api/tipoivasage50");
+
             if (HasKeyParams)
             {
                 var escCodigo = Uri.EscapeDataString(Codigo!.Trim());
                 var escClienteerp = Uri.EscapeDataString((Clienteerp ?? "").Trim());
-                cliente = await Http.GetFromJsonAsync<ClienteSage50>($"api/clientessage50/{escCodigo}/{escClienteerp}");
+                var clienteTask = Http.GetFromJsonAsync<ClienteSage50>($"api/clientessage50/{escCodigo}/{escClienteerp}");
+                await Task.WhenAll(formasPagoTask, tiposIvaTask, clienteTask);
+                cliente = await clienteTask;
                 if (cliente != null)
                 {
                     TrimClientFields(cliente);
@@ -565,30 +545,10 @@
                     Zona = "",
                     Observacio = ""
                 };
+
+                await Task.WhenAll(formasPagoTask, tiposIvaTask);
             }
-            poblaciones = await Http.GetFromJsonAsync<List<CodPosSage50>>("api/codpossage50");
-            if (poblaciones != null)
-            {
-                foreach (var p in poblaciones)
-                {
-                    p.Codigo = p.Codigo?.Trim() ?? "";
-                    p.Poblacion = p.Poblacion?.Trim() ?? "";
-                    p.Provincia = p.Provincia?.Trim() ?? "";
-                }
-
-                poblaciones = poblaciones
-                    .OrderBy(p => p.Poblacion)
-                    .ToList();
-
-                codigosPostales = poblaciones
-                    .GroupBy(p => p.Codigo)
-                    .Select(g => g.First())
-                    .OrderBy(p => p.Codigo)
-                    .ToList();
-
-                // Provincia is read-only text box, no distinct query needed.
-            }
-            formasPago = await Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50");
+            formasPago = await formasPagoTask;
             if (formasPago != null)
             {
                 foreach (var f in formasPago)
@@ -598,7 +558,7 @@
                 }
                 formasPago = formasPago.OrderBy(f => f.Codigo).ToList();
             }
-            tiposIvaList = await Http.GetFromJsonAsync<List<TipoIvaSage50>>("api/tipoivasage50");
+            tiposIvaList = await tiposIvaTask;
             if (tiposIvaList != null)
             {
                 foreach (var t in tiposIvaList)
@@ -609,6 +569,7 @@
                 tiposIvaList = tiposIvaList.OrderBy(t => t.Codigo).ToList();
             }
             await LoadContactsAsync();
+            AplicarPoblacionSeleccionada();
             clienteInicial = SerializarCliente();
             errorMessage = null;
         }
@@ -910,9 +871,8 @@
                     .ToList();
 
                 codigosPostales = poblaciones
-                    .GroupBy(p => p.Codigo)
-                    .Select(g => g.First())
                     .OrderBy(p => p.Codigo)
+                    .ThenBy(p => p.Poblacion)
                     .ToList();
 
                 // Provincia is read-only text box, no distinct query needed.
@@ -945,11 +905,30 @@
         }
     }
 
-    private void OnCodpostChanged(string val)
+    private void AbrirSelectorPoblacion()
+    {
+        var retorno = HasKeyParams
+            ? $"/modelos/clientes/edit/{Uri.EscapeDataString(Codigo!.Trim())}/{Uri.EscapeDataString((Clienteerp ?? string.Empty).Trim())}"
+            : "/modelos/clientes/edit";
+        var destino = $"/modelos/poblaciones?seleccionar=true&returnUrl={Uri.EscapeDataString(retorno)}";
+        NavigationManager.NavigateTo(destino);
+    }
+
+    private void AplicarPoblacionSeleccionada()
+    {
+        if (cliente == null || string.IsNullOrWhiteSpace(PoblacionSeleccionada)) return;
+
+        cliente.Poblacion = PoblacionSeleccionada.Trim();
+        cliente.Codpost = CodigoPostalSeleccionado?.Trim() ?? string.Empty;
+        cliente.Provincia = ProvinciaSeleccionada?.Trim() ?? string.Empty;
+    }
+
+    private async Task OnCodpostChangedAsync(string val)
     {
         if (cliente == null) return;
         cliente.Codpost = val?.Trim();
-        var p = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == val?.Trim());
+        var p = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == val?.Trim())
+            ?? await BuscarPoblacionAsync(val, porCodigo: true);
         if (p != null)
         {
             cliente.Poblacion = p.Poblacion?.Trim();
@@ -957,16 +936,124 @@
         }
     }
 
-    private void OnPoblacionChanged(string val)
+    private async Task OnPoblacionChangedAsync(string val)
     {
         if (cliente == null) return;
         cliente.Poblacion = val?.Trim();
-        var p = poblaciones?.FirstOrDefault(x => x.Poblacion?.Trim().ToLower() == val?.Trim().ToLower());
+        var p = poblaciones?.FirstOrDefault(x => string.Equals(x.Poblacion?.Trim(), val?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? await BuscarPoblacionAsync(val, porCodigo: false);
         if (p != null)
         {
             cliente.Codpost = p.Codigo?.Trim();
             cliente.Provincia = p.Provincia?.Trim();
         }
+    }
+
+    private async Task<CodPosSage50?> BuscarPoblacionAsync(string? valor, bool porCodigo)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+
+        var pagina = await Http.GetFromJsonAsync<ResultadoPaginado<CodPosSage50>>(
+            $"api/codpossage50/paginados?pagina=1&tamanoPagina=25&buscar={Uri.EscapeDataString(valor.Trim())}");
+        var resultado = (pagina?.Datos ?? [])
+            .FirstOrDefault(p => porCodigo
+                ? string.Equals(p.Codigo?.Trim(), valor.Trim(), StringComparison.OrdinalIgnoreCase)
+                : string.Equals(p.Poblacion?.Trim(), valor.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (resultado != null && !(poblaciones?.Any(p => p.Codigo?.Trim() == resultado.Codigo?.Trim() && p.Linea?.Trim() == resultado.Linea?.Trim()) ?? false))
+        {
+            poblaciones ??= [];
+            poblaciones.Add(resultado);
+            codigosPostales = poblaciones.OrderBy(p => p.Codigo).ThenBy(p => p.Poblacion).ToList();
+        }
+
+        return resultado;
+    }
+
+    private async Task BuscarOpcionesPoblacionAsync(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto) || texto.Trim().Length < 2) return;
+
+        var pagina = await Http.GetFromJsonAsync<ResultadoPaginado<CodPosSage50>>(
+            $"api/codpossage50/paginados?pagina=1&tamanoPagina=100&buscar={Uri.EscapeDataString(texto.Trim())}");
+        var coincidencias = pagina?.Datos ?? [];
+        if (coincidencias.Count == 0) return;
+
+        poblaciones ??= [];
+        foreach (var poblacion in coincidencias)
+        {
+            poblacion.Codigo = poblacion.Codigo?.Trim() ?? string.Empty;
+            poblacion.Poblacion = poblacion.Poblacion?.Trim() ?? string.Empty;
+            poblacion.Provincia = poblacion.Provincia?.Trim() ?? string.Empty;
+            if (!poblaciones.Any(p => p.Codigo == poblacion.Codigo && p.Linea?.Trim() == poblacion.Linea?.Trim()))
+                poblaciones.Add(poblacion);
+        }
+
+        poblaciones = poblaciones.OrderBy(p => p.Poblacion).ToList();
+        codigosPostales = poblaciones.OrderBy(p => p.Codigo).ThenBy(p => p.Poblacion).ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<LoadResult> CargarPoblacionesComboAsync(DataSourceLoadOptionsBase opciones, CancellationToken cancellationToken)
+    {
+        var texto = ExtraerTextoBusqueda(opciones.Filter);
+        var tamano = Math.Clamp(opciones.Take > 0 ? opciones.Take : 100, 25, 100);
+        var pagina = Math.Max(1, opciones.Skip / tamano + 1);
+        var url = $"api/codpossage50/paginados?pagina={pagina}&tamanoPagina={tamano}";
+        if (!string.IsNullOrWhiteSpace(texto))
+            url += $"&buscar={Uri.EscapeDataString(texto)}";
+
+        var resultado = await Http.GetFromJsonAsync<ResultadoPaginado<CodPosSage50>>(url, cancellationToken)
+            ?? new ResultadoPaginado<CodPosSage50>();
+        return new LoadResult { data = resultado.Datos, totalCount = resultado.TotalRegistros };
+    }
+
+    private static string? ExtraerTextoBusqueda(System.Collections.IList? filtro)
+    {
+        var textos = new List<string>();
+        ExtraerTextos(filtro, textos);
+        return textos.LastOrDefault(texto => !string.Equals(texto, "Poblacion", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(texto, "Codigo", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(texto, "contains", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void ExtraerTextos(System.Collections.IEnumerable? valores, List<string> textos)
+    {
+        if (valores == null) return;
+        foreach (var valor in valores)
+        {
+            if (valor is string texto) textos.Add(texto);
+            else if (valor is System.Collections.IEnumerable hijos) ExtraerTextos(hijos, textos);
+        }
+    }
+
+
+    private async Task IncluirPoblacionActualAsync()
+    {
+        if (cliente == null || poblaciones == null) return;
+
+        CodPosSage50? actual = null;
+        var codigoPostal = cliente.Codpost?.Trim();
+        if (!string.IsNullOrWhiteSpace(codigoPostal))
+        {
+            var opciones = await Http.GetFromJsonAsync<List<CodPosSage50>>(
+                $"api/codpossage50/por-codigo/{Uri.EscapeDataString(codigoPostal)}") ?? [];
+            actual = opciones.FirstOrDefault(p => string.Equals(p.Poblacion?.Trim(), cliente.Poblacion?.Trim(), StringComparison.OrdinalIgnoreCase))
+                ?? opciones.FirstOrDefault();
+        }
+        else if (!string.IsNullOrWhiteSpace(cliente.Poblacion))
+        {
+            actual = await BuscarPoblacionAsync(cliente.Poblacion, porCodigo: false);
+        }
+
+        if (actual == null || poblaciones.Any(p => p.Codigo?.Trim() == actual.Codigo?.Trim() && p.Linea?.Trim() == actual.Linea?.Trim())) return;
+
+        actual.Codigo = actual.Codigo?.Trim() ?? string.Empty;
+        actual.Poblacion = actual.Poblacion?.Trim() ?? string.Empty;
+        actual.Provincia = actual.Provincia?.Trim() ?? string.Empty;
+        poblaciones.Add(actual);
+        poblaciones = poblaciones.OrderBy(p => p.Poblacion).ToList();
+        codigosPostales = poblaciones.OrderBy(p => p.Codigo).ThenBy(p => p.Poblacion).ToList();
     }
 
     private void OnFpagChanged(string val)
@@ -1041,13 +1128,59 @@
             }
             else
             {
-                errorMessage = $"Error al guardar el cliente: {response.ReasonPhrase}";
+                var content = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error al guardar el cliente: {ExtraerMensajeError(content, response.ReasonPhrase)}";
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
         }
+    }
+
+    private static string ExtraerMensajeError(string contenido, string? mensajeAlternativo)
+    {
+        if (string.IsNullOrWhiteSpace(contenido))
+            return mensajeAlternativo ?? "Error en la solicitud.";
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(contenido);
+            if (doc.RootElement.TryGetProperty("errors", out var errorsProp) && errorsProp.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                var errores = new List<string>();
+                foreach (var error in errorsProp.EnumerateObject())
+                {
+                    var mensajes = error.Value.ValueKind == System.Text.Json.JsonValueKind.Array
+                        ? error.Value.EnumerateArray()
+                            .Where(item => item.ValueKind == System.Text.Json.JsonValueKind.String)
+                            .Select(item => item.GetString())
+                            .Where(item => !string.IsNullOrWhiteSpace(item))
+                        : Enumerable.Empty<string?>();
+
+                    foreach (var mensaje in mensajes)
+                    {
+                        errores.Add($"{error.Name}: {mensaje}");
+                    }
+                }
+
+                if (errores.Count > 0)
+                {
+                    return string.Join(" ", errores);
+                }
+            }
+            if (doc.RootElement.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                return msgProp.GetString()!;
+            }
+            if (doc.RootElement.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == System.Text.Json.JsonValueKind.String)
+            {
+                return titleProp.GetString()!;
+            }
+        }
+        catch { }
+
+        return contenido;
     }
 
     private async Task OnBloqueoClienteChanged(bool bloqueado)

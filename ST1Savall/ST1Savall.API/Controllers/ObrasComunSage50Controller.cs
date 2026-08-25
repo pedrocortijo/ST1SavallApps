@@ -41,6 +41,14 @@ public class ObrasComunSage50Controller : ControllerBase
         return await _applicationContext.Solicitudes.AnyAsync(s => s.IdCliente == idObra);
     }
 
+    [HttpGet("albaranes-asignados/{codigo}")]
+    public async Task<ActionResult<bool>> TieneAlbaranesSageAsignados(string codigo)
+    {
+        var idObra = ParseCodigoToInt(codigo);
+        return await _applicationContext.Solicitudes.AnyAsync(s => s.IdCliente == idObra &&
+            (!string.IsNullOrWhiteSpace(s.AlbaranNumeroSage) || !string.IsNullOrWhiteSpace(s.AlbaranSerieSage)));
+    }
+
     [HttpPost]
     public async Task<ActionResult<ObraComunSage50>> PostObra(ObraComunSage50 obra)
     {
@@ -66,7 +74,7 @@ public class ObrasComunSage50Controller : ControllerBase
     }
 
     [HttpPut("{codigo}")]
-    public async Task<IActionResult> PutObra(string codigo, ObraComunSage50 obra)
+    public async Task<IActionResult> PutObra(string codigo, ObraComunSage50 obra, [FromQuery] bool forzarCliente = false)
     {
         if (codigo != obra.Codigo) return BadRequest();
 
@@ -75,21 +83,32 @@ public class ObrasComunSage50Controller : ControllerBase
 
         var clienteActual = obraActual.Cliente?.Trim() ?? string.Empty;
         var clienteNuevo = obra.Cliente?.Trim() ?? string.Empty;
-        if (!string.Equals(clienteActual, clienteNuevo, StringComparison.OrdinalIgnoreCase)
-            && await _applicationContext.Solicitudes.AnyAsync(s => s.IdCliente == ParseCodigoToInt(codigo)))
+        bool esAdmin = EsUsuarioAdmin();
+
+        if (!string.Equals(clienteActual, clienteNuevo, StringComparison.OrdinalIgnoreCase))
         {
-            return Conflict(new { message = "No se puede cambiar el cliente porque la obra ya tiene servicios asignados." });
+            var idObra = ParseCodigoToInt(codigo);
+            bool tieneAlbaranSage = await _applicationContext.Solicitudes.AnyAsync(s => s.IdCliente == idObra &&
+                (!string.IsNullOrWhiteSpace(s.AlbaranNumeroSage) || !string.IsNullOrWhiteSpace(s.AlbaranSerieSage)));
+
+            if (tieneAlbaranSage)
+            {
+                return Conflict(new { message = "No se puede cambiar el cliente porque existe al menos un servicio con albarán de Sage 50 emitido." });
+            }
+
+            if (!esAdmin && !forzarCliente && await _applicationContext.Solicitudes.AnyAsync(s => s.IdCliente == idObra))
+            {
+                return Conflict(new { message = "No se puede cambiar el cliente porque la obra ya tiene servicios asignados." });
+            }
         }
 
         _context.Entry(obra).State = EntityState.Modified;
         var entry = _context.Entry(obra);
         entry.Property(o => o.Descuento).IsModified = false;
-        entry.Property(o => o.Fax).IsModified = false;
         entry.Property(o => o.Fpag).IsModified = false;
         entry.Property(o => o.Isp).IsModified = false;
         entry.Property(o => o.Marvehic).IsModified = false;
         entry.Property(o => o.Modvehic).IsModified = false;
-        entry.Property(o => o.Observacio).IsModified = false;
         entry.Property(o => o.Password).IsModified = false;
         entry.Property(o => o.Pp).IsModified = false;
         entry.Property(o => o.Ruta).IsModified = false;
@@ -155,5 +174,23 @@ public class ObrasComunSage50Controller : ControllerBase
             }
             await _applicationContext.SaveChangesAsync();
         }
+    }
+
+    private bool EsUsuarioAdmin()
+    {
+        var nameOrEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            ?? User.FindFirst("email")?.Value
+            ?? User.Identity?.Name;
+
+        if (!string.IsNullOrWhiteSpace(nameOrEmail))
+        {
+            if (string.Equals(nameOrEmail, "admin@savall.com", StringComparison.OrdinalIgnoreCase) ||
+                nameOrEmail.StartsWith("admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return User.IsInRole("Admin") || User.HasClaim(c => c.Type == System.Security.Claims.ClaimTypes.Role && string.Equals(c.Value, "Admin", StringComparison.OrdinalIgnoreCase));
     }
 }

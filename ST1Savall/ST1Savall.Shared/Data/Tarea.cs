@@ -19,4 +19,5 @@ public class Tarea
     public bool Recoger2 { get; set; } = false;
     public bool Entrega1 { get; set; } = false;
     public bool Entrega2 { get; set; } = false;
+    public bool CreaAlbaran { get; set; } = false;
 }

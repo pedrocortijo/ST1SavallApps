@@ -32,12 +32,26 @@ namespace ST1Savall
             builder.Services.AddScoped<AuthenticationStateProvider, DesktopAuthenticationStateProvider>();
 #if ANDROID
             // Dirección IPv4 del equipo que ejecuta ST1Savall.API en la red local.
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.18.33:5077/") });
+            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
+            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.1.230:4040/") });
 #else
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
+            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.1.230:4040/") });
+            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:4040/") });
 #endif
             builder.Services.AddScoped<IAuthService, DesktopAuthService>();
             builder.Services.AddScoped<ST1Savall.Shared.Services.ObrasMntoGridState>();
+            builder.Services.AddScoped<ST1Savall.Shared.Services.SolicitudesGridState>();
+            builder.Services.AddScoped<ST1Savall.Shared.Services.HomeGridState>();
+            builder.Services.AddScoped<DevExpress.Blazor.Localization.IDxLocalizationService, ST1Savall.Shared.Services.CustomDxLocalizationService>();
+
+            DevExpress.Utils.Localization.XtraLocalizer.QueryLocalizedString += (sender, e) =>
+            {
+                if (string.Equals(e.Value, "Recursos", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(e.Value, "Resources", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Value = "Conductores";
+                }
+            };
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

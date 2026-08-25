@@ -26,10 +26,6 @@
     .visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
     .visor-foto-cerrar { position: absolute; top: 8px; right: 8px; min-width: 40px; min-height: 40px; }
     .visor-foto-cargando { color: #fff; text-align: center; }
-    .visor-foto { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .78); }
-    .visor-foto-contenido { position: relative; max-width: min(100%, 1100px); max-height: 100%; }
-    .visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
-    .visor-foto button { position: absolute; top: 8px; right: 8px; min-width: 40px; min-height: 40px; }
     .firma-acciones .btn { min-height: 44px; }
     @@media (max-width: 700px) { .firma-fotos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .firma-cabecera { align-items: stretch !important; } }
 </style>
@@ -77,10 +73,10 @@
     {
         <div class="card shadow-sm border-0"><div class="card-body p-3 p-md-4">
             <div class="row g-2 mb-3">
-                    <div class="col-4"><label class="form-label small fw-bold">Nº solicitud</label><DxTextBox Text="@solicitud.IdSolicitud.ToString()" ReadOnly="true" CssClass="w-100" /></div>
+                <div class="col-4"><label class="form-label small fw-bold">Nº solicitud</label><DxTextBox Text="@solicitud.IdSolicitud.ToString()" ReadOnly="true" CssClass="w-100" /></div>
                 <div class="col-8"><label class="form-label small fw-bold">Fecha servicio</label><DxTextBox Text="@FechaServicio" ReadOnly="true" CssClass="w-100" /></div>
                 <div class="col-12"><label class="form-label small fw-bold">Obra</label><DxTextBox Text="@solicitud.NombreObra" ReadOnly="true" CssClass="w-100" /></div>
-                    <div class="col-12"><label class="form-label small fw-bold">Dirección de la obra</label><DxTextBox Text="@($"{solicitud.DireccionCliente}, {solicitud.PoblacionCliente}")" ReadOnly="true" CssClass="w-100" /></div>
+                <div class="col-12"><label class="form-label small fw-bold">Dirección de la obra</label><DxTextBox Text="@($"{solicitud.DireccionCliente}, {solicitud.PoblacionCliente}")" ReadOnly="true" CssClass="w-100" /></div>
             </div>
 
             <section class="border-top pt-3 mb-3">
@@ -93,10 +89,23 @@
                 </div>
             </section>
 
-                <div class="row g-2 border-top pt-3 mb-3">
-                    <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" TData="ArticuloSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="solicitud.TipoResiduo" CssClass="w-100" NullText="Seleccione el tipo de residuo..." /></div>
-                    <div class="col-md-6"><label class="form-label small fw-bold">Albarán de planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div>
+            <div class="row g-2 border-top pt-3 mb-3">
+                <div class="col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label><DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" TData="ArticuloSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="solicitud.TipoResiduo" CssClass="w-100" NullText="Seleccione el tipo de residuo..." /></div>
+                <div class="col-md-6"><label class="form-label small fw-bold">Albarán de planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div><div class="col-md-6"><label class="form-label small fw-bold">Kg albarán</label><DxSpinEdit @bind-Value="solicitud.KgAlbaran" MinValue="0" Increment="1" CssClass="w-100" /></div>
+            </div>
+
+            <section class="border-top pt-3 mb-3">
+                <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Observaciones</h3>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Observaciones del conductor</label>
+                        <DxMemo @bind-Text="solicitud.ObservacionesConductor"
+                                Rows="2"
+                                NullText="Introduzca las observaciones del conductor..."
+                                CssClass="w-100" />
+                    </div>
                 </div>
+            </section>
 
             <section class="border-top pt-3">
                 <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Firma de solicitud</h3>
@@ -233,9 +242,11 @@
             var datos = await Http.PutAsJsonAsync($"api/solicitudes/{Id}/datos-firma", new
             {
                 solicitud.AlbaranPlanta,
+                solicitud.KgAlbaran,
                 solicitud.TipoResiduo,
                 solicitud.FirmaNombre,
                 solicitud.FirmaDni,
+                solicitud.ObservacionesConductor,
                 solicitud.CodigoEntrega,
                 solicitud.CodigoAmbosEntrega,
                 solicitud.CodigoRecogida,

@@ -42,7 +42,7 @@
 
     <div class="card shadow-sm">
         <div class="card-body p-0">
-            @if (operarios == null || cargos == null || plantas == null)
+            @if (operarios == null || cargos == null || plantas == null || camiones == null)
             {
                 <div class="p-5 text-center">
                     <div class="spinner-border text-primary" role="status">
@@ -134,6 +134,12 @@
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="IdCamion" Caption="Camión" Width="130px" TextAlignment="GridTextAlignment.Left">
+                            <CellDisplayTemplate>
+                                @{ var oper = (Operario)context.DataItem; }
+                                @camiones.FirstOrDefault(c => c.IdCamion == oper.IdCamion)?.Matricula
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
                         <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="100px" />
                         <DxGridDataColumn FieldName="EstadoLaboral" Caption="Estado laboral" Width="90px" Visible="false"/>
                         <DxGridDataColumn FieldName="InicioJornada" Caption="Ini. jornada" DisplayFormat="hh':'mm" Width="90px" TextAlignment="GridTextAlignment.Center" />
@@ -167,6 +173,13 @@
                                             TextFieldName="Nombre"
                                             ValueFieldName="IdPlanta"
                                             @bind-Value="@oper.IdPlanta" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Camión asignado" ColSpanMd="6" BeginRow="true">
+                                <DxComboBox Data="@camiones"
+                                            TextFieldName="Matricula"
+                                            ValueFieldName="IdCamion"
+                                            @bind-Value="@oper.IdCamion"
+                                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
                             </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Inicio jornada" ColSpanMd="4" BeginRow="true">
                                 <DxTimeEdit @bind-Time="@oper.InicioJornada" 
@@ -275,6 +288,7 @@
     private List<Operario>? operarios;
     private List<Cargo>? cargos;
     private List<Planta>? plantas;
+    private List<Camion>? camiones;
     private string? errorMessage;
     private bool conflictoAusenciaVisible;
     private string? mensajeConflictoAusencia;
@@ -321,6 +335,7 @@
         newOperario.Telefono = operarioToDuplicate.Telefono;
         newOperario.IdCargo = operarioToDuplicate.IdCargo;
         newOperario.IdPlanta = operarioToDuplicate.IdPlanta;
+        newOperario.IdCamion = null;
         newOperario.Activo = operarioToDuplicate.Activo;
         newOperario.Obras = operarioToDuplicate.Obras;
         newOperario.Mensajes = operarioToDuplicate.Mensajes;
@@ -360,6 +375,7 @@
         {
             cargos = await Http.GetFromJsonAsync<List<Cargo>>("api/cargos") ?? new List<Cargo>();
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? new List<Planta>();
+            camiones = await Http.GetFromJsonAsync<List<Camion>>("api/camiones") ?? new List<Camion>();
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? new List<Operario>();
             ausencias = await Http.GetFromJsonAsync<List<Ausencia>>("api/ausencias") ?? [];
             errorMessage = null;
@@ -369,6 +385,7 @@
             errorMessage = $"Error al cargar operarios: {ex.Message}";
             cargos ??= new List<Cargo>();
             plantas ??= new List<Planta>();
+            camiones ??= new List<Camion>();
             operarios ??= new List<Operario>();
             ausencias ??= [];
         }
@@ -385,7 +402,9 @@
                 var response = await Http.PostAsJsonAsync("api/operarios", editModel);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al crear operario: {response.ReasonPhrase}";
+                    var mensajeObj = await response.Content.ReadFromJsonAsync<MensajeApi>();
+                    errorMessage = $"Error al crear operario: {mensajeObj?.Message ?? response.ReasonPhrase}";
+                    e.Cancel = true;
                     return;
                 }
             }
@@ -394,7 +413,9 @@
                 var response = await Http.PutAsJsonAsync($"api/operarios/{editModel.IdOperario}", editModel);
                 if (!response.IsSuccessStatusCode)
                 {
-                    errorMessage = $"Error al actualizar operario: {response.ReasonPhrase}";
+                    var mensajeObj = await response.Content.ReadFromJsonAsync<MensajeApi>();
+                    errorMessage = $"Error al actualizar operario: {mensajeObj?.Message ?? response.ReasonPhrase}";
+                    e.Cancel = true;
                     return;
                 }
             }
@@ -403,6 +424,7 @@
         catch (Exception ex)
         {
             errorMessage = $"Error al guardar: {ex.Message}";
+            e.Cancel = true;
         }
     }
 

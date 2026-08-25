@@ -17,7 +17,6 @@ public sealed class CalculoRutaSolicitudService
 
     public static bool TieneDatosCompletos(Solicitud solicitud) =>
         solicitud.IdPlantaOrigen.HasValue &&
-        solicitud.IdPlantaDescarga.HasValue &&
         solicitud.IdPlantaRegreso.HasValue &&
         GetLatitudObra(solicitud).HasValue &&
         GetLongitudObra(solicitud).HasValue;
@@ -27,8 +26,8 @@ public sealed class CalculoRutaSolicitudService
         bool forzarActualizacion = false,
         CancellationToken cancellationToken = default)
     {
-        if (!solicitud.IdPlantaOrigen.HasValue || !solicitud.IdPlantaDescarga.HasValue || !solicitud.IdPlantaRegreso.HasValue)
-            throw new ProveedorRutasException("Seleccione la planta origen, la planta de descarga y la central de regreso.");
+        if (!solicitud.IdPlantaOrigen.HasValue || !solicitud.IdPlantaRegreso.HasValue)
+            throw new ProveedorRutasException("Seleccione la central de origen y la central de regreso.");
 
         var latitudObra = GetLatitudObra(solicitud);
         var longitudObra = GetLongitudObra(solicitud);
@@ -36,32 +35,41 @@ public sealed class CalculoRutaSolicitudService
             throw new ProveedorRutasException("Indique las coordenadas de la obra antes de calcular la ruta.");
 
         var ids = new[]
-        {
-            solicitud.IdPlantaOrigen.Value,
-            solicitud.IdPlantaDescarga.Value,
-            solicitud.IdPlantaRegreso.Value
-        }.Distinct().ToArray();
+            {
+                solicitud.IdPlantaOrigen.Value,
+                solicitud.IdPlantaRegreso.Value,
+                solicitud.IdPlantaDescarga
+            }
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToArray();
 
         var plantas = await _context.Plantas.AsNoTracking()
             .Where(p => ids.Contains(p.IdPlanta))
             .ToDictionaryAsync(p => p.IdPlanta, cancellationToken);
 
         var origen = GetPlanta(plantas, solicitud.IdPlantaOrigen.Value, "origen");
-        var descarga = GetPlanta(plantas, solicitud.IdPlantaDescarga.Value, "descarga");
         var regreso = GetPlanta(plantas, solicitud.IdPlantaRegreso.Value, "regreso");
+        var descarga = solicitud.IdPlantaDescarga.HasValue
+            ? GetPlanta(plantas, solicitud.IdPlantaDescarga.Value, "reciclaje")
+            : null;
 
         var tramoOrigenObra = await _mapboxDirections.CalcularTramoAsync(
             origen.Latitud!.Value, origen.Longitud!.Value,
             latitudObra.Value, longitudObra.Value,
             forzarActualizacion, cancellationToken);
 
-        var tramoObraDescarga = await _mapboxDirections.CalcularTramoAsync(
-            latitudObra.Value, longitudObra.Value,
-            descarga.Latitud!.Value, descarga.Longitud!.Value,
-            forzarActualizacion, cancellationToken);
+        ResultadoTramoRuta? tramoObraDescarga = descarga is null
+            ? null
+            : await _mapboxDirections.CalcularTramoAsync(
+                latitudObra.Value, longitudObra.Value,
+                descarga.Latitud!.Value, descarga.Longitud!.Value,
+                forzarActualizacion, cancellationToken);
 
-        var tramoDescargaRegreso = await _mapboxDirections.CalcularTramoAsync(
-            descarga.Latitud!.Value, descarga.Longitud!.Value,
+        var tramoHastaRegreso = await _mapboxDirections.CalcularTramoAsync(
+            descarga?.Latitud ?? latitudObra.Value,
+            descarga?.Longitud ?? longitudObra.Value,
             regreso.Latitud!.Value, regreso.Longitud!.Value,
             forzarActualizacion, cancellationToken);
 
@@ -69,18 +77,18 @@ public sealed class CalculoRutaSolicitudService
         solicitud.LongitudOrigen = origen.Longitud;
         solicitud.LatitudObra = latitudObra;
         solicitud.LongitudObra = longitudObra;
-        solicitud.LatitudDescarga = descarga.Latitud;
-        solicitud.LongitudDescarga = descarga.Longitud;
+        solicitud.LatitudDescarga = descarga?.Latitud;
+        solicitud.LongitudDescarga = descarga?.Longitud;
         solicitud.LatitudRegreso = regreso.Latitud;
         solicitud.LongitudRegreso = regreso.Longitud;
 
         solicitud.DistanciaOrigenObraMetros = tramoOrigenObra.DistanciaMetros;
-        solicitud.DistanciaObraDescargaMetros = tramoObraDescarga.DistanciaMetros;
-        solicitud.DistanciaDescargaRegresoMetros = tramoDescargaRegreso.DistanciaMetros;
+        solicitud.DistanciaObraDescargaMetros = tramoObraDescarga?.DistanciaMetros ?? 0;
+        solicitud.DistanciaDescargaRegresoMetros = tramoHastaRegreso.DistanciaMetros;
         solicitud.MinutosOrigenObra = AMinutos(tramoOrigenObra.DuracionSegundos);
-        solicitud.MinutosObraDescarga = AMinutos(tramoObraDescarga.DuracionSegundos);
-        solicitud.MinutosDescargaRegreso = AMinutos(tramoDescargaRegreso.DuracionSegundos);
-        solicitud.DistanciaTotalMetros = tramoOrigenObra.DistanciaMetros + tramoObraDescarga.DistanciaMetros + tramoDescargaRegreso.DistanciaMetros;
+        solicitud.MinutosObraDescarga = tramoObraDescarga is null ? 0 : AMinutos(tramoObraDescarga.Value.DuracionSegundos);
+        solicitud.MinutosDescargaRegreso = AMinutos(tramoHastaRegreso.DuracionSegundos);
+        solicitud.DistanciaTotalMetros = tramoOrigenObra.DistanciaMetros + (tramoObraDescarga?.DistanciaMetros ?? 0) + tramoHastaRegreso.DistanciaMetros;
         solicitud.DuracionViajeMinutos = solicitud.MinutosOrigenObra + solicitud.MinutosObraDescarga + solicitud.MinutosDescargaRegreso;
         var duracionOperacion = await ObtenerDuracionOperacionAsync(cancellationToken);
         solicitud.DuracionOperacionMinutos = duracionOperacion;
@@ -101,7 +109,10 @@ public sealed class CalculoRutaSolicitudService
         solicitud.FechaCalculoRuta = DateTime.UtcNow;
         solicitud.ProveedorCalculoRuta = "Mapbox Directions";
 
-        var tramos = new[] { tramoOrigenObra, tramoObraDescarga, tramoDescargaRegreso };
+        var tramos = new[] { tramoOrigenObra, tramoObraDescarga, tramoHastaRegreso }
+            .Where(tramo => tramo is not null)
+            .Select(tramo => tramo!.Value)
+            .ToArray();
         var desdeCache = tramos.Count(t => t.DesdeCache);
         return new CalculoRutaSolicitudResultado
         {

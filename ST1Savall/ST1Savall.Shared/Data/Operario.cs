@@ -25,6 +25,11 @@ public class Operario
     [ForeignKey("IdPlanta")]
     public Planta? Planta { get; set; }
 
+    public int? IdCamion { get; set; }
+
+    [ForeignKey(nameof(IdCamion))]
+    public Camion? Camion { get; set; }
+
     public bool? Activo { get; set; }
     public bool? Obras { get; set; }
     public bool? Mensajes { get; set; }
