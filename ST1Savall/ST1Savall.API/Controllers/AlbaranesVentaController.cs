@@ -40,6 +40,12 @@ public class AlbaranesVentaController(
             .ToListAsync();
         var codigosObra = cabeceras.Select(c => c.OBRA).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
         var obras = await comunContext.Obras.AsNoTracking().Where(o => codigosObra.Contains(o.Codigo)).ToListAsync();
+        var camposAdicionales = (await context.CamposAdicionalesDocumentosVenta.AsNoTracking()
+            .Where(c => c.FICHERO == 1 && empresas.Contains(c.EMPRESA) && numeros.Contains(c.NUMERO) && series.Contains(c.LETRA)
+                && (c.CAMPO == "001" || c.CAMPO == "002" || c.CAMPO == "003" || c.CAMPO == "004"))
+            .ToListAsync())
+            .Where(c => claves.Contains($"{c.EMPRESA}|{c.NUMERO}|{c.LETRA}"))
+            .ToList();
 
         return cabeceras.Select(c => CrearEdicion(c,
             lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA),
@@ -47,7 +53,7 @@ public class AlbaranesVentaController(
                 ?? clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE),
             obras.FirstOrDefault(obra => obra.Codigo == c.OBRA),
             direccionesEnvio.FirstOrDefault(d => d.CLIENTE == c.CLIENTE && d.LINEA == c.ENV_CLI),
-            tiposIva.FirstOrDefault(t => t.Codigo.Trim() == (lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA)?.TIPO_IVA.Trim() ?? string.Empty)))).ToList();
+            tiposIva.FirstOrDefault(t => t.Codigo.Trim() == (lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA)?.TIPO_IVA.Trim() ?? string.Empty)), camposAdicionales)).ToList();
     }
 
     [HttpGet("{empresa}/{numero}/{serie}")]
@@ -65,7 +71,10 @@ public class AlbaranesVentaController(
         var direccionEnvio = await context.DireccionesEnvioClientes.AsNoTracking()
             .FirstOrDefaultAsync(d => d.CLIENTE == cabecera.CLIENTE && d.LINEA == cabecera.ENV_CLI);
         var tipoIva = linea is null ? null : await context.TipoIva.AsNoTracking().FirstOrDefaultAsync(t => t.Codigo.Trim() == linea.TIPO_IVA.Trim());
-        return CrearEdicion(cabecera, linea, cliente, obra, direccionEnvio, tipoIva);
+        var camposAdicionales = await context.CamposAdicionalesDocumentosVenta.AsNoTracking()
+            .Where(c => c.FICHERO == 1 && c.EMPRESA == cabecera.EMPRESA && c.NUMERO == cabecera.NUMERO && c.LETRA == cabecera.LETRA && (c.CAMPO == "001" || c.CAMPO == "002" || c.CAMPO == "003" || c.CAMPO == "004"))
+            .ToListAsync();
+        return CrearEdicion(cabecera, linea, cliente, obra, direccionEnvio, tipoIva, camposAdicionales);
     }
 
     [HttpPost("campos-adicionales/validar-acceso")]
@@ -277,7 +286,7 @@ public class AlbaranesVentaController(
         if (precio.HasValue) datos.Precio = precio.Value;
     }
 
-    private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente, ObraComunSage50? obra = null, DireccionEnvioClienteSage50? direccionEnvio = null, TipoIvaSage50? tipoIva = null) => new()
+    private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente, ObraComunSage50? obra = null, DireccionEnvioClienteSage50? direccionEnvio = null, TipoIvaSage50? tipoIva = null, IEnumerable<CampoAdicionalDocumentoVentaSage50>? camposAdicionales = null) => new()
     {
         Empresa = cabecera.EMPRESA.Trim(), Numero = cabecera.NUMERO.Trim(), Serie = cabecera.LETRA.Trim(), Fecha = cabecera.FECHA,
         Cliente = cabecera.CLIENTE.Trim(), Almacen = cabecera.ALMACEN.Trim(), Usuario = cabecera.USUARIO.Trim(),
@@ -289,8 +298,13 @@ public class AlbaranesVentaController(
         ClienteCif = cliente?.Cif.Trim() ?? string.Empty, ClienteNombre = cliente?.Nombre.Trim() ?? string.Empty,
         ClienteDireccion = direccionEnvio?.DIRECCION.Trim() ?? cliente?.Direccion.Trim() ?? string.Empty, ClienteCodigoPostal = direccionEnvio?.CODPOS.Trim() ?? cliente?.Codpost.Trim() ?? string.Empty,
         ClientePoblacion = direccionEnvio?.POBLACION.Trim() ?? cliente?.Poblacion.Trim() ?? string.Empty, ClienteProvincia = direccionEnvio?.PROVINCIA.Trim() ?? cliente?.Provincia.Trim() ?? string.Empty,
-        ClienteTelefono = cliente?.Telefono.Trim() ?? string.Empty, ClienteEmail = cliente?.Email.Trim() ?? string.Empty
+        ClienteTelefono = cliente?.Telefono.Trim() ?? string.Empty, ClienteEmail = cliente?.Email.Trim() ?? string.Empty,
+        Matricula = ObtenerCampoAdicional(camposAdicionales, "001"), AlbaranPlanta = ObtenerCampoAdicional(camposAdicionales, "002"),
+        FechaPlanta = ObtenerCampoAdicional(camposAdicionales, "003"), NetoKg = ObtenerCampoAdicional(camposAdicionales, "004")
     };
+
+    private static string ObtenerCampoAdicional(IEnumerable<CampoAdicionalDocumentoVentaSage50>? campos, string codigo) =>
+        campos?.FirstOrDefault(c => c.CAMPO.Trim() == codigo)?.VALOR.Trim() ?? string.Empty;
 
     private static AlbaranVentaSage50 CrearCabecera(AlbaranVentaEdicion d, ClienteSage50 cliente, CalculoFiscalAlbaran calculoFiscal)
     {

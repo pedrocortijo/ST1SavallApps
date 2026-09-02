@@ -384,6 +384,11 @@
                                         <span class="text-nowrap" style="opacity: 0.75;">Móvil:</span>
                                         <span>@(solicitud.Movil ?? "-")</span>
                                     </div>
+                                    <div class="col-12 d-flex justify-content-center align-items-baseline gap-2 text-nowrap overflow-auto" style="color: #E8A000;">
+                                        <span class="text-nowrap fw-bold">Tarifa de obra:</span>
+                                        <span class="text-nowrap fw-bold">@TextoTarifaObra</span>
+                                        @if (TienePreciosEspecialesObra) { <NavLink href="@UrlPreciosEspecialesObra" class="link-warning text-nowrap fw-bold">(Con tarifas especiales)</NavLink> }
+                                    </div>
                                 </div>
                             </div>
                         </Template>
@@ -1470,7 +1475,7 @@
     {
         if (solicitud == null) return;
         var parametro = parametrosList?.FirstOrDefault();
-        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro);
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, null, estadosList);
     }
 
     private void OnMotivoReprogramacionChanged(int? val)
@@ -1911,7 +1916,7 @@
         solicitud?.FechaHoraFinPlanificada.HasValue == true;
 
     private bool TienePlanificacionCompletaParaAsignar() =>
-        solicitud?.IdConductor is > 0 &&
+        solicitud?.IdConductor is >= 0 &&
         solicitud?.IdPlantaOrigen.HasValue == true &&
         solicitud?.IdPlantaRegreso.HasValue == true &&
         solicitud?.DuracionPlanificadaMinutos is > 0 &&
@@ -2395,7 +2400,7 @@
             var resultado = await response.Content.ReadFromJsonAsync<CalculoRutaSolicitudResultado>();
             if (resultado?.Calculado != true || resultado.Solicitud == null)
             {
-                errorMessage = resultado?.Mensaje ?? "Mapbox no devolvió un cálculo válido.";
+                errorMessage = resultado?.Mensaje ?? "El servicio de rutas no devolvió un cálculo válido.";
                 return false;
             }
 
@@ -2403,7 +2408,7 @@
             if (mostrarMensaje)
             {
                 var origenDatos = resultado.TramosDesdeProveedor > 0
-                    ? $"{resultado.TramosDesdeProveedor} tramo(s) consultados a Mapbox"
+                    ? $"{resultado.TramosDesdeProveedor} tramo(s) calculados con el servicio de rutas"
                     : "todos los tramos recuperados de caché";
                 planificacionMessage = $"{resultado.Mensaje} ({origenDatos}).";
             }
@@ -2948,6 +2953,8 @@
         ).OrderBy(o => o.Nombre);
     }
 
+    private Obra? ObraSeleccionada => obras?.FirstOrDefault(o => o.IdObra == solicitud?.IdCliente); private bool TienePreciosEspecialesObra => ObraSeleccionada?.TienePreciosEspeciales == true; private string UrlPreciosEspecialesObra { get { var retorno = solicitud is null ? "/modelos/solicitudes" : $"/modelos/solicitudes/edit/{solicitud.IdSolicitud}"; return $"/modelos/obrasmnto/edit/{Uri.EscapeDataString(ObraSeleccionada?.Codigo ?? string.Empty)}?tab=precios&returnUrl={Uri.EscapeDataString(retorno)}"; } } private string TextoTarifaObra { get { var obra = ObraSeleccionada; return obra is null || string.IsNullOrWhiteSpace(obra.Tarifa) ? "-" : $"{obra.Tarifa.Trim()} · Zona {obra.Zona?.Trim()} - {obra.ZonaDescripcion?.Trim()}"; } }
+
     private bool TieneObraSeleccionada => obras?.Any(o => o.IdObra == solicitud?.IdCliente && !string.IsNullOrWhiteSpace(o.Codigo)) == true;
 
     private async Task EditarObraSeleccionada()
@@ -3009,7 +3016,7 @@
         var idAdjudicado = parametro?.EstadoAdjudicado ?? 9;
         var idReprogramado = parametro?.EstadoReprogramacion ?? 6;
 
-        bool tieneConductor = solicitud.IdConductor.HasValue && solicitud.IdConductor.Value > 0;
+        bool tieneConductor = solicitud.IdConductor.HasValue && solicitud.IdConductor.Value >= 0;
         bool tieneFechaPrevista = solicitud.FechaPrevista.HasValue || solicitud.FechaTarea.HasValue;
         bool tieneHoraInicio = solicitud.FechaHoraInicioPlanificada.HasValue;
         bool tieneHoraFin = solicitud.FechaHoraFinPlanificada.HasValue;

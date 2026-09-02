@@ -47,6 +47,10 @@ public class ObrasController : ControllerBase
             .GroupBy(c => c.Codigo.Trim())
             .ToDictionary(g => g.Key, g => g.First());
 
+        var zonas = await _comunContext.Zonas.Where(z => z.Ruta.Trim() == "01").ToListAsync();
+        var zonasPorCodigo = zonas.GroupBy(z => z.Zona.Trim()).ToDictionary(g => g.Key, g => g.First().Descripcion.Trim());
+
+        var obrasConPreciosEspeciales = (await _applicationContext.PreciosEspecialesCabeceras.Select(p => p.ObraSage.Trim()).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var result = new List<Obra>();
         foreach (var so in sageObras)
         {
@@ -63,6 +67,10 @@ public class ObrasController : ControllerBase
                 Visible = so.Posicion == 0,
                 Posicion = so.Posicion,
                 Nima = so.Libre3.Trim(),
+                Tarifa = so.Tarifa.Trim(),
+                Zona = so.Zona.Trim(),
+                ZonaDescripcion = zonasPorCodigo.GetValueOrDefault(so.Zona.Trim()),
+                TienePreciosEspeciales = obrasConPreciosEspeciales.Contains(so.Codigo.Trim()),
                 Libre1 = so.Libre1?.Trim(),
                 Libre2 = so.Libre2?.Trim(),
                 Telefono = so.Telefono.Trim(),
@@ -72,7 +80,9 @@ public class ObrasController : ControllerBase
                 Observaciones = so.Observacio
             };
 
-            var clientCode = (so.Cliente ?? "").Trim();
+            obra.ZonaDescripcion = await _comunContext.Zonas.Where(z => z.Ruta.Trim() == "01" && z.Zona.Trim() == obra.Zona).Select(z => z.Descripcion.Trim()).FirstOrDefaultAsync();
+
+        var clientCode = (so.Cliente ?? "").Trim();
             if (clientMap.TryGetValue(clientCode, out var client))
             {
                 obra.NombreCliente = client.Nombre.Trim();
@@ -115,6 +125,8 @@ public class ObrasController : ControllerBase
             Visible = so.Posicion == 0,
             Posicion = so.Posicion,
             Nima = so.Libre3.Trim(),
+            Tarifa = so.Tarifa.Trim(),
+            Zona = so.Zona.Trim(),
             Libre1 = so.Libre1?.Trim(),
             Libre2 = so.Libre2?.Trim(),
             Telefono = so.Telefono.Trim(),
@@ -123,6 +135,8 @@ public class ObrasController : ControllerBase
             Encargado = so.Encargado.Trim(),
             Observaciones = so.Observacio
         };
+
+        obra.ZonaDescripcion = await _comunContext.Zonas.Where(z => z.Ruta.Trim() == "01" && z.Zona.Trim() == obra.Zona).Select(z => z.Descripcion.Trim()).FirstOrDefaultAsync();
 
         var clientCode = (so.Cliente ?? "").Trim();
         if (!string.IsNullOrEmpty(clientCode))
@@ -209,7 +223,7 @@ public class ObrasController : ControllerBase
         if (string.IsNullOrEmpty(resolvedClientCode) && !string.IsNullOrWhiteSpace(obra.NombreCliente))
         {
             var client = await _gestionContext.Clientes
-                .FirstOrDefaultAsync(c => c.Nombre.Trim() == obra.NombreCliente.Trim() && c.Codigo.StartsWith("430"));
+                .FirstOrDefaultAsync(c => EF.Functions.Collate(c.Nombre.Trim(), "Modern_Spanish_CI_AI") == obra.NombreCliente.Trim() && c.Codigo.StartsWith("430"));
             if (client != null)
             {
                 resolvedClientCode = client.Codigo;
@@ -217,7 +231,7 @@ public class ObrasController : ControllerBase
             else
             {
                 var clientPart = await _gestionContext.Clientes
-                    .FirstOrDefaultAsync(c => c.Nombre.Contains(obra.NombreCliente.Trim()) && c.Codigo.StartsWith("430"));
+                    .FirstOrDefaultAsync(c => EF.Functions.Like(EF.Functions.Collate(c.Nombre, "Modern_Spanish_CI_AI"), $"%{obra.NombreCliente.Trim()}%") && c.Codigo.StartsWith("430"));
                 if (clientPart != null)
                 {
                     resolvedClientCode = clientPart.Codigo;

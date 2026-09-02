@@ -231,6 +231,34 @@
                                     </DxFormLayoutItem>
                                 </DxFormLayout>
                             </DxTabPage>
+                            <DxTabPage Text="Rutas (OSRM / Mapbox)">
+                                <DxFormLayout CssClass="w-100 p-3">
+                                    <DxFormLayoutItem Caption="Token (Solo Mapbox - opcional)" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.MapboxAccessToken" MaxLength="500" NullText="Vacío = Gratuito con OSRM (Sin Token)" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="URL base servicio rutas" ColSpanMd="12"><DxTextBox @bind-Text="parametro.MapboxBaseUrl" NullText="Por defecto: https://router.project-osrm.org" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Perfil de ruta" ColSpanMd="12"><DxTextBox @bind-Text="parametro.MapboxProfile" NullText="driving / foot / bike" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Caché (horas)" ColSpanMd="6"><DxSpinEdit @bind-Value="parametro.MapboxCacheDurationHours" MinValue="1" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Precisión de coordenadas" ColSpanMd="6"><DxSpinEdit @bind-Value="parametro.MapboxCoordinatePrecision" MinValue="4" MaxValue="6" /></DxFormLayoutItem>
+                                </DxFormLayout>
+                            </DxTabPage>
+                            <DxTabPage Text="Wialon">
+                                <DxFormLayout CssClass="w-100 p-3">
+                                    <DxFormLayoutItem Caption="URL de Wialon" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.WialonUrl" MaxLength="500" NullText="https://hosting.wialon.com/?lang=es" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Usuario Wialon" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.WialonUsuario" MaxLength="100" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Host API Wialon" ColSpanMd="12"><DxTextBox @bind-Text="parametro.WialonHost" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Token Wialon" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.WialonAccessToken" MaxLength="500" />
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Contraseña Wialon" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.WialonPassword" MaxLength="500" />
+                                    </DxFormLayoutItem>
+                                </DxFormLayout>
+                            </DxTabPage>
                         </DxTabs>
                     </EditFormTemplate>
                 </DxGrid>

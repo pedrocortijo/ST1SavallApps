@@ -121,8 +121,9 @@ public class SolicitudesController : ControllerBase
             return Conflict(new { message = errorPlanificacion });
 
         var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
-        var validEstadoIds = (await _context.EstadosSolicitud.Select(e => e.IdEstado).ToListAsync()).ToHashSet();
-        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds);
+        var estados = await _context.EstadosSolicitud.AsNoTracking().ToListAsync();
+        var validEstadoIds = estados.Select(e => e.IdEstado).ToHashSet();
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds, estados);
         if (validEstadoIds.Count > 0 && !validEstadoIds.Contains(solicitud.Estado))
         {
             solicitud.Estado = validEstadoIds.First();
@@ -235,7 +236,8 @@ public class SolicitudesController : ControllerBase
             solicitud.FechaHoraFinPlanificada = null;
         }
 
-        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds);
+        var estados = await _context.EstadosSolicitud.AsNoTracking().ToListAsync();
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds, estados);
         if (validEstadoIds.Count > 0 && !validEstadoIds.Contains(solicitud.Estado))
         {
             solicitud.Estado = validEstadoIds.First();
@@ -321,17 +323,102 @@ public class SolicitudesController : ControllerBase
         if (errorPlanificacion != null)
             return Conflict(new { message = errorPlanificacion });
 
-        var validEstadoIds = (await _context.EstadosSolicitud
-            .Select(e => e.IdEstado)
-            .ToListAsync()).ToHashSet();
+        var estados = await _context.EstadosSolicitud.AsNoTracking().ToListAsync();
+        var validEstadoIds = estados.Select(e => e.IdEstado).ToHashSet();
         foreach (var solicitud in solicitudes)
-            SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds);
+            SolicitudEstadoEvaluator.EvaluarYAplicarEstado(solicitud, parametro, validEstadoIds, estados);
 
         await _context.SaveChangesAsync();
         await transaccion.CommitAsync();
         return NoContent();
     }
 
+    [HttpPut("asignar-conductor-lote")]
+    public async Task<IActionResult> AsignarConductorLote([FromBody] AsignacionConductorLoteRequest solicitud)
+    {
+        if (!solicitud.IdConductor.HasValue || solicitud.IdsSolicitudes.Count == 0)
+            return BadRequest(new { message = "Debe indicar un conductor y al menos un servicio." });
+
+        var ids = solicitud.IdsSolicitudes.Distinct().ToList();
+        if (ids.Any(id => id <= 0) || ids.Count != solicitud.IdsSolicitudes.Count)
+            return BadRequest(new { message = "La lista de servicios no es válida." });
+
+        var servicios = await _context.Solicitudes.Where(s => ids.Contains(s.IdSolicitud) && !s.IdConductor.HasValue).ToListAsync();
+        if (servicios.Count != ids.Count)
+            return Conflict(new { message = "Uno o varios servicios ya están asignados a un conductor o no existen. Recargue la lista antes de continuar." });
+
+        var conductor = await _context.Operarios.AsNoTracking()
+            .FirstOrDefaultAsync(o => o.IdOperario == solicitud.IdConductor.Value);
+        if (conductor?.IdPlanta is not > 0)
+            return BadRequest(new { message = "El conductor seleccionado no tiene una planta asignada." });
+
+        var duracionOperacionPorDefecto = await _context.Parametros.AsNoTracking()
+            .Select(p => (int?)p.DuracionOperacionServicioMinutos)
+            .FirstOrDefaultAsync() ?? 60;
+        if (duracionOperacionPorDefecto <= 0)
+            duracionOperacionPorDefecto = 60;
+
+        var rutasRecalculadas = 0;
+        foreach (var servicio in servicios)
+        {
+            servicio.IdConductor = solicitud.IdConductor.Value;
+            // La planta del conductor se propone como central de origen, reciclaje y regreso.
+            servicio.IdPlantaOrigen = conductor.IdPlanta;
+            servicio.IdPlantaDescarga = conductor.IdPlanta;
+            servicio.IdPlantaRegreso = conductor.IdPlanta;
+            servicio.DuracionOperacionMinutos ??= duracionOperacionPorDefecto;
+            if (servicio.DuracionPlanificadaMinutos.GetValueOrDefault() <= 0)
+                servicio.DuracionPlanificadaMinutos = servicio.DuracionOperacionMinutos;
+            servicio.FechaActualizacion = DateTime.Now;
+            servicio.NotificacionInicioVisualizada = false;
+
+            // Cada solicitud conserva sus propias plantas. Recalculamos sus tramos
+            // individualmente para no reutilizar la ruta de otra planta.
+            if (CalculoRutaSolicitudService.TieneDatosCompletos(servicio))
+            {
+                try
+                {
+                    await _calculoRutaService.CalcularYAplicarAsync(servicio, forzarActualizacion: true);
+                    rutasRecalculadas++;
+                }
+                catch (ProveedorRutasException)
+                {
+                    // La asignación no debe impedirse si una solicitud carece de datos
+                    // geográficos válidos; podrá completarse desde su edición.
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { rutasRecalculadas });
+    }
+    [HttpPut("{id:int}/liberar-programacion")]
+    public async Task<IActionResult> LiberarProgramacion(int id)
+    {
+        var servicio = await _context.Solicitudes.FindAsync(id);
+        if (servicio == null)
+            return NotFound();
+
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var estadoPendiente = parametro?.EstadoPendiente
+            ?? await _context.EstadosSolicitud.AsNoTracking()
+                .Where(e => e.Descripcion.Contains("pendiente"))
+                .Select(e => (int?)e.IdEstado)
+                .FirstOrDefaultAsync()
+            ?? 1;
+
+        servicio.IdConductor = null;
+        servicio.FechaTarea = null;
+        servicio.FechaPrevista = null;
+        servicio.FechaHoraInicioPlanificada = null;
+        servicio.FechaHoraFinPlanificada = null;
+        servicio.Estado = estadoPendiente;
+        servicio.FechaActualizacion = DateTime.Now;
+        servicio.NotificacionInicioVisualizada = false;
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
     [HttpPost("marcar-notificaciones-inicio-visualizadas")]
     public async Task<IActionResult> MarcarNotificacionesInicioVisualizadas([FromBody] List<int> idsSolicitudes)
     {
@@ -870,6 +957,11 @@ public class SolicitudesController : ControllerBase
         }
     }
 
+    public sealed class AsignacionConductorLoteRequest
+    {
+        public int? IdConductor { get; init; }
+        public List<int> IdsSolicitudes { get; init; } = [];
+    }
     public sealed class FirmaSolicitudRequest
     {
         public string? Nombre { get; init; }

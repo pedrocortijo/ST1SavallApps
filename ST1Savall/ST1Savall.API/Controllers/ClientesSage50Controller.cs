@@ -76,11 +76,11 @@ public class ClientesSage50Controller : ControllerBase
         {
             var patron = $"%{texto}%";
             consulta = consulta.Where(c =>
-                EF.Functions.Like(c.Codigo, patron) ||
-                EF.Functions.Like(c.Nombre, patron) ||
-                EF.Functions.Like(c.Cif, patron) ||
-                EF.Functions.Like(c.Direccion, patron) ||
-                EF.Functions.Like(c.Poblacion, patron));
+                EF.Functions.Like(EF.Functions.Collate(c.Codigo, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(c.Nombre, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(c.Cif, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(c.Direccion, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(c.Poblacion, "Modern_Spanish_CI_AI"), patron));
         }
 
         var totalRegistros = await consulta.CountAsync();

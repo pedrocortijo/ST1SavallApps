@@ -12,6 +12,7 @@ public class SageComunDbContext : DbContext
 
     public DbSet<ObraComunSage50> Obras { get; set; } = null!;
     public DbSet<UsuarioComunSage50> Usuarios { get; set; } = null!;
+    public DbSet<ZonaComunSage50> Zonas { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +60,24 @@ public class SageComunDbContext : DbContext
             entity.Property(o => o.Zona).HasColumnName("ZONA").HasMaxLength(4).IsFixedLength();
         });
 
+        modelBuilder.Entity<ZonaComunSage50>(entity =>
+        {
+            entity.ToTable("zonas");
+            entity.HasKey(z => new { z.Ruta, z.Zona });
+            entity.Property(z => z.Ruta).HasColumnName("RUTA").HasMaxLength(2).IsFixedLength();
+            entity.Property(z => z.Zona).HasColumnName("ZONA").HasMaxLength(4).IsFixedLength();
+            entity.Property(z => z.Descripcion).HasColumnName("DESCRIPCIO").HasMaxLength(50).IsFixedLength();
+            entity.Property(z => z.Vista).HasColumnName("VISTA");
+            entity.Property(z => z.Linia).HasColumnName("LINIA");
+            entity.Property(z => z.Guid).HasColumnName("GUID").HasMaxLength(50).IsFixedLength();
+            entity.Property(z => z.Importar).HasColumnName("IMPORTAR");
+            entity.Property(z => z.Exportar).HasColumnName("EXPORTAR");
+            entity.Property(z => z.GuidExp).HasColumnName("GUID_EXP").HasMaxLength(50).IsFixedLength();
+            entity.Property(z => z.GuidId).HasColumnName("GUID_ID").HasMaxLength(50).IsFixedLength();
+            entity.Property(z => z.Created).HasColumnName("CREATED");
+            entity.Property(z => z.Modified).HasColumnName("MODIFIED");
+            entity.Ignore(z => z.Clave);
+        });
         modelBuilder.Entity<UsuarioComunSage50>(entity =>
         {
             entity.ToTable("usuarios");
@@ -67,5 +86,6 @@ public class SageComunDbContext : DbContext
             entity.Property(u => u.Codigo).HasColumnName("CODIGO").HasMaxLength(15).IsFixedLength();
             entity.Property(u => u.Nombre).HasColumnName("NOMBRE").HasMaxLength(100).IsFixedLength();
         });
+
     }
 }

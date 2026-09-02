@@ -1,0 +1,151 @@
+@page "/modelos/tarifas"
+@using System.Net.Http.Json
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Tarifas</PageTitle>
+<DxPopup Visible="@errorPopupVisible"
+         VisibleChanged="@((bool visible) => errorPopupVisible = visible)"
+         HeaderText="No se ha podido completar la operación"
+         ShowFooter="true"
+         Width="560px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-start gap-3">
+            <i class="oi oi-circle-x text-danger fs-3"></i>
+            <p class="mb-0 text-break">@errorMessage</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100"><DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="CerrarPopupError" /></div>
+    </FooterContentTemplate>
+</DxPopup>
+<DxPopup Visible="@incrementoGlobalVisible" VisibleChanged="@((bool visible) => incrementoGlobalVisible = visible)" HeaderText="Incremento global de artículos" ShowFooter="true" Width="420px" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="p-2">
+            <label class="form-label">Tipo de incremento</label>
+            <div class="btn-group w-100 mb-3" role="group">
+                <button type="button" class="btn @(incrementoEsPorcentaje ? "btn-primary" : "btn-outline-primary")" @onclick="() => incrementoEsPorcentaje = true">Porcentaje (%)</button>
+                <button type="button" class="btn @(!incrementoEsPorcentaje ? "btn-primary" : "btn-outline-primary")" @onclick="() => incrementoEsPorcentaje = false">Importe (€)</button>
+            </div>
+            <label class="form-label">Incremento</label>
+            <DxSpinEdit @bind-Value="incrementoGlobal" MinValue="0m" DecimalPlaces="2" DisplayFormat="n2" CssClass="w-100" />
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => incrementoGlobalVisible = false" />
+            <DxButton Text="Aplicar" RenderStyle="ButtonRenderStyle.Primary" Click="AplicarIncrementoGlobal" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4"><div><h2 class="fw-bold text-primary mb-1">Tarifas</h2><p class="text-muted mb-0">Tarifas y precios por artículo.</p></div><NavLink href="/" class="btn btn-outline-secondary btn-sm">Volver a inicio</NavLink></div>
+    @if (errorMessage is not null) { <div class="alert alert-danger">@errorMessage</div> }
+    <div class="card shadow-sm"><div class="card-body p-0">
+    @if (tarifas is null) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div> }
+    else { <DxGrid @ref="grid" 
+        Data="@tarifas" 
+        KeyFieldName="Codigo" 
+        EditMode="GridEditMode.PopupEditForm" 
+        EditModelSaving="GuardarAsync" 
+        DataItemDeleting="EliminarAsync" 
+        CustomizeEditModel="PersonalizarModeloEdicion" 
+        ValidationEnabled="false" 
+        PopupEditFormHeaderText="Tarifa" PopupEditFormHeaderCssClass="bg-primary text-white" 
+        PopupEditFormCssClass="tarifa-popup" 
+        PageSize="20" 
+        ShowFilterRow="true" 
+        ShowSearchBox="true" 
+        SearchBoxNullText="Buscar tarifa..." AutoExpandAllGroupRows="true">
+        <Columns>
+        <DxGridCommandColumn Width="130px" 
+            NewButtonVisible="false" 
+            EditButtonVisible="false" 
+            DeleteButtonVisible="false">
+            <HeaderTemplate><button class="btn btn-sm btn-primary w-100" @onclick="NuevaTarifaAsync">Nueva</button></HeaderTemplate><CellDisplayTemplate>@{var tarifa=(TarifaCabecera)context.DataItem;}<div class="d-flex gap-1"><button class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => grid?.StartEditDataItemAsync(tarifa)">✎</button><button class="btn btn-sm btn-outline-info" title="Duplicar" @onclick="() => DuplicarTarifaAsync(tarifa)"><i class="oi oi-document"></i></button><button class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => grid?.ShowDataItemDeleteConfirmation(tarifa)">🗑
+            </button>
+            </div>
+            </CellDisplayTemplate>
+            </DxGridCommandColumn>
+        <DxGridDataColumn FieldName="Codigo" Caption="Código" Width="90px" />
+        <DxGridDataColumn Caption="Zona">
+            <CellDisplayTemplate>@TextoZona(((TarifaCabecera)context.DataItem).Zona)</CellDisplayTemplate>
+        </DxGridDataColumn>
+        <DxGridDataColumn FieldName="Nombre" Caption="Nombre" GroupIndex="0" />
+        <DxGridDataColumn FieldName="Desde" Caption="Desde" Width="120px"/>
+        <DxGridDataColumn FieldName="Hasta" Caption="Hasta" Width="120px"/>
+        </Columns>
+        <EditFormTemplate Context="editContext">@{var tarifa=(TarifaCabecera)editContext.EditModel;}<div class="p-3">
+        <DxFormLayout CaptionPosition="CaptionPosition.Vertical">
+        <DxFormLayoutItem Caption="Código" ColSpanMd="2">
+            <DxTextBox @bind-Text="tarifa.Codigo" MaxLength="2" />
+        </DxFormLayoutItem>
+        <DxFormLayoutItem Caption="Nombre" ColSpanMd="4">
+            <DxTextBox @bind-Text="tarifa.Nombre" MaxLength="30" />
+        </DxFormLayoutItem>
+        <DxFormLayoutItem Caption="Desde" ColSpanMd="3">
+            <DxDateEdit @bind-Date="tarifa.Desde" />
+        </DxFormLayoutItem>
+        <DxFormLayoutItem Caption="Hasta" ColSpanMd="3">
+            <DxDateEdit @bind-Date="tarifa.Hasta" />
+        </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Zona" ColSpanMd="12" BeginRow="true">
+            <DxComboBox Data="@zonas" TData="ZonaOpcion" TValue="string"
+                TextFieldName="Texto" ValueFieldName="Codigo" @bind-Value="tarifa.Zona"
+                NullText="Seleccione una zona..." SearchMode="ListSearchMode.AutoSearch"
+                SearchFilterCondition="ListSearchFilterCondition.Contains" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto">
+                    <Columns>
+                        <DxListEditorColumn FieldName="Codigo" Caption="Código" Width="100px" />
+                        <DxListEditorColumn FieldName="Nombre" Caption="Zona" />
+                    </Columns>
+            </DxComboBox>
+        </DxFormLayoutItem>
+        </DxFormLayout><div class="mt-3">
+                <DxGrid @ref="lineasGrid" Data="@tarifa.Lineas" KeyFieldName="EditorId" EditMode="GridEditMode.PopupEditForm"
+                        EditModelSaving="@(e => GuardarLineaAsync(tarifa, e))" DataItemDeleting="@(e => EliminarLineaAsync(tarifa, e))"
+                        PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Artículo de tarifa"
+                        PopupEditFormCssClass="tarifa-linea-popup" AllowSort="true" VirtualScrollingEnabled="true"
+                        HorizontalScrollBarMode="ScrollBarMode.Auto" TextWrapEnabled="false" CssClass="tarifa-lineas-grid">
+                    <Columns>
+                        <DxGridCommandColumn Width="130px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                            <HeaderTemplate><div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-primary flex-fill" title="Añadir artículo" @onclick="() => lineasGrid?.StartEditNewRowAsync()"><i class="oi oi-plus"></i></button><button type="button" class="btn btn-sm btn-outline-primary flex-fill" title="Añadir los artículos de las familias 00002 y 00003" aria-label="Añadir artículos de las familias 00002 y 00003" @onclick="() => AgregarArticulosFamiliasAsync(tarifa)"><i class="oi oi-layers"></i></button><button type="button" class="btn btn-sm btn-outline-success flex-fill" title="Aplicar incremento global" aria-label="Aplicar incremento global" @onclick="() => AbrirIncrementoGlobal(tarifa)"><i class="oi oi-calculator"></i></button></div></HeaderTemplate>
+                            <CellDisplayTemplate>@{ var linea = (TarifaLinea)context.DataItem; }<div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => lineasGrid?.StartEditDataItemAsync(linea)"><i class="oi oi-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-success" title="Aplicar incremento" @onclick="() => AbrirIncrementoLinea(linea)"><i class="oi oi-calculator"></i></button><button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => lineasGrid?.ShowDataItemDeleteConfirmation(linea)"><i class="oi oi-trash"></i></button></div></CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        <DxGridDataColumn Caption="Artículo" MinWidth="200"><CellDisplayTemplate>@TextoArticulo(((TarifaLinea)context.DataItem).Articulo)</CellDisplayTemplate></DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Precio" Caption="Precio" DisplayFormat="n2" Width="100px" />
+                    </Columns>
+                    <EditFormTemplate Context="lineaEditContext">
+                        @{ var linea = (TarifaLinea)lineaEditContext.EditModel; }
+                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                            <DxFormLayoutItem Caption="Artículo *" ColSpanMd="9"><DxComboBox Data="@articulosSage" TData="ArticuloSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="linea.Articulo" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" /></DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Precio *" ColSpanMd="3"><DxSpinEdit @bind-Value="linea.Precio" MinValue="0m" DisplayFormat="n2" /></DxFormLayoutItem>
+                        </DxFormLayout>
+                    </EditFormTemplate>
+                </DxGrid></div></div></EditFormTemplate>
+    </DxGrid>}
+    </div></div>
+</div>
+<style>
+    .tarifa-popup { max-width: 760px !important; }
+    .tarifa-lineas-grid { width: 100%; height: 260px; }
+    .tarifa-linea-popup { max-width: 680px !important; }
+</style>
+@code {
+    private IGrid? grid; private IGrid? lineasGrid; private TarifaCabecera? tarifaADuplicar; private TarifaCabecera? tarifaIncremento; private TarifaLinea? lineaIncremento; private List<TarifaCabecera>? tarifas; private List<ZonaOpcion> zonas = []; private List<ArticuloSage50> articulosSage = []; private List<ArticuloSage50> articulosParaAgregar = []; private string? errorMessage; private bool errorPopupVisible; private bool incrementoGlobalVisible; private bool incrementoEsPorcentaje = true; private decimal incrementoGlobal;
+    protected override async Task OnInitializedAsync(){await AutenticarAsync();await CargarAsync();}
+    private async Task AutenticarAsync(){var state=await AuthStateProvider.GetAuthenticationStateAsync();var token=state.User.FindFirst("token")?.Value;if(!string.IsNullOrWhiteSpace(token))Http.DefaultRequestHeaders.Authorization=new("Bearer",token);}
+    private async Task CargarAsync(){try{var response=await Http.GetAsync("api/tarifas");if(!response.IsSuccessStatusCode){tarifas??=[];await MostrarErrorAsync(await ErrorAsync(response));return;}tarifas=await response.Content.ReadFromJsonAsync<List<TarifaCabecera>>()??[];foreach(var linea in tarifas.SelectMany(t=>t.Lineas))linea.Articulo=linea.Articulo.Trim();var zonasOrigen=await Http.GetFromJsonAsync<List<ZonaComunSage50>>("api/zonas")??[];zonas=zonasOrigen.GroupBy(z=>z.Zona.Trim(),StringComparer.OrdinalIgnoreCase).Select(g=>g.OrderBy(z=>z.Ruta).First()).OrderBy(z=>z.Zona).Select(z=>new ZonaOpcion(z.Zona.Trim(),z.Descripcion.Trim())).ToList();var articulos=(await Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50")??[]).Where(a=>a.Codigo.Trim().Length<=8).Select(NormalizarArticulo).ToList();articulosSage=articulos.Where(a=>a.Familia=="00002"||a.Familia=="00003").OrderBy(a=>a.Codigo).ToList();articulosParaAgregar=articulos.Where(a=>a.Familia=="00002"||a.Familia=="00003").OrderBy(a=>a.Codigo).ToList();errorMessage=null;}catch(Exception ex){tarifas??=[];await MostrarErrorAsync($"Error al cargar las tarifas: {ex.Message}");}}
+    private async Task GuardarAsync(GridEditModelSavingEventArgs e){var item=(TarifaCabecera)e.EditModel;foreach(var linea in item.Lineas)linea.Tarifa=item.Codigo?.Trim().ToUpperInvariant()??string.Empty;try{HttpResponseMessage r;if(e.IsNew)r=await Http.PostAsJsonAsync("api/tarifas",item);else{var original=(TarifaCabecera)e.DataItem;r=await Http.PutAsJsonAsync($"api/tarifas/{Uri.EscapeDataString(original.Codigo)}",item);}if(!r.IsSuccessStatusCode){await MostrarErrorAsync(await ErrorAsync(r));e.Cancel=true;return;}await CargarAsync();}catch(Exception ex){await MostrarErrorAsync(ex.Message);e.Cancel=true;}}
+    private async Task NuevaTarifaAsync(){tarifaADuplicar=null;if(grid is not null)await grid.StartEditNewRowAsync();}
+    private async Task DuplicarTarifaAsync(TarifaCabecera tarifa){tarifaADuplicar=tarifa;if(grid is not null)await grid.StartEditNewRowAsync();}
+    private void PersonalizarModeloEdicion(GridCustomizeEditModelEventArgs e){if(!e.IsNew||tarifaADuplicar is null)return;var nueva=(TarifaCabecera)e.EditModel;nueva.Codigo=string.Empty;nueva.Nombre=$"{tarifaADuplicar.Nombre.Trim()} (Copia)";nueva.Desde=tarifaADuplicar.Desde;nueva.Hasta=tarifaADuplicar.Hasta;nueva.Zona=tarifaADuplicar.Zona;nueva.Lineas=tarifaADuplicar.Lineas.Select(l=>new TarifaLinea{Articulo=l.Articulo,Precio=l.Precio}).ToList();tarifaADuplicar=null;}
+    private Task GuardarLineaAsync(TarifaCabecera tarifa, GridEditModelSavingEventArgs e){var editada=(TarifaLinea)e.EditModel;if(e.IsNew){editada.EditorId=Guid.NewGuid();tarifa.Lineas.Add(editada);}else{var actual=(TarifaLinea)e.DataItem;actual.Articulo=editada.Articulo;actual.Precio=editada.Precio;}return Task.CompletedTask;}
+    private Task EliminarLineaAsync(TarifaCabecera tarifa, GridDataItemDeletingEventArgs e){var linea=(TarifaLinea)e.DataItem;tarifa.Lineas=tarifa.Lineas.Where(l=>l.EditorId!=linea.EditorId).ToList();return Task.CompletedTask;}
+    private async Task EliminarAsync(GridDataItemDeletingEventArgs e){var item=(TarifaCabecera)e.DataItem;var r=await Http.DeleteAsync($"api/tarifas/{Uri.EscapeDataString(item.Codigo)}");if(!r.IsSuccessStatusCode){await MostrarErrorAsync(await ErrorAsync(r));e.Cancel=true;return;}await CargarAsync();}
+    private string TextoZona(string codigo){var zona=zonas.FirstOrDefault(z=>string.Equals(z.Codigo,codigo?.Trim(),StringComparison.OrdinalIgnoreCase));return zona is null ? codigo?.Trim() ?? string.Empty : zona.Texto;}
+    private static ArticuloSage50 NormalizarArticulo(ArticuloSage50 articulo){articulo.Codigo=articulo.Codigo.Trim();articulo.Nombre=articulo.Nombre.Trim();articulo.Familia=articulo.Familia.Trim();return articulo;} private async Task AgregarArticulosFamiliasAsync(TarifaCabecera tarifa){var existentes=tarifa.Lineas.Select(l=>l.Articulo.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);var nuevos=articulosParaAgregar.Where(a=>existentes.Add(a.Codigo)).Select(a=>new TarifaLinea{Articulo=a.Codigo,Precio=0m,EditorId=Guid.NewGuid()}).ToList();if(nuevos.Count==0)return;tarifa.Lineas=tarifa.Lineas.Concat(nuevos).ToList();lineasGrid?.Reload();await InvokeAsync(StateHasChanged);} private void AbrirIncrementoGlobal(TarifaCabecera tarifa){tarifaIncremento=tarifa;lineaIncremento=null;incrementoGlobal=0m;incrementoEsPorcentaje=true;incrementoGlobalVisible=true;} private void AbrirIncrementoLinea(TarifaLinea linea){tarifaIncremento=null;lineaIncremento=linea;incrementoGlobal=0m;incrementoEsPorcentaje=true;incrementoGlobalVisible=true;} private async Task AplicarIncrementoGlobal(){if(incrementoGlobal<=0m){incrementoGlobalVisible=false;return;}if(tarifaIncremento is not null)foreach(var linea in tarifaIncremento.Lineas)linea.Precio=CalcularPrecioIncrementado(linea.Precio);if(lineaIncremento is not null)lineaIncremento.Precio=CalcularPrecioIncrementado(lineaIncremento.Precio);incrementoGlobalVisible=false;lineasGrid?.Reload();await InvokeAsync(StateHasChanged);} private decimal CalcularPrecioIncrementado(decimal precio)=>Math.Round(incrementoEsPorcentaje?precio*(1m+incrementoGlobal/100m):precio+incrementoGlobal,2,MidpointRounding.AwayFromZero); private string TextoArticulo(string codigo){var articulo=articulosSage.Concat(articulosParaAgregar).FirstOrDefault(a=>string.Equals(a.Codigo,codigo?.Trim(),StringComparison.OrdinalIgnoreCase));return articulo is null ? codigo?.Trim() ?? string.Empty : articulo.Descripcion;}
+    private async Task MostrarErrorAsync(string message){errorMessage=message;errorPopupVisible=true;await InvokeAsync(StateHasChanged);} private void CerrarPopupError(){errorPopupVisible=false;errorMessage=null;} private static async Task<string> ErrorAsync(HttpResponseMessage r){var content=await r.Content.ReadAsStringAsync();if(!string.IsNullOrWhiteSpace(content))return content;return $"Error: {(int)r.StatusCode} {r.ReasonPhrase}";} private sealed record ZonaOpcion(string Codigo,string Nombre){public string Texto=>$"{Codigo} - {Nombre}";}}
+}

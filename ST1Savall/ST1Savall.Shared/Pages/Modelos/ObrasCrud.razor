@@ -492,9 +492,10 @@
     private void OnPoblacionChanged(string val, Obra o)
     {
         o.Poblacion = LimitarTexto(val?.Trim(), 30);
-        var p = poblaciones?.FirstOrDefault(x => x.Poblacion?.Trim().ToLower() == val?.Trim().ToLower());
+        var p = poblaciones?.FirstOrDefault(x => string.Equals(x.Poblacion?.Trim(), val?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (p != null)
         {
+            o.Poblacion = p.Poblacion?.Trim() ?? o.Poblacion;
             o.CodigoPostal = p.Codigo?.Trim();
             o.Provincia = p.Provincia?.Trim();
         }
@@ -513,7 +514,7 @@
         }
         else
         {
-            var existing = poblaciones?.FirstOrDefault(x => x.Codigo?.Trim() == o.CodigoPostal?.Trim() && x.Poblacion?.Trim().ToLower() == o.Poblacion?.Trim().ToLower());
+            var existing = poblaciones?.FirstOrDefault(x => string.Equals(x.Codigo?.Trim(), o.CodigoPostal?.Trim(), StringComparison.OrdinalIgnoreCase) && string.Equals(x.Poblacion?.Trim(), o.Poblacion?.Trim(), StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
                 newPoblacion = new CodPosSage50
@@ -610,8 +611,6 @@
             popupErrorMessage = $"Error: {ex.Message}";
         }
     }
-
-
 
     private async Task OnDuplicateObra(Obra o)
     {

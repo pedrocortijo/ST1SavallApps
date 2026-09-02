@@ -27,6 +27,7 @@
                           style="font-size: 1.25rem;" />
                 <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" 
                 style="font-size: 1.1rem; letter-spacing: 0.5px;">@companyName</span>
+                <span class="flex-grow-1 text-center text-muted display-desktop api-server-label" title="Servidor de la API">API: @ServidorApi</span>
                 
                 @if (new Uri(NavigationManager.Uri).LocalPath != "/") 
                 {
@@ -73,6 +74,7 @@
 </div>
 
 @code {
+    private string ServidorApi => Http.BaseAddress?.GetLeftPart(UriPartial.Authority) ?? "No configurado";
     private string LoginUrl => "login";
     private string ManageUrl => FormFactor.GetPlatform() == "Web" ? "Account/Manage" : "settings";
 

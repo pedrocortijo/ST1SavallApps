@@ -107,7 +107,7 @@ public sealed class CalculoRutaSolicitudService
         }
 
         solicitud.FechaCalculoRuta = DateTime.UtcNow;
-        solicitud.ProveedorCalculoRuta = "Mapbox Directions";
+        solicitud.ProveedorCalculoRuta = "OSRM / MapLibre Routing";
 
         var tramos = new[] { tramoOrigenObra, tramoObraDescarga, tramoHastaRegreso }
             .Where(tramo => tramo is not null)

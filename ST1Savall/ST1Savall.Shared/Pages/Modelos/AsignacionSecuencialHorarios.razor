@@ -8,8 +8,18 @@
 
 <PageTitle>Programación de servicios</PageTitle>
 
-<DxPopup Visible="@(!string.IsNullOrWhiteSpace(errorMessage))"
-         VisibleChanged="@((bool visible) => { if (!visible) errorMessage = null; })"
+<style>
+    .enlace-solicitud {
+        color: var(--bs-primary) !important;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .enlace-solicitud:hover {
+        color: var(--bs-info) !important;
+    }
+</style>
+
+<DxPopup @bind-Visible="mostrarErrorPopup"
          HeaderText="Error"
          ShowFooter="true"
          Width="480px"
@@ -25,7 +35,7 @@
     </BodyContentTemplate>
     <FooterContentTemplate>
         <div class="d-flex justify-content-end w-100">
-            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => errorMessage = null" />
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="CerrarErrorAsync" />
         </div>
     </FooterContentTemplate>
 </DxPopup>
@@ -66,6 +76,28 @@
     <FooterContentTemplate>
         <div class="d-flex justify-content-end w-100">
             <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => avisoFechaServicio = null" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+<DxPopup Visible="@(!string.IsNullOrWhiteSpace(avisoTareasInvalidas))"
+         VisibleChanged="@((bool visible) => { if (!visible) avisoTareasInvalidas = null; })"
+         HeaderText="Atención: Tarea sin definir"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-warning text-danger fs-3"></i>
+            <div>
+                <p class="mb-0">@avisoTareasInvalidas</p>
+            </div>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => avisoTareasInvalidas = null" />
         </div>
     </FooterContentTemplate>
 </DxPopup>
@@ -136,6 +168,13 @@
 </DxPopup>
 
 
+@if (!string.IsNullOrWhiteSpace(avisoJornadaExcedida))
+{
+    <div class="alert alert-warning d-flex align-items-center justify-content-between gap-3 mb-3" role="alert">
+        <span><i class="oi oi-warning me-2"></i>@avisoJornadaExcedida</span>
+        <DxButton Text="Entendido" RenderStyle="ButtonRenderStyle.Secondary" Click="() => avisoJornadaExcedida = null" />
+    </div>
+}
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -164,7 +203,7 @@
                                 Format="dd/MM/yyyy"
                                 DisplayFormat="dd/MM/yyyy" />
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <label class="form-label fw-bold text-primary mb-1">Conductor</label>
                     <DxComboBox Data="@conductores"
                                 TextFieldName="Nombre"
@@ -173,62 +212,83 @@
                                 ValueChanged="@((int? val) => OnConductorSelectedChanged(val))"
                                 NullText="Seleccione conductor..." />
                 </div>
-                <div class="col-md-2">
+                <div class="col-md">
                     <label class="form-label fw-bold text-primary mb-1">Inicio jornada</label>
                     <DxTimeEdit Time="@horaInicioJornada"
                                 TimeChanged="@((TimeSpan val) => OnHoraInicioJornadaChanged(val))"
                                 Format="HH:mm" />
                 </div>
-                <div class="col-md-2">
+                <div class="col-md">
                     <label class="form-label fw-bold text-primary mb-1">Fin jornada</label>
                     <DxTimeEdit Time="@horaFinJornada"
                                 TimeChanged="@((TimeSpan val) => OnHoraFinJornadaChanged(val))"
                                 Format="HH:mm"
                                 DisplayFormat="HH:mm" />
                 </div>
-                <div class="col-md-2">
+                <div class="col-md">
                     <label class="form-label fw-bold text-primary mb-1">Inicio descanso</label>
                     <DxTimeEdit Time="@horaInicioDescanso"
                                 TimeChanged="@((TimeSpan? val) => OnHoraInicioDescansoChanged(val))"
                                 Format="HH:mm"
                                 DisplayFormat="HH:mm" />
                 </div>
-                <div class="col-md-2">
+                <div class="col-md">
                     <label class="form-label fw-bold text-primary mb-1">Fin descanso</label>
                     <DxTimeEdit Time="@horaFinDescanso"
                                 TimeChanged="@((TimeSpan? val) => OnHoraFinDescansoChanged(val))"
                                 Format="HH:mm"
                                 DisplayFormat="HH:mm" />
                 </div>
-                <div class="col-12 d-flex justify-content-end gap-1">
-                    <button class="btn btn-sm py-1 px-2 btn-warning text-dark fw-bold shadow-sm"
-                            @onclick="SolicitarCalculoEnCadena"
-                            disabled="@(solicitudesOrdenadas.Count == 0 || calculando)"
-                            title="Calcular horas inicio y fin secuencialmente según el orden actual">
-                        @if (calculando)
+                <div class="col-12 d-flex align-items-center justify-content-between gap-2">
+                    <DxRadioGroup Items="@opcionesVistaServicios"
+                                  TValue="int"
+                                  TData="OpcionVistaServicios"
+                                  Layout="RadioGroupLayout.Horizontal"
+                                  TextFieldName="Texto"
+                                  ValueFieldName="Valor"
+                                  Value="@modoVistaServicios"
+                                  ValueChanged="OnModoVistaServiciosChanged" />
+                    <div class="d-flex gap-1">
+                        @if (modoVistaServicios == 1)
                         {
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <button class="btn btn-sm py-1 px-2 btn-warning text-dark fw-bold shadow-sm"
+                                    @onclick="SolicitarCalculoEnCadena"
+                                    disabled="@(solicitudesOrdenadas.Count == 0 || calculando)"
+                                    title="Calcular horas inicio y fin secuencialmente según el orden actual">
+                                @if (calculando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                }
+                                else
+                                {
+                                    <i class="oi oi-bolt me-1"></i>
+                                }
+                                Calcular en Cadena
+                            </button>
+                            <button class="btn btn-sm py-1 px-2 btn-primary fw-bold shadow-sm"
+                                    @onclick="GuardarTodosCambiosAsync"
+                                    disabled="@(solicitudesOrdenadas.Count == 0 || guardando)"
+                                    title="Guardar todos los cambios de horarios y adjudicar solicitudes">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                }
+                                else
+                                {
+                                    <i class="oi oi-check me-1"></i>
+                                }
+                                Guardar Todo
+                            </button>
                         }
                         else
                         {
-                            <i class="oi oi-bolt me-1"></i>
+                            <DxButton Text="Asignar al conductor"
+                                      IconCssClass="oi oi-person"
+                                      RenderStyle="ButtonRenderStyle.Primary"
+                                      Enabled="@(selectedConductorId.HasValue && solicitudesSinAsignarSeleccionadas.Count > 0 && !asignando)"
+                                      Click="AsignarSolicitudesSeleccionadasAsync" />
                         }
-                        Calcular en Cadena
-                    </button>
-                    <button class="btn btn-sm py-1 px-2 btn-primary fw-bold shadow-sm"
-                            @onclick="GuardarTodosCambiosAsync"
-                            disabled="@(solicitudesOrdenadas.Count == 0 || guardando)"
-                            title="Guardar todos los cambios de horarios y adjudicar solicitudes">
-                        @if (guardando)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        }
-                        else
-                        {
-                            <i class="oi oi-check me-1"></i>
-                        }
-                        Guardar Todo
-                    </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -239,6 +299,36 @@
         <div class="p-5 text-center">
             <div class="spinner-border text-primary" role="status"></div>
             <p class="mt-2 text-muted mb-0">Cargando datos...</p>
+        </div>
+    }
+    else if (modoVistaServicios == 2)
+    {
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 12px;">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                <h5 class="fs-6 fw-bold text-dark mb-0">
+                    <i class="oi oi-list me-2 text-primary"></i>Servicios sin asignar (@solicitudesSinAsignar.Count)
+                </h5>
+                <span class="text-muted small">Seleccione uno o varios servicios para asignarlos al conductor.</span>
+            </div>
+            <div class="card-body p-0">
+                <DxGrid Data="@solicitudesSinAsignar"
+                        KeyFieldName="IdSolicitud"
+                        SelectedDataItems="@solicitudesSinAsignarSeleccionadas"
+                        SelectedDataItemsChanged="OnSolicitudesSinAsignarSeleccionadasChanged"
+                        CssClass="w-100">
+                    <Columns>
+                        <DxGridSelectionColumn Width="55px" />
+                        <DxGridDataColumn FieldName="NombreObra" Caption="Obra" MinWidth="220" />
+                        <DxGridDataColumn FieldName="DireccionCliente" Caption="Dirección de la obra" MinWidth="280" />
+                        <DxGridDataColumn Caption="Cód. Postal / Población" MinWidth="210">
+                            <CellDisplayTemplate Context="context">
+                                @TextoCodigoPostalYPoblacion((Solicitud)context.DataItem)
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="FechaSolicitud" Caption="Fecha solicitud" DisplayFormat="dd/MM/yyyy" Width="160px" />
+                    </Columns>
+                </DxGrid>
+            </div>
         </div>
     }
     else if (!selectedConductorId.HasValue)
@@ -265,17 +355,18 @@
                 <span class="text-muted small">Use las flechas ▲ ▼ para cambiar el orden secuencial de atención</span>
             </div>
             <div class="card-body p-0 table-responsive">
-                <table class="table table-hover align-middle mb-0" style="font-size: 0.88rem;">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.82rem; min-width: 940px;">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 90px;" class="text-center">Mover</th>
-                            <th>Obra / Cliente</th>
-                            <th style="width: 120px;">Prioridad</th>
-                            <th>Tipo Tarea</th>
-                            <th style="width: 110px;">Duración</th>
-                            <th style="width: 110px;">Hora Inicio</th>
-                            <th style="width: 110px;">Hora Fin</th>
-                            <th style="width: 170px;" class="text-center">Acciones</th>
+                            <th style="width: 60px;" class="text-center">Mover</th>
+                            <th style="width: 78px;" class="text-center">Nº servicio</th>
+                            <th style="min-width: 185px;">Obra / Cliente</th>
+                            <th style="width: 82px;">Prioridad</th>
+                            <th style="width: 80px;">Tipo tarea</th>
+                            <th style="width: 82px;">Duración</th>
+                            <th style="width: 116px;">Hora inicio</th>
+                            <th style="width: 116px;">Hora fin</th>
+                            <th style="width: 112px;" class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -304,6 +395,7 @@
                                         </button>
                                     </div>
                                 </td>
+                                <td class="text-center fw-semibold text-nowrap"><a class="enlace-solicitud" href="@($"/modelos/solicitudes/edit/{item.IdSolicitud}?returnUrl={Uri.EscapeDataString("/servicios/asignacion-secuencial")}")" title="Abrir solicitud @item.IdSolicitud">@item.IdSolicitud</a></td>
                                 <td class="align-middle">
                                     <div class="d-flex flex-column justify-content-center">
                                         <div class="fw-semibold obra-cliente-nombre">@(item.NombreObra ?? item.ObraDescripcion ?? "-")</div>
@@ -317,9 +409,18 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge bg-light text-dark border">
-                                        @(GetNombreTarea(item.IdTipoTarea))
-                                    </span>
+                                    @if (EsTareaInvalida(item.IdTipoTarea))
+                                    {
+                                        <span class="badge bg-danger text-white border border-danger fw-bold" title="Tipo de tarea sin definir">
+                                            @(GetNombreTarea(item.IdTipoTarea))
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-dark border">
+                                            @(GetNombreTarea(item.IdTipoTarea))
+                                        </span>
+                                    }
                                 </td>
                                 <td>
                                     <DxTextBox Text="@item.DuracionPlanificadaMinutos?.ToString()"
@@ -343,16 +444,21 @@
                                                 DisplayFormat="HH:mm" />
                                 </td>
                                 <td class="text-center">
-                                    <div class="d-flex gap-1 justify-content-center">
-                                        <button class="btn btn-sm btn-outline-primary py-1 px-2 text-nowrap"
+                                    <div class="d-flex gap-1 justify-content-center flex-nowrap">
+                                        <button class="btn btn-sm btn-outline-primary py-1 px-2"
                                                 @onclick="() => AsignarHuecoIndividuoAsync(item)"
-                                                title="Asignar siguiente hueco libre individual">
-                                            <i class="oi oi-clock me-1"></i>Hueco
+                                                title="Asignar siguiente hueco libre">
+                                            <i class="oi oi-clock"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-success py-1 px-2 text-nowrap"
+                                        <button class="btn btn-sm btn-outline-success py-1 px-2"
                                                 @onclick="() => CalcularRutaIndividuoAsync(item)"
-                                                title="Calcular ruta y tiempos tramo">
-                                            <i class="oi oi-map-marker me-1"></i>Ruta
+                                                title="Calcular ruta y tiempos del tramo">
+                                            <i class="oi oi-map-marker"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger py-1 px-2"
+                                                @onclick="() => LiberarServicioAsync(item)"
+                                                title="Quitar conductor, fechas y horas; devolver a pendiente">
+                                            <i class="oi oi-circle-x"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -372,9 +478,20 @@
     private List<Tarea>? tareasList;
     private List<Parametro>? parametrosList;
     private List<Solicitud> solicitudesOrdenadas = [];
+    private List<Solicitud> solicitudesSinAsignar = [];
+    private IReadOnlyList<object> solicitudesSinAsignarSeleccionadas = [];
+    private List<OpcionVistaServicios> opcionesVistaServicios =
+    [
+        new() { Valor = 1, Texto = "Servicios asignados al conductor" },
+        new() { Valor = 2, Texto = "Servicios sin asignar" }
+    ];
+    private int modoVistaServicios = 1;
+    private bool asignando;
     private string? avisoDescanso;
     private string? avisoFechaServicio;
+    private string? avisoTareasInvalidas;
 
+    private List<Obra> obras = [];
     private int? selectedConductorId;
     private DateTime fechaTrabajo = DateTime.Today;
     private TimeSpan horaInicioJornada = new TimeSpan(8, 0, 0);
@@ -386,8 +503,19 @@
     private bool calculando = false;
     private bool guardando = false;
     private bool mostrarConfirmacionCalculoCadena;
-    private string? errorMessage;
+    private string? errorMessageInterno;
+    private bool mostrarErrorPopup;
+    private string? errorMessage
+    {
+        get => errorMessageInterno;
+        set
+        {
+            errorMessageInterno = value;
+            mostrarErrorPopup = !string.IsNullOrWhiteSpace(value);
+        }
+    }
     private string? successMessage;
+    private string? avisoJornadaExcedida;
     private bool preguntarModificarDuracionTrasExito;
     private bool mostrarPreguntaModificarDuracion;
     private Solicitud? solicitudRutaPendiente;
@@ -415,6 +543,7 @@
         {
             loading = true;
             operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras") ?? [];
             conductores = operarios?.Where(o => (o.Activo != false && !string.Equals(o.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase)) && EsConductor(o)).OrderBy(o => o.Nombre).ToList() ?? [];
             estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
@@ -430,6 +559,13 @@
         }
     }
 
+    private string TextoCodigoPostalYPoblacion(Solicitud solicitud)
+    {
+        var obra = obras.FirstOrDefault(o => o.IdObra == solicitud.IdCliente);
+        var codigoPostal = obra?.CodigoPostal?.Trim();
+        var poblacion = obra?.Poblacion?.Trim() ?? solicitud.PoblacionCliente?.Trim();
+        return string.Join(" - ", new[] { codigoPostal, poblacion }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
     private async Task OnConductorSelectedChanged(int? idConductor)
     {
         selectedConductorId = idConductor;
@@ -446,7 +582,11 @@
         horaInicioDescanso = conductorObj?.InicioDescanso;
         horaFinDescanso = conductorObj?.FinDescanso;
 
-        await CargarSolicitudesConductorAsync();
+        solicitudesSinAsignarSeleccionadas = [];
+        if (modoVistaServicios == 2)
+            await CargarSolicitudesSinAsignarAsync();
+        else
+            await CargarSolicitudesConductorAsync();
     }
 
     private async Task OnFechaTrabajoChanged(DateTime fecha)
@@ -466,6 +606,97 @@
         await CargarSolicitudesConductorAsync();
     }
 
+    private async Task OnModoVistaServiciosChanged(int modo)
+    {
+        modoVistaServicios = modo;
+        solicitudesSinAsignarSeleccionadas = [];
+
+        if (modoVistaServicios == 2)
+            await CargarSolicitudesSinAsignarAsync();
+        else
+            await CargarSolicitudesConductorAsync();
+    }
+
+    private void OnSolicitudesSinAsignarSeleccionadasChanged(IReadOnlyList<object> seleccionadas)
+    {
+        solicitudesSinAsignarSeleccionadas = seleccionadas;
+    }
+
+    private async Task CargarSolicitudesSinAsignarAsync()
+    {
+        try
+        {
+            loading = true;
+            await SetupHeadersAsync();
+            var todas = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes") ?? [];
+            solicitudesSinAsignar = todas
+                .Where(s => !s.IdConductor.HasValue && !EsEstadoFinalizado(s.Estado) && !EsEstadoAnulado(s.Estado))
+                .OrderBy(s => s.FechaSolicitud ?? DateTime.MaxValue)
+                .ThenBy(s => s.IdSolicitud)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar las solicitudes sin asignar: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task AsignarSolicitudesSeleccionadasAsync()
+    {
+        if (!selectedConductorId.HasValue || solicitudesSinAsignarSeleccionadas.Count == 0)
+            return;
+
+        var idsDisponibles = solicitudesSinAsignar.Select(s => s.IdSolicitud).ToHashSet();
+        var seleccionadas = solicitudesSinAsignarSeleccionadas
+            .OfType<Solicitud>()
+            .Where(s => idsDisponibles.Contains(s.IdSolicitud))
+            .ToList();
+        if (seleccionadas.Count == 0)
+        {
+            solicitudesSinAsignarSeleccionadas = [];
+            return;
+        }
+
+        try
+        {
+            asignando = true;
+            await SetupHeadersAsync();
+            var asignacion = new
+            {
+                IdConductor = selectedConductorId,
+                IdsSolicitudes = seleccionadas.Select(s => s.IdSolicitud).ToList()
+            };
+
+            var response = await Http.PutAsJsonAsync("api/solicitudes/asignar-conductor-lote", asignacion);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"No se pudieron asignar los servicios. {ExtraerMensajeApi(await response.Content.ReadAsStringAsync(), response.ReasonPhrase)}";
+                return;
+            }
+
+            successMessage = $"Se han asignado {seleccionadas.Count} servicios al conductor seleccionado. Al volver a Servicios asignados al conductor se calcularán sus horas.";
+            solicitudesSinAsignarSeleccionadas = [];
+            await CargarSolicitudesSinAsignarAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al asignar los servicios: {ex.Message}";
+        }
+        finally
+        {
+            asignando = false;
+        }
+    }
+    private Task CerrarErrorAsync()
+    {
+        errorMessage = null;
+        mostrarErrorPopup = false;
+        return InvokeAsync(StateHasChanged);
+    }
     private void OnSuccessPopupVisibleChanged(bool visible)
     {
         if (!visible)
@@ -604,6 +835,7 @@
                     .ToList();
 
                 EjecutarCalculoSecuencialCadena();
+                VerificarTareasSinDefinir();
             }
         }
         catch (Exception ex)
@@ -638,6 +870,7 @@
     {
         if (solicitudesOrdenadas.Count == 0) return;
 
+        avisoJornadaExcedida = null;
         DateTime currentStart = RedondearAIntervaloConfigurado(fechaTrabajo.Date + horaInicioJornada);
         var parametro = parametrosList?.FirstOrDefault();
 
@@ -655,7 +888,7 @@
             item.FechaHoraFinPlanificada = RedondearAIntervaloConfigurado(CalcularFinConsiderandoDescanso(currentStart, duracionOp));
             currentStart = item.FechaHoraFinPlanificada.Value;
 
-            SolicitudEstadoEvaluator.EvaluarYAplicarEstado(item, parametro);
+            SolicitudEstadoEvaluator.EvaluarYAplicarEstado(item, parametro, null, estadosList);
         }
     }
 
@@ -906,7 +1139,7 @@
                 siguienteServicio.FechaHoraInicioPlanificada = inicioAjustado;
                 siguienteServicio.FechaHoraFinPlanificada = RedondearAIntervaloConfigurado(CalcularFinConsiderandoDescanso(inicioAjustado, duracion));
 
-                SolicitudEstadoEvaluator.EvaluarYAplicarEstado(siguienteServicio, parametro);
+                SolicitudEstadoEvaluator.EvaluarYAplicarEstado(siguienteServicio, parametro, null, estadosList);
             }
 
             finAnterior = siguienteServicio.FechaHoraFinPlanificada
@@ -968,7 +1201,7 @@
 
         if (duracion > minutosDisponibles)
         {
-            errorMessage = "La duración de un servicio supera el tiempo disponible en la jornada configurada.";
+            avisoJornadaExcedida = "Hay servicios cuya duración supera el tiempo disponible de la jornada. Revise la relación y quite o reprograme los necesarios.";
             return inicio.Date + horaInicioJornada;
         }
 
@@ -1028,7 +1261,7 @@
     private void ReevaluarItem(Solicitud item)
     {
         var parametro = parametrosList?.FirstOrDefault();
-        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(item, parametro);
+        SolicitudEstadoEvaluator.EvaluarYAplicarEstado(item, parametro, null, estadosList);
     }
 
     private void ReevaluarEstados()
@@ -1036,7 +1269,7 @@
         var parametro = parametrosList?.FirstOrDefault();
         foreach (var item in solicitudesOrdenadas)
         {
-            SolicitudEstadoEvaluator.EvaluarYAplicarEstado(item, parametro);
+            SolicitudEstadoEvaluator.EvaluarYAplicarEstado(item, parametro, null, estadosList);
         }
     }
 
@@ -1099,12 +1332,40 @@
         }
     }
 
+    private async Task LiberarServicioAsync(Solicitud item)
+    {
+        try
+        {
+            await SetupHeadersAsync();
+            var response = await Http.PutAsync($"api/solicitudes/{item.IdSolicitud}/liberar-programacion", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"No se pudo liberar el servicio. {ExtraerMensajeApi(await response.Content.ReadAsStringAsync(), response.ReasonPhrase)}";
+                return;
+            }
+
+            solicitudesOrdenadas.Remove(item);
+            successMessage = $"El servicio #{item.IdSolicitud} se ha devuelto a pendiente.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al liberar el servicio: {ex.Message}";
+        }
+    }
     private async Task GuardarTodosCambiosAsync()
     {
         if (solicitudesOrdenadas.Count == 0) return;
 
         try
         {
+            var invalidas = solicitudesOrdenadas.Where(s => EsTareaInvalida(s.IdTipoTarea)).ToList();
+            if (invalidas.Count > 0)
+            {
+                var ids = string.Join(", ", invalidas.Select(s => $"#{s.IdSolicitud}"));
+                avisoTareasInvalidas = $"No se puede guardar la planificación porque hay servicios sin Tipo de Tarea válido asignado ({ids}). Por favor, asigne una tarea a cada servicio antes de guardar la planificación.";
+                return;
+            }
+
             guardando = true;
             await SetupHeadersAsync();
             foreach (var item in solicitudesOrdenadas)
@@ -1144,6 +1405,22 @@
         }
     }
 
+    private void VerificarTareasSinDefinir()
+    {
+        var invalidas = solicitudesOrdenadas.Where(s => EsTareaInvalida(s.IdTipoTarea)).ToList();
+        if (invalidas.Count > 0)
+        {
+            var ids = string.Join(", ", invalidas.Select(s => $"#{s.IdSolicitud}"));
+            avisoTareasInvalidas = $"Los siguientes servicios ({ids}) tienen el Tipo de Tarea sin definir (o Tarea 0) y aparecen marcados en rojo. Asigne un tipo de tarea válido editando cada servicio para garantizar una correcta programación y adjudicación.";
+        }
+    }
+
+    private bool EsTareaInvalida(int idTarea)
+    {
+        if (idTarea <= 0) return true;
+        return tareasList != null && !tareasList.Any(t => t.IdTarea == idTarea);
+    }
+
     private static string ExtraerMensajeApi(string contenido, string? mensajeAlternativo)
     {
         if (string.IsNullOrWhiteSpace(contenido))
@@ -1158,7 +1435,11 @@
 
     private string GetNombreTarea(int idTarea)
     {
-        return tareasList?.FirstOrDefault(t => t.IdTarea == idTarea)?.NombreTarea ?? $"Tarea {idTarea}";
+        var tarea = tareasList?.FirstOrDefault(t => t.IdTarea == idTarea);
+        if (tarea != null && !string.IsNullOrWhiteSpace(tarea.NombreTarea))
+            return tarea.NombreTarea;
+
+        return idTarea <= 0 ? "Tarea 0" : $"Tarea {idTarea}";
     }
 
     private EstadoSolicitud? GetEstado(int idEstado)
@@ -1199,6 +1480,12 @@
                 || o.Cargo.Descripcion.Contains("conductor", StringComparison.OrdinalIgnoreCase);
         }
         return false;
+    }
+
+    public sealed class OpcionVistaServicios
+    {
+        public int Valor { get; set; }
+        public string Texto { get; set; } = string.Empty;
     }
 
     private class PlanificacionHueco

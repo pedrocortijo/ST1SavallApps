@@ -39,10 +39,10 @@ public class CodPosSage50Controller : ControllerBase
         {
             var patron = $"%{texto}%";
             consulta = consulta.Where(p =>
-                EF.Functions.Like(p.Codigo, patron) ||
-                EF.Functions.Like(p.Poblacion, patron) ||
-                EF.Functions.Like(p.Provincia, patron) ||
-                EF.Functions.Like(p.Cpostalm, patron));
+                EF.Functions.Like(EF.Functions.Collate(p.Codigo, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(p.Poblacion, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(p.Provincia, "Modern_Spanish_CI_AI"), patron) ||
+                EF.Functions.Like(EF.Functions.Collate(p.Cpostalm, "Modern_Spanish_CI_AI"), patron));
         }
 
         var totalRegistros = await consulta.CountAsync();
@@ -52,6 +52,17 @@ public class CodPosSage50Controller : ControllerBase
             .Skip((pagina - 1) * tamanoPagina)
             .Take(tamanoPagina)
             .ToListAsync();
+
+        foreach (var d in datos)
+        {
+            d.Codigo = d.Codigo?.Trim() ?? "";
+            d.Linea = d.Linea?.Trim() ?? "";
+            d.Poblacion = d.Poblacion?.Trim() ?? "";
+            d.Provincia = d.Provincia?.Trim() ?? "";
+            d.Cpostalm = d.Cpostalm?.Trim() ?? "";
+            d.Lati = d.Lati?.Trim() ?? "";
+            d.Longi = d.Longi?.Trim() ?? "";
+        }
 
         return Ok(new ResultadoPaginado<CodPosSage50>
         {

@@ -29,6 +29,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Ausencia> Ausencias { get; set; } = null!;
     public DbSet<Motivo> Motivos { get; set; } = null!;
     public DbSet<SolicitudFoto> SolicitudFotos { get; set; } = null!;
+    public DbSet<TarifaCabecera> TarifasCabeceras { get; set; } = null!;
+    public DbSet<TarifaLinea> TarifasLineas { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -139,6 +141,27 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<RutaCache>()
             .HasIndex(r => r.FechaExpiracionUtc);
 
+        builder.Entity<TarifaCabecera>(entity =>
+        {
+            entity.ToTable("TarifasCab");
+            entity.HasKey(t => t.Codigo);
+            entity.Property(t => t.Codigo).HasColumnType("char(2)").IsFixedLength();
+            entity.Property(t => t.Nombre).HasColumnType("char(30)").IsFixedLength();
+            entity.Property(t => t.Desde).HasColumnType("date");
+            entity.Property(t => t.Hasta).HasColumnType("date");
+            entity.Property(t => t.Zona).HasColumnType("char(4)").IsFixedLength();
+            entity.HasMany(t => t.Lineas).WithOne(l => l.Cabecera).HasForeignKey(l => l.Tarifa).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TarifaLinea>(entity =>
+        {
+            entity.ToTable("TarifasLin");
+            entity.HasKey(t => t.Codigo);
+            entity.Property(t => t.Codigo).UseIdentityColumn();
+            entity.Property(t => t.Tarifa).HasColumnType("char(2)").IsFixedLength();
+            entity.Property(t => t.Articulo).HasColumnType("char(8)").IsFixedLength();
+            entity.Property(t => t.Precio).HasPrecision(18, 2);
+        });
         foreach (var propertyName in new[]
         {
             nameof(RutaCache.LatitudOrigen), nameof(RutaCache.LongitudOrigen),

@@ -55,6 +55,11 @@ public class Obra
     [MaxLength(15)]
     public string? Nima { get; set; }
 
+    [NotMapped, MaxLength(2)] public string? Tarifa { get; set; }
+    [NotMapped, MaxLength(4)] public string? Zona { get; set; }
+    [NotMapped, MaxLength(50)] public string? ZonaDescripcion { get; set; }
+    [NotMapped] public bool TienePreciosEspeciales { get; set; }
+
     [MaxLength(10)]
     public string? Libre1 { get; set; }
 

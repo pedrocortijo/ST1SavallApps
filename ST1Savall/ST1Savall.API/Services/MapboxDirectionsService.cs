@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using ST1Savall.API.Data;
 using ST1Savall.Shared.Data;
 
@@ -15,18 +14,18 @@ public sealed class MapboxDirectionsService
 {
     private readonly HttpClient _httpClient;
     private readonly ApplicationDbContext _context;
-    private readonly MapboxDirectionsOptions _options;
+    private readonly ParametrosIntegracionesService _integraciones;
     private readonly ILogger<MapboxDirectionsService> _logger;
 
     public MapboxDirectionsService(
         HttpClient httpClient,
         ApplicationDbContext context,
-        IOptions<MapboxDirectionsOptions> options,
+        ParametrosIntegracionesService integraciones,
         ILogger<MapboxDirectionsService> logger)
     {
         _httpClient = httpClient;
         _context = context;
-        _options = options.Value;
+        _integraciones = integraciones;
         _logger = logger;
     }
 
@@ -41,7 +40,8 @@ public sealed class MapboxDirectionsService
         ValidarCoordenadas(latitudOrigen, longitudOrigen, "origen");
         ValidarCoordenadas(latitudDestino, longitudDestino, "destino");
 
-        var precision = Math.Clamp(_options.CoordinatePrecision, 4, 6);
+        var configuracion = await _integraciones.ObtenerMapboxAsync(cancellationToken);
+        var precision = configuracion.CoordinatePrecision;
         latitudOrigen = decimal.Round(latitudOrigen, precision, MidpointRounding.AwayFromZero);
         longitudOrigen = decimal.Round(longitudOrigen, precision, MidpointRounding.AwayFromZero);
         latitudDestino = decimal.Round(latitudDestino, precision, MidpointRounding.AwayFromZero);
@@ -50,8 +50,12 @@ public sealed class MapboxDirectionsService
         if (latitudOrigen == latitudDestino && longitudOrigen == longitudDestino)
             return new ResultadoTramoRuta(0, 0, true);
 
-        var profile = NormalizarProfile(_options.Profile);
-        var clave = CrearClave(latitudOrigen, longitudOrigen, latitudDestino, longitudDestino, profile);
+        var profile = NormalizarProfile(configuracion.Profile);
+        var esMapbox = !string.IsNullOrWhiteSpace(configuracion.AccessToken) && 
+                       (configuracion.BaseUrl?.Contains("mapbox.com", StringComparison.OrdinalIgnoreCase) ?? false);
+
+        var motorRuta = esMapbox ? "MAPBOX_DIRECTIONS_V5" : "OSRM_ROUTING_V1";
+        var clave = CrearClave(latitudOrigen, longitudOrigen, latitudDestino, longitudDestino, profile, motorRuta);
         var ahora = DateTime.UtcNow;
 
         var cache = await _context.RutasCache.FirstOrDefaultAsync(r => r.ClaveRuta == clave, cancellationToken);
@@ -63,28 +67,46 @@ public sealed class MapboxDirectionsService
             return new ResultadoTramoRuta(cache.DistanciaMetros, cache.DuracionSegundos, true);
         }
 
-        if (string.IsNullOrWhiteSpace(_options.AccessToken))
-            throw new ProveedorRutasException(
-                "Mapbox no está configurado. Defina Mapbox:AccessToken mediante secretos de usuario o la variable Mapbox__AccessToken.");
+        var lonOrigenStr = longitudOrigen.ToString(CultureInfo.InvariantCulture);
+        var latOrigenStr = latitudOrigen.ToString(CultureInfo.InvariantCulture);
+        var lonDestinoStr = longitudDestino.ToString(CultureInfo.InvariantCulture);
+        var latDestinoStr = latitudDestino.ToString(CultureInfo.InvariantCulture);
 
-        var coordenadas = string.Join(';',
-            $"{longitudOrigen.ToString(CultureInfo.InvariantCulture)},{latitudOrigen.ToString(CultureInfo.InvariantCulture)}",
-            $"{longitudDestino.ToString(CultureInfo.InvariantCulture)},{latitudDestino.ToString(CultureInfo.InvariantCulture)}");
-        var url = $"directions/v5/{profile}/{coordenadas}?alternatives=false&overview=false&steps=false&access_token={Uri.EscapeDataString(_options.AccessToken)}";
+        string url;
+        if (esMapbox)
+        {
+            var coordenadas = $"{lonOrigenStr},{latOrigenStr};{lonDestinoStr},{latDestinoStr}";
+            url = $"{configuracion.BaseUrl.TrimEnd('/')}/directions/v5/{profile}/{coordenadas}?alternatives=false&overview=false&steps=false&access_token={Uri.EscapeDataString(configuracion.AccessToken!)}";
+        }
+        else
+        {
+            // OSRM (Open Source Routing Machine) - 100% libre y gratuito sin tokens
+            var baseUrl = string.IsNullOrWhiteSpace(configuracion.BaseUrl) || configuracion.BaseUrl.Contains("mapbox.com", StringComparison.OrdinalIgnoreCase)
+                ? "https://router.project-osrm.org"
+                : configuracion.BaseUrl.TrimEnd('/');
+
+            var osrmProfile = profile.Contains("walk", StringComparison.OrdinalIgnoreCase) ? "foot"
+                : profile.Contains("cycl", StringComparison.OrdinalIgnoreCase) ? "bike"
+                : "driving";
+
+            url = $"{baseUrl}/route/v1/{osrmProfile}/{lonOrigenStr},{latOrigenStr};{lonDestinoStr},{latDestinoStr}?overview=false&alternatives=false&steps=false";
+        }
 
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.GetAsync(url, cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("User-Agent", "ST1Savall-App/1.0 (Routing)");
+            response = await _httpClient.SendAsync(request, cancellationToken);
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new ProveedorRutasException("Mapbox no respondió dentro del tiempo permitido.");
+            throw new ProveedorRutasException("El servicio de cálculo de rutas no respondió dentro del tiempo permitido.");
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "No se pudo conectar con Mapbox Directions");
-            throw new ProveedorRutasException("No se pudo conectar con Mapbox. Compruebe la red y vuelva a intentarlo.");
+            _logger.LogWarning(ex, "No se pudo conectar con el servicio de rutas {Url}", url);
+            throw new ProveedorRutasException("No se pudo conectar con el servicio de rutas. Compruebe la conexión de red.");
         }
 
         using (response)
@@ -92,18 +114,18 @@ public sealed class MapboxDirectionsService
             if (!response.IsSuccessStatusCode)
             {
                 var detalle = await LeerErrorAsync(response, cancellationToken);
-                _logger.LogWarning("Mapbox Directions devolvió {StatusCode}: {Detalle}", response.StatusCode, detalle);
-                throw new ProveedorRutasException($"Mapbox no pudo calcular el tramo: {detalle}");
+                _logger.LogWarning("El servicio de rutas devolvió {StatusCode}: {Detalle}", response.StatusCode, detalle);
+                throw new ProveedorRutasException($"No se pudo calcular el tramo de ruta: {detalle}");
             }
 
-            var result = await response.Content.ReadFromJsonAsync<MapboxDirectionsResponse>(cancellationToken: cancellationToken);
+            var result = await response.Content.ReadFromJsonAsync<DirectionsResponse>(cancellationToken: cancellationToken);
             var route = result?.Routes?.FirstOrDefault();
             if (route == null || route.Distance < 0 || route.Duration < 0)
-                throw new ProveedorRutasException("Mapbox no devolvió una ruta válida para las coordenadas indicadas.");
+                throw new ProveedorRutasException("El servicio de rutas no devolvió una trayectoria válida para las coordenadas indicadas.");
 
             var distanciaMetros = (int)Math.Ceiling(route.Distance);
             var duracionSegundos = (int)Math.Ceiling(route.Duration);
-            var duracionHoras = Math.Clamp(_options.CacheDurationHours, 1, 24 * 30);
+            var duracionHoras = configuracion.CacheDurationHours;
 
             var esNuevo = cache == null;
             cache ??= new RutaCache
@@ -114,7 +136,7 @@ public sealed class MapboxDirectionsService
                 LatitudDestino = latitudDestino,
                 LongitudDestino = longitudDestino,
                 ModoViaje = profile,
-                PreferenciaRuta = "MAPBOX_DIRECTIONS_V5"
+                PreferenciaRuta = motorRuta
             };
 
             if (cache.IdRutaCache == 0)
@@ -153,10 +175,10 @@ public sealed class MapboxDirectionsService
             throw new ProveedorRutasException($"Las coordenadas de {punto} no son válidas.");
     }
 
-    private static string CrearClave(decimal latOrigen, decimal lonOrigen, decimal latDestino, decimal lonDestino, string profile)
+    private static string CrearClave(decimal latOrigen, decimal lonOrigen, decimal latDestino, decimal lonDestino, string profile, string motor)
     {
         var raw = string.Join('|',
-            "MAPBOX_DIRECTIONS_V5",
+            motor,
             latOrigen.ToString(CultureInfo.InvariantCulture),
             lonOrigen.ToString(CultureInfo.InvariantCulture),
             latDestino.ToString(CultureInfo.InvariantCulture),
@@ -175,7 +197,7 @@ public sealed class MapboxDirectionsService
     {
         try
         {
-            var json = await response.Content.ReadFromJsonAsync<MapboxErrorResponse>(cancellationToken: cancellationToken);
+            var json = await response.Content.ReadFromJsonAsync<DirectionsErrorResponse>(cancellationToken: cancellationToken);
             return json?.Message ?? $"HTTP {(int)response.StatusCode}";
         }
         catch (JsonException)
@@ -184,18 +206,18 @@ public sealed class MapboxDirectionsService
         }
     }
 
-    private sealed class MapboxDirectionsResponse
+    private sealed class DirectionsResponse
     {
-        [JsonPropertyName("routes")] public List<MapboxRoute>? Routes { get; init; }
+        [JsonPropertyName("routes")] public List<RouteInfo>? Routes { get; init; }
     }
 
-    private sealed class MapboxRoute
+    private sealed class RouteInfo
     {
         [JsonPropertyName("distance")] public double Distance { get; init; }
         [JsonPropertyName("duration")] public double Duration { get; init; }
     }
 
-    private sealed class MapboxErrorResponse
+    private sealed class DirectionsErrorResponse
     {
         [JsonPropertyName("message")] public string? Message { get; init; }
     }

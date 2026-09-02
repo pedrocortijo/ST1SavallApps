@@ -111,10 +111,7 @@ public class ObrasComunSage50Controller : ControllerBase
         entry.Property(o => o.Modvehic).IsModified = false;
         entry.Property(o => o.Password).IsModified = false;
         entry.Property(o => o.Pp).IsModified = false;
-        entry.Property(o => o.Ruta).IsModified = false;
-        entry.Property(o => o.Tarifa).IsModified = false;
         entry.Property(o => o.Vendedor).IsModified = false;
-        entry.Property(o => o.Zona).IsModified = false;
         try
         {
             await _context.SaveChangesAsync();

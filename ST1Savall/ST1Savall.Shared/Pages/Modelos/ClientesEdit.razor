@@ -944,6 +944,7 @@
             ?? await BuscarPoblacionAsync(val, porCodigo: false);
         if (p != null)
         {
+            cliente.Poblacion = p.Poblacion?.Trim() ?? cliente.Poblacion;
             cliente.Codpost = p.Codigo?.Trim();
             cliente.Provincia = p.Provincia?.Trim();
         }

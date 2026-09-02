@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace ST1Savall.Shared.Data;
 
@@ -95,4 +96,41 @@ public class Parametro
 
     [MaxLength(100)]
     public string? AdminPassword { get; set; }
+
+    [MaxLength(500)]
+    public string? WialonUrl { get; set; }
+
+    [MaxLength(100)]
+    public string? WialonUsuario { get; set; }
+
+    [MaxLength(500)]
+    public string? MapboxBaseUrl { get; set; }
+    [MaxLength(50)]
+    public string? MapboxProfile { get; set; }
+    public int? MapboxCacheDurationHours { get; set; }
+    public int? MapboxCoordinatePrecision { get; set; }
+    [JsonIgnore]
+    [MaxLength(500)]
+    [Column("MapboxAccessToken")]
+    public string? MapboxAccessTokenProtegido { get; set; }
+    [NotMapped]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MapboxAccessToken { get; set; }
+    [MaxLength(255)]
+    public string? WialonHost { get; set; }
+    [JsonIgnore]
+    [MaxLength(500)]
+    [Column("WialonAccessToken")]
+    public string? WialonAccessTokenProtegido { get; set; }
+    [NotMapped]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? WialonAccessToken { get; set; }
+    [JsonIgnore]
+    [MaxLength(500)]
+    [Column("WialonPassword")]
+    public string? WialonPasswordProtegida { get; set; }
+
+    [NotMapped]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? WialonPassword { get; set; }
 }

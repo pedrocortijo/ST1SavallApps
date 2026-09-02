@@ -15,6 +15,34 @@ public static class DbInitializer
     {
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE name COLLATE Latin1_General_100_BIN2 = N'TARIFASCAB')
+                EXEC sp_rename N'TARIFASCAB', N'TarifasCab';
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE name COLLATE Latin1_General_100_BIN2 = N'TARIFASLIN')
+                EXEC sp_rename N'TARIFASLIN', N'TarifasLin';
+
+            IF OBJECT_ID(N'TarifasCab', N'U') IS NULL
+            BEGIN
+                CREATE TABLE TarifasCab (
+                    CODIGO CHAR(2) NOT NULL CONSTRAINT PK_TARIFASCAB PRIMARY KEY,
+                    NOMBRE CHAR(30) NOT NULL,
+                    DESDE DATE NOT NULL,
+                    HASTA DATE NOT NULL,
+                    ZONA CHAR(4) NOT NULL
+                );
+            END;
+            IF OBJECT_ID(N'TarifasLin', N'U') IS NULL
+            BEGIN
+                CREATE TABLE TarifasLin (
+                    CODIGO INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_TARIFASLIN PRIMARY KEY,
+                    TARIFA CHAR(2) NOT NULL,
+                    ARTICULO CHAR(8) NOT NULL,
+                    PRECIO DECIMAL(18,2) NOT NULL,
+                    CONSTRAINT FK_TARIFASLIN_TARIFASCAB FOREIGN KEY (TARIFA) REFERENCES TarifasCab(CODIGO) ON DELETE CASCADE
+                );
+                CREATE UNIQUE INDEX UX_TARIFASLIN_TARIFA_ARTICULO ON TarifasLin(TARIFA, ARTICULO);
+            END;
+        ");
 
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'Camiones', N'U') IS NULL
@@ -237,6 +265,23 @@ public static class DbInitializer
 
                 IF COL_LENGTH('Parametros', 'AdminPassword') IS NULL
                     ALTER TABLE Parametros ADD AdminPassword NVARCHAR(100) NULL;
+
+                IF COL_LENGTH('Parametros', 'WialonUrl') IS NULL
+                    ALTER TABLE Parametros ADD WialonUrl NVARCHAR(500) NULL;
+
+                IF COL_LENGTH('Parametros', 'WialonUsuario') IS NULL
+                    ALTER TABLE Parametros ADD WialonUsuario NVARCHAR(100) NULL;
+
+                IF COL_LENGTH('Parametros', 'WialonPassword') IS NULL
+                    ALTER TABLE Parametros ADD WialonPassword NVARCHAR(500) NULL;
+
+                IF COL_LENGTH('Parametros', 'MapboxBaseUrl') IS NULL ALTER TABLE Parametros ADD MapboxBaseUrl NVARCHAR(500) NULL;
+                IF COL_LENGTH('Parametros', 'MapboxProfile') IS NULL ALTER TABLE Parametros ADD MapboxProfile NVARCHAR(50) NULL;
+                IF COL_LENGTH('Parametros', 'MapboxCacheDurationHours') IS NULL ALTER TABLE Parametros ADD MapboxCacheDurationHours INT NULL;
+                IF COL_LENGTH('Parametros', 'MapboxCoordinatePrecision') IS NULL ALTER TABLE Parametros ADD MapboxCoordinatePrecision INT NULL;
+                IF COL_LENGTH('Parametros', 'MapboxAccessToken') IS NULL ALTER TABLE Parametros ADD MapboxAccessToken NVARCHAR(500) NULL;
+                IF COL_LENGTH('Parametros', 'WialonHost') IS NULL ALTER TABLE Parametros ADD WialonHost NVARCHAR(255) NULL;
+                IF COL_LENGTH('Parametros', 'WialonAccessToken') IS NULL ALTER TABLE Parametros ADD WialonAccessToken NVARCHAR(500) NULL;
             END
 
             IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL

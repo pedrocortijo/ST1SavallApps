@@ -11,27 +11,29 @@ public class ParametrosController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
-    public ParametrosController(ApplicationDbContext context)
-    {
-        _context = context;
-    }
+    public ParametrosController(ApplicationDbContext context) => _context = context;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Parametro>>> GetParametros()
     {
-        return await _context.Parametros.AsNoTracking().OrderBy(p => p.Empresa).ToListAsync();
+        var parametros = await _context.Parametros.AsNoTracking().OrderBy(p => p.Empresa).ToListAsync();
+        foreach (var parametro in parametros) CargarSecretosPlanos(parametro);
+        return parametros;
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Parametro>> GetParametro(int id)
     {
         var parametro = await _context.Parametros.FindAsync(id);
-        return parametro is null ? NotFound() : parametro;
+        if (parametro is null) return NotFound();
+        CargarSecretosPlanos(parametro);
+        return parametro;
     }
 
     [HttpPost]
     public async Task<ActionResult<Parametro>> PostParametro(Parametro parametro)
     {
+        GuardarSecretosPlanos(parametro);
         _context.Parametros.Add(parametro);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetParametro), new { id = parametro.Id }, parametro);
@@ -59,6 +61,7 @@ public class ParametrosController : ControllerBase
             parametro.ExcelAlbaranesSabospaFinestratNombre, existente.ExcelAlbaranesSabospaFinestratNombre);
         parametro.ExcelAlbaranesSabospaMonforteNombre = ConservarRutaExcel(
             parametro.ExcelAlbaranesSabospaMonforteNombre, existente.ExcelAlbaranesSabospaMonforteNombre);
+        ConservarSecretosPlanos(parametro, existente);
 
         _context.Entry(existente).CurrentValues.SetValues(parametro);
         await _context.SaveChangesAsync();
@@ -137,6 +140,39 @@ public class ParametrosController : ControllerBase
         return NoContent();
     }
 
+    // Los tokens se almacenan como texto plano por decisión de configuración.
+    private static void CargarSecretosPlanos(Parametro parametro)
+    {
+        parametro.MapboxAccessToken = parametro.MapboxAccessTokenProtegido;
+        parametro.WialonAccessToken = parametro.WialonAccessTokenProtegido;
+        parametro.WialonPassword = parametro.WialonPasswordProtegida;
+    }
+
+    private static void ConservarSecretosPlanos(Parametro parametro, Parametro existente)
+    {
+        parametro.MapboxAccessTokenProtegido = string.IsNullOrWhiteSpace(parametro.MapboxAccessToken)
+            ? existente.MapboxAccessTokenProtegido
+            : parametro.MapboxAccessToken.Trim();
+        parametro.WialonAccessTokenProtegido = string.IsNullOrWhiteSpace(parametro.WialonAccessToken)
+            ? existente.WialonAccessTokenProtegido
+            : parametro.WialonAccessToken.Trim();
+        parametro.WialonPasswordProtegida = string.IsNullOrWhiteSpace(parametro.WialonPassword)
+            ? existente.WialonPasswordProtegida
+            : parametro.WialonPassword.Trim();
+        parametro.MapboxAccessToken = null;
+        parametro.WialonAccessToken = null;
+        parametro.WialonPassword = null;
+    }
+
+    private static void GuardarSecretosPlanos(Parametro parametro)
+    {
+        parametro.MapboxAccessTokenProtegido = string.IsNullOrWhiteSpace(parametro.MapboxAccessToken) ? null : parametro.MapboxAccessToken.Trim();
+        parametro.WialonAccessTokenProtegido = string.IsNullOrWhiteSpace(parametro.WialonAccessToken) ? null : parametro.WialonAccessToken.Trim();
+        parametro.WialonPasswordProtegida = string.IsNullOrWhiteSpace(parametro.WialonPassword) ? null : parametro.WialonPassword.Trim();
+        parametro.MapboxAccessToken = null;
+        parametro.WialonAccessToken = null;
+        parametro.WialonPassword = null;
+    }
     private static string? ConservarRutaExcel(string? rutaFormulario, string? rutaExistente) =>
         string.IsNullOrWhiteSpace(rutaFormulario) ? rutaExistente : rutaFormulario;
     private bool ParametroExists(int id) => _context.Parametros.Any(p => p.Id == id);

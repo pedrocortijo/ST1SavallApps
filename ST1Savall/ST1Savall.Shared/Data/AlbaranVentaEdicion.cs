@@ -23,7 +23,7 @@ public class AlbaranVentaEdicion
     [Required, MaxLength(20)] public string Articulo { get; set; } = string.Empty;
     [MaxLength(100)] public string Definicion { get; set; } = string.Empty;
     public bool Suplido { get; set; }
-    [Range(typeof(decimal), "0.000001", "999999999")] public decimal Unidades { get; set; } = 1;
+    [Range(typeof(decimal), "0.000001", "999999999", ParseLimitsInInvariantCulture = true)] public decimal Unidades { get; set; } = 1;
     public decimal Precio { get; set; }
     public decimal Descuento1 { get; set; }
     public decimal Descuento2 { get; set; }
@@ -40,4 +40,8 @@ public class AlbaranVentaEdicion
     public string ClienteProvincia { get; set; } = string.Empty;
     public string ClienteTelefono { get; set; } = string.Empty;
     public string ClienteEmail { get; set; } = string.Empty;
+    public string Matricula { get; set; } = string.Empty;
+    public string AlbaranPlanta { get; set; } = string.Empty;
+    public string FechaPlanta { get; set; } = string.Empty;
+    public string NetoKg { get; set; } = string.Empty;
 }

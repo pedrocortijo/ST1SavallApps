@@ -305,7 +305,7 @@
     private int CantidadServiciosPlanificadosPeriodo => GetServiciosPlanificadosPeriodo().Count;
 
     private int CantidadConductoresPlanificadosPeriodo => GetServiciosPlanificadosPeriodo()
-        .Where(s => s.IdConductor.HasValue && s.IdConductor.Value > 0)
+        .Where(s => s.IdConductor.HasValue)
         .Select(s => s.IdConductor!.Value)
         .Distinct()
         .Count();
@@ -327,7 +327,7 @@
             if (!fecha.HasValue) return true;
             var f = fecha.Value.Date;
             if (f < start || f >= end) return false;
-            if (s.IdConductor.HasValue && s.IdConductor.Value > 0 && !driverIds.Contains(s.IdConductor.Value)) return false;
+            if (s.IdConductor.HasValue && s.IdConductor.Value >= 0 && !driverIds.Contains(s.IdConductor.Value)) return false;
             return true;
         }).ToList();
     }

@@ -213,6 +213,14 @@
                             <CellDisplayTemplate>
                                 @{
                                     var sol = (Solicitud)context.DataItem;
+                                    var esInvalida = sol.IdTipoTarea <= 0 || (tareasList != null && !tareasList.Any(t => t.IdTarea == sol.IdTipoTarea));
+                                }
+                                @if (esInvalida)
+                                {
+                                    <span class="badge bg-danger text-white border border-danger fw-semibold" title="Tipo de tarea sin definir">@sol.TipoTareaDescripcion</span>
+                                }
+                                else
+                                {
                                     @sol.TipoTareaDescripcion
                                 }
                             </CellDisplayTemplate>

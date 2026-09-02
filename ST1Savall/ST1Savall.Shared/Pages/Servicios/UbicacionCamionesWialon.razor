@@ -1,0 +1,193 @@
+@page "/servicios/ubicacion-camiones"
+@implements IAsyncDisposable
+@using System.Net.Http.Json
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Ubicación de camiones</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Ubicación de camiones</h2>
+            <p class="text-muted mb-0">Última posición recibida de cada unidad desde Wialon.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <DxButton Text="Actualizar" IconCssClass="oi oi-reload" RenderStyle="ButtonRenderStyle.Primary" Click="CargarAsync" Enabled="@(!cargandoDatos)" />
+            <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
+        </div>
+    </div>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="card shadow-sm"><div class="card-body p-0">
+        @if (cargando)
+        {
+            <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 mb-0 text-muted">Consultando Wialon...</p></div>
+        }
+        else if (ubicaciones is not null)
+        {
+            <DxGrid Data="@ubicaciones" KeyFieldName="IdCamion" PageSize="20" AllowSort="true" ShowSearchBox="true" SearchBoxNullText="Buscar camión..." HorizontalScrollBarMode="ScrollBarMode.Auto">
+                <Columns>
+                    <DxGridDataColumn Caption="Mapa" Width="50px" AllowSort="false" TextAlignment="GridTextAlignment.Center">
+                        <CellDisplayTemplate>
+                            @{ var item = (UbicacionCamionWialon)context.DataItem; }
+                            <a class="btn btn-sm btn-outline-success" href="@ObtenerUrlUnidadWialon(item)" target="_blank" rel="noopener noreferrer" title="Ver esta unidad en Wialon"><i class="oi oi-map-marker"></i></a>
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    @* <DxGridDataColumn FieldName="FechaPosicionLocal" Caption="Hora" Width="70px" DisplayFormat="HH:mm" TextAlignment="GridTextAlignment.Center" /> *@
+                    <DxGridDataColumn FieldName="Matricula" Caption="Matrícula" Width="85px" />
+                    <DxGridDataColumn FieldName="IdServicio" Caption="Nº Ser." Width="60px" TextAlignment="GridTextAlignment.Right" />
+                    <DxGridDataColumn FieldName="NombreConductor" Caption="Conductor" Width="150px" />
+                    <DxGridDataColumn FieldName="NombreObra" Caption="Obra" MinWidth="160" />
+                    <DxGridDataColumn FieldName="FaseRuta" Caption="Fase" Width="120px" />
+                    <DxGridDataColumn Caption="Ruta" Width="140px" AllowSort="false">
+                        <CellDisplayTemplate>
+                            @{ var item = (UbicacionCamionWialon)context.DataItem; }
+                            @if (item.DistanciaRutaMetros.HasValue && item.MinutosViajeRuta.HasValue)
+                            {
+                                <span class="@(item.FaseRuta == "Regreso" ? "text-success fw-bold" : null)">@((item.DistanciaRutaMetros.Value / 1000d).ToString("N1")) km - @item.MinutosViajeRuta min</span>
+                            }
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+                    <DxGridDataColumn Caption="Restante" Width="120px" AllowSort="false">
+                        <CellDisplayTemplate>
+                            @{ var item = (UbicacionCamionWialon)context.DataItem; }
+                            @if (item.DistanciaRestanteMetros.HasValue && item.MinutosViajeRestantes.HasValue)
+                            {
+                                <span class="@(item.FaseRuta == "Regreso" ? "text-success fw-bold" : null)">@((item.DistanciaRestanteMetros.Value / 1000d).ToString("N1")) km - @item.MinutosViajeRestantes min</span>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(item.ErrorRutaRestante))
+                            {
+                                <span class="text-danger" title="@item.ErrorRutaRestante">No disponible</span>
+                            }
+                        </CellDisplayTemplate>
+                    </DxGridDataColumn>
+@*                  <DxGridDataColumn FieldName="NombreUnidad" Caption="Unidad Wialon" Width="100px" /> *@
+@*                  <DxGridDataColumn FieldName="Latitud" Caption="Latitud" Width="110px" DisplayFormat="N6" TextAlignment="GridTextAlignment.Right" />
+                    <DxGridDataColumn FieldName="Longitud" Caption="Longitud" Width="110px" DisplayFormat="N6" TextAlignment="GridTextAlignment.Right" /> *@
+                    <DxGridDataColumn FieldName="VelocidadKmH" Caption="km/h" Width="60px" DisplayFormat="N1" TextAlignment="GridTextAlignment.Right" />
+                    <DxGridDataColumn FieldName="EstadoUnidad" Caption="Estado" Width="110px" />
+@*                  <DxGridDataColumn FieldName="Rumbo" Caption="Rumbo" Width="90px" TextAlignment="GridTextAlignment.Right" /> *@
+                </Columns>
+            </DxGrid>
+        }
+    </div></div>
+</div>
+
+@code {
+    private List<UbicacionCamionWialon>? ubicaciones;
+    private string? errorMessage;
+    private bool cargando;
+    private bool cargandoDatos;
+    private CancellationTokenSource? refrescoAutomaticoCancelacion;
+    private Task? refrescoAutomaticoTask;
+    private string wialonPortalUrl = "https://hosting.wialon.com/?lang=es";
+protected override async Task OnInitializedAsync()
+    {
+        await ConfigurarAutorizacionAsync();
+        await CargarUrlWialonAsync();
+        await CargarAsync();
+        IniciarRefrescoAutomatico();
+    }
+
+    private async Task ConfigurarAutorizacionAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = state.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrWhiteSpace(token))
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private async Task CargarUrlWialonAsync()
+    {
+        try
+        {
+            var url = await Http.GetFromJsonAsync<string>("api/wialon-tracking/portal-url");
+            if (!string.IsNullOrWhiteSpace(url)) wialonPortalUrl = url;
+        }
+        catch { }
+    }
+
+    private string ObtenerUrlUnidadWialon(UbicacionCamionWialon unidad)
+    {
+        if (string.IsNullOrWhiteSpace(unidad.UnidadWialonId)) return wialonPortalUrl;
+
+        var portalSinFragmento = wialonPortalUrl.Split('#')[0];
+        return $"{portalSinFragmento}#monitoring?unit={Uri.EscapeDataString(unidad.UnidadWialonId)}";
+    }
+
+    private Task CargarAsync() => CargarDatosAsync(mostrarCarga: true);
+
+private async Task CargarDatosAsync(bool mostrarCarga)
+    {
+        if (cargandoDatos) return;
+
+        cargandoDatos = true;
+        if (mostrarCarga) cargando = true;
+        errorMessage = null;
+        try
+        {
+            // Se reemplazan los datos una vez recibidos, sin ocultar el grid durante el refresco automático.
+            var nuevasUbicaciones = await Http.GetFromJsonAsync<List<UbicacionCamionWialon>>("api/wialon-tracking/ubicaciones") ?? [];
+            ubicaciones = nuevasUbicaciones;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+        {
+            errorMessage = "La integración con Wialon no está configurada. Configure el token de acceso en Modelos > Parámetros antes de consultar las ubicaciones.";
+            ubicaciones ??= [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudieron consultar las ubicaciones: {ex.Message}";
+            ubicaciones ??= [];
+        }
+        finally
+        {
+            if (mostrarCarga) cargando = false;
+            cargandoDatos = false;
+        }
+    }
+
+    private void IniciarRefrescoAutomatico()
+    {
+        refrescoAutomaticoCancelacion = new CancellationTokenSource();
+        refrescoAutomaticoTask = RefrescarAutomaticamenteAsync(refrescoAutomaticoCancelacion.Token);
+    }
+
+    private async Task RefrescarAutomaticamenteAsync(CancellationToken cancellationToken)
+    {
+        using var temporizador = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        try
+        {
+            while (await temporizador.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await CargarDatosAsync(mostrarCarga: false);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // El componente se ha cerrado.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (refrescoAutomaticoCancelacion is null) return;
+        await refrescoAutomaticoCancelacion.CancelAsync();
+        if (refrescoAutomaticoTask is not null)
+        {
+            try { await refrescoAutomaticoTask; }
+            catch (OperationCanceledException) { }
+        }
+        refrescoAutomaticoCancelacion.Dispose();
+    }
+}

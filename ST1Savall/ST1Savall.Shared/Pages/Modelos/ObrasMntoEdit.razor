@@ -50,7 +50,7 @@
     {
         <div class="card shadow-sm mb-4">
             <div class="card-body p-4">
-                <DxTabs CssClass="w-100">
+                <DxTabs CssClass="w-100" @bind-ActiveTabIndex="activeTabIndex">
                     <DxTabPage Text="Datos de la obra">
                 <EditForm Model="@obra" OnValidSubmit="GuardarAsync" Context="editFormContext" FormName="obra-form">
                     <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
@@ -81,23 +81,25 @@
                             <DxTextBox Text="@obra.Direccion" TextChanged="@((string valor) => obra.Direccion = LimitarTexto(valor, 50))" TextExpression="@(() => obra.Direccion)" BindValueMode="BindValueMode.OnInput" MaxLength="50" />
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Población" ColSpanMd="4">
-                            <div class="d-flex align-items-center gap-1 w-100">
-                                <div class="flex-grow-1">
-                                    <DxTextBox Text="@obra.Poblacion" TextExpression="@(() => obra.Poblacion)" ReadOnly="true" />
-                                </div>
-                                <button type="button" class="btn btn-outline-secondary btn-sm px-2" title="Buscar o crear población" @onclick="AbrirSelectorPoblacion" @onclick:stopPropagation>
-                                    <i class="oi oi-magnifying-glass"></i>
-                                </button>
-                            </div>
+                            <DxTextBox Text="@obra.Poblacion" TextChanged="OnPoblacionValidadaChangedAsync" TextExpression="@(() => obra.Poblacion)" BindValueMode="BindValueMode.OnLostFocus" MaxLength="30">
+                                <Buttons>
+                                    <DxEditorButton IconCssClass="oi oi-magnifying-glass" Tooltip="Buscar o crear población" Click="AbrirSelectorPoblacion" @onmousedown="PrepararBusquedaPoblacion" @onclick:stopPropagation />
+                                </Buttons>
+                            </DxTextBox>
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Cód. Postal" ColSpanMd="3">
                             <DxTextBox Text="@obra.Codpost" TextExpression="@(() => obra.Codpost)" ReadOnly="true" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Provincia" ColSpanMd="5" BeginRow="true">
+                        <DxFormLayoutItem Caption="Provincia" ColSpanMd="3" BeginRow="true">
                             <DxTextBox @bind-Text="@obra.Provincia" MaxLength="30" ReadOnly="true" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="7">
+                        <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="3">
                             <DxTextBox Text="@obra.Libre3" TextChanged="@((string valor) => obra.Libre3 = LimitarTexto(valor, 30))" TextExpression="@(() => obra.Libre3)" BindValueMode="BindValueMode.OnInput" MaxLength="30" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Tarifa" ColSpanMd="6">
+                            <DxComboBox Data="@tarifasVigentes" TData="TarifaObraOpcion" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="obra.Tarifa" @bind-Value:after="ActualizarDatosTarifa" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" ClearButtonVisible="true" NullText="Seleccione una tarifa...">
+                                <Columns><DxListEditorColumn FieldName="Codigo" Caption="Código" Width="80px" /><DxListEditorColumn FieldName="Nombre" Caption="Nombre" /><DxListEditorColumn FieldName="Zona" Caption="Zona" Width="80px" /><DxListEditorColumn FieldName="NombreZona" Caption="Nombre de zona" /></Columns>
+                            </DxComboBox>
                         </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Encargado" ColSpanMd="4" BeginRow="true">
                             <DxTextBox Text="@obra.Encargado" TextChanged="@((string valor) => obra.Encargado = LimitarTexto(valor, 30))" TextExpression="@(() => obra.Encargado)" BindValueMode="BindValueMode.OnInput" MaxLength="30" />
@@ -304,6 +306,34 @@
             </BodyTemplate>
         </DxPopup>
 
+        <DxPopup @bind-Visible="@confirmarCambioTarifaVisible"
+                 HeaderText="Tarifa distinta para la población"
+                 HeaderCssClass="bg-warning text-dark"
+                 Width="560px"
+                 CloseOnEscape="true"
+                 CloseOnOutsideClick="false"
+                 ShowCloseButton="true">
+            <BodyTemplate Context="popupContext">
+                <div class="p-3">
+                    <p class="mb-2">La población <strong>@obra?.Poblacion</strong> no pertenece a la zona de la tarifa seleccionada.</p>
+                    @if (tarifaPropuestaPoblacion is not null)
+                    {
+                        <p class="mb-3">Se ha encontrado la tarifa vigente <strong>@tarifaPropuestaPoblacion.Descripcion</strong> para esta población. ¿Desea aplicarla?</p>
+                        <div class="d-flex justify-content-end gap-2">
+                            <DxButton Text="Mantener tarifa actual" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarCambioTarifaPorPoblacion" />
+                            <DxButton Text="Sí, cambiar tarifa" RenderStyle="ButtonRenderStyle.Primary" Click="ConfirmarCambioTarifaPorPoblacion" />
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="mb-3">No existe una tarifa vigente para esta población. Mantenga la tarifa actual o seleccione otra manualmente.</p>
+                        <div class="d-flex justify-content-end">
+                            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="CancelarCambioTarifaPorPoblacion" />
+                        </div>
+                    }
+                </div>
+            </BodyTemplate>
+        </DxPopup>
         <DxPopup @bind-Visible="@poblacionPopupVisible"
                  HeaderText="Gestión de Población"
                  HeaderCssClass="bg-primary text-white"
@@ -358,6 +388,7 @@
 @code {
     [Parameter] public string? Codigo { get; set; }
     [SupplyParameterFromQuery] public bool Duplicate { get; set; }
+    [SupplyParameterFromQuery(Name = "tab")] public string? Tab { get; set; }
 
     [Parameter]
     [SupplyParameterFromQuery(Name = "returnUrl")]
@@ -394,6 +425,8 @@
     private List<ClienteSage50>? todosLosClientes;
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
+    private bool poblacionValida = true;
+    private bool omitirValidacionPoblacion;
     
     private bool isLoading = true;
     private string? errorMessage;
@@ -421,9 +454,16 @@
     private IGrid? gridPrecios;
     private PrecioEspecialCabecera precioCabecera = new();
     private List<CodigoNombre> articulosPrecio = [];
+    private List<TarifaObraOpcion> tarifasVigentes = [];
+    private List<TarifaCabecera> tarifasVigentesDatos = [];
+    private List<ZonaComunSage50> todasLasZonas = [];
+    private bool confirmarCambioTarifaVisible;
+    private TarifaObraOpcion? tarifaPropuestaPoblacion;
+    private int activeTabIndex;
 
     protected override async Task OnInitializedAsync()
     {
+        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         await SetupHeadersAsync();
         await LoadAuxiliaryDataAsync();
         await LoadObraAsync();
@@ -464,6 +504,10 @@
                 .Select(x => new CodigoNombre(x.Codigo?.Trim() ?? "", x.Nombre?.Trim() ?? ""))
                 .OrderBy(x => x.Descripcion)
                 .ToList();
+
+            tarifasVigentesDatos = (await Http.GetFromJsonAsync<List<TarifaCabecera>>("api/tarifas") ?? []).Where(t => t.Desde.Date <= DateTime.Today && t.Hasta.Date >= DateTime.Today).Select(t => { t.Codigo = t.Codigo?.Trim() ?? ""; t.Nombre = t.Nombre?.Trim() ?? ""; t.Zona = t.Zona?.Trim() ?? ""; return t; }).OrderBy(t => t.Codigo).ToList();
+            todasLasZonas = (await Http.GetFromJsonAsync<List<ZonaComunSage50>>("api/zonas") ?? []).Select(z => { z.Ruta = z.Ruta?.Trim() ?? ""; z.Zona = z.Zona?.Trim() ?? ""; z.Descripcion = z.Descripcion?.Trim() ?? ""; return z; }).Where(z => z.Ruta == "01").ToList();
+            tarifasVigentes = tarifasVigentesDatos.Select(t => { var zona = todasLasZonas.FirstOrDefault(z => z.Zona == t.Zona); return new TarifaObraOpcion(t.Codigo, t.Nombre, t.Zona, zona?.Descripcion ?? ""); }).ToList();
         }
         catch (Exception ex)
         {
@@ -568,9 +612,11 @@
                 await CargarPrecioObraAsync();
             }
 
-            if (AplicarPoblacionSeleccionada() && !IsNew)
+            if (AplicarPoblacionSeleccionada())
             {
-                await GuardarInternoAsync(navegarTrasGuardar: false);
+                ComprobarTarifaParaPoblacion();
+                if (!IsNew)
+                    await GuardarInternoAsync(navegarTrasGuardar: false);
             }
         }
         catch (Exception ex)
@@ -584,11 +630,13 @@
         }
     }
 
+    private void PrepararBusquedaPoblacion() => omitirValidacionPoblacion = true;
+
     private async Task AbrirSelectorPoblacion()
     {
         // El selector navega a otro mantenimiento. Guardamos antes la obra para
         // no perder cambios y para que el protector de cambios permita salir.
-        if (!await GuardarCambiosPendientesAsync())
+        if (!await GuardarCambiosPendientesAsync(validarPoblacion: false))
             return;
 
         var ruta = string.IsNullOrWhiteSpace(Codigo)
@@ -702,6 +750,10 @@
     {
         public string Descripcion => $"{Codigo} - {Nombre}";
     }
+
+    private sealed record TarifaObraOpcion(string Codigo, string Nombre, string Zona, string NombreZona){public string Descripcion=>$"{Codigo} - {Nombre} ({Zona} - {NombreZona})";}
+
+    private void ActualizarDatosTarifa(){if(obra is null)return;obra.Ruta="01";var tarifa=tarifasVigentes.FirstOrDefault(t=>string.Equals(t.Codigo,obra.Tarifa?.Trim(),StringComparison.OrdinalIgnoreCase));obra.Zona=tarifa?.Zona ?? string.Empty;}
 
     private void AplicarFiltroClientes()
     {
@@ -847,7 +899,7 @@
             ?? await BuscarPoblacionAsync(val, porCodigo: true);
         if (p != null)
         {
-            obra.Poblacion = p.Poblacion?.Trim() ?? "";
+            obra.Poblacion = p.Poblacion?.Trim() ?? obra.Poblacion;
             obra.Provincia = p.Provincia?.Trim() ?? "";
         }
     }
@@ -860,11 +912,112 @@
             ?? await BuscarPoblacionAsync(val, porCodigo: false);
         if (p != null)
         {
+            obra.Poblacion = p.Poblacion?.Trim() ?? obra.Poblacion;
             obra.Codpost = p.Codigo?.Trim() ?? "";
             obra.Provincia = p.Provincia?.Trim() ?? "";
         }
     }
 
+    private async Task OnPoblacionValidadaChangedAsync(string val)
+    {
+        if (obra is null) return;
+        obra.Poblacion = LimitarTexto(val?.Trim(), 30);
+        if (omitirValidacionPoblacion)
+        {
+            // La marca se usa únicamente para el cambio de foco provocado por la lupa.
+            omitirValidacionPoblacion = false;
+            return;
+        }
+
+        var poblacion = poblaciones?.FirstOrDefault(p => string.Equals(p.Poblacion?.Trim(), obra.Poblacion, StringComparison.OrdinalIgnoreCase))
+            ?? await BuscarPoblacionAsync(obra.Poblacion, porCodigo: false);
+        if (poblacion is null)
+        {
+            poblacionValida = false;
+            errorMessage = $"La población '{obra.Poblacion}' no existe. Seleccione una población válida antes de guardar.";
+            return;
+        }
+
+        poblacionValida = true;
+        obra.Poblacion = poblacion.Poblacion?.Trim() ?? obra.Poblacion;
+        obra.Codpost = poblacion.Codigo?.Trim() ?? "";
+        obra.Provincia = poblacion.Provincia?.Trim() ?? "";
+        ComprobarTarifaParaPoblacion();
+    }
+    private void ComprobarTarifaParaPoblacion()
+    {
+        if (obra is null || string.IsNullOrWhiteSpace(obra.Poblacion)) return;
+
+        var poblacionNormalizada = obra.Poblacion.Trim().ToUpperInvariant();
+        var tarifaParaPoblacion = tarifasVigentes.FirstOrDefault(t => t.NombreZona.Trim().ToUpperInvariant().Contains(poblacionNormalizada));
+        var tarifaActual = tarifasVigentes.FirstOrDefault(t => string.Equals(t.Codigo, obra.Tarifa?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (tarifaActual is null)
+        {
+            if (tarifaParaPoblacion is not null)
+            {
+                obra.Tarifa = tarifaParaPoblacion.Codigo;
+                ActualizarDatosTarifa();
+            }
+            return;
+        }
+
+        if (tarifaActual.NombreZona.Trim().ToUpperInvariant().Contains(poblacionNormalizada)) return;
+
+        if (tarifaParaPoblacion is null)
+        {
+            tarifaPropuestaPoblacion = null;
+            confirmarCambioTarifaVisible = true;
+            return;
+        }
+
+        if (!string.Equals(tarifaActual.Codigo, tarifaParaPoblacion.Codigo, StringComparison.OrdinalIgnoreCase))
+        {
+            tarifaPropuestaPoblacion = tarifaParaPoblacion;
+            confirmarCambioTarifaVisible = true;
+        }
+    }
+    private void ConfirmarCambioTarifaPorPoblacion()
+    {
+        if (obra is not null && tarifaPropuestaPoblacion is not null)
+        {
+            obra.Tarifa = tarifaPropuestaPoblacion.Codigo;
+            ActualizarDatosTarifa();
+        }
+        tarifaPropuestaPoblacion = null;
+        confirmarCambioTarifaVisible = false;
+    }
+
+    private void CancelarCambioTarifaPorPoblacion()
+    {
+        tarifaPropuestaPoblacion = null;
+        confirmarCambioTarifaVisible = false;
+    }
+    private async Task<bool> ValidarPoblacionAntesDeGuardarAsync()
+    {
+        if (obra is null || string.IsNullOrWhiteSpace(obra.Poblacion)) { errorMessage = "Debe indicar una población válida antes de guardar."; return false; }
+        var poblacion = poblaciones?.FirstOrDefault(p =>
+            string.Equals(p.Poblacion?.Trim(), obra.Poblacion.Trim(), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(p.Codigo?.Trim(), obra.Codpost?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (poblacion is null && !string.IsNullOrWhiteSpace(obra.Codpost))
+        {
+            var poblacionPorCodigo = await BuscarPoblacionAsync(obra.Codpost, porCodigo: true);
+            if (poblacionPorCodigo is not null
+                && string.Equals(poblacionPorCodigo.Poblacion?.Trim(), obra.Poblacion.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                poblacion = poblacionPorCodigo;
+            }
+        }
+
+        poblacion ??= poblaciones?.FirstOrDefault(p => string.Equals(p.Poblacion?.Trim(), obra.Poblacion.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? await BuscarPoblacionAsync(obra.Poblacion, porCodigo: false);
+        if (poblacion is null) { poblacionValida = false; errorMessage = $"La población '{obra.Poblacion}' no existe. Seleccione una población válida antes de guardar."; return false; }
+        poblacionValida = true;
+        obra.Codpost = poblacion.Codigo?.Trim() ?? "";
+        obra.Provincia = poblacion.Provincia?.Trim() ?? "";
+        return true;
+    }
     private async Task<CodPosSage50?> BuscarPoblacionAsync(string? valor, bool porCodigo)
     {
         if (string.IsNullOrWhiteSpace(valor)) return null;
@@ -1009,17 +1162,18 @@
 
     private Task GuardarAsync() => GuardarInternoAsync(navegarTrasGuardar: true);
 
-    private async Task<bool> GuardarCambiosPendientesAsync()
+    private async Task<bool> GuardarCambiosPendientesAsync(bool validarPoblacion = true)
     {
         if (!HayCambiosPendientes)
             return true;
 
-        return await GuardarInternoAsync(navegarTrasGuardar: false);
+        return await GuardarInternoAsync(navegarTrasGuardar: false, validarPoblacion: validarPoblacion);
     }
 
-    private async Task<bool> GuardarInternoAsync(bool navegarTrasGuardar)
+    private async Task<bool> GuardarInternoAsync(bool navegarTrasGuardar, bool validarPoblacion = true)
     {
         if (obra == null) return false;
+        if (validarPoblacion && !await ValidarPoblacionAntesDeGuardarAsync()) return false;
         try
         {
             await SetupHeadersAsync();
@@ -1038,6 +1192,9 @@
             obra.Libre1 = obra.Libre1?.Trim() ?? "";
             obra.Libre2 = obra.Libre2?.Trim() ?? "";
             obra.Libre3 = obra.Libre3?.Trim() ?? "";
+            obra.Tarifa = obra.Tarifa?.Trim() ?? "";
+            obra.Ruta = "01";
+            obra.Zona = tarifasVigentes.FirstOrDefault(t => string.Equals(t.Codigo, obra.Tarifa, StringComparison.OrdinalIgnoreCase))?.Zona ?? string.Empty;
 
             if (IsNew)
             {

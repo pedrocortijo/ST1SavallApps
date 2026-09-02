@@ -432,14 +432,52 @@ html.theme-fluent-dark .obra-resumen {
     color: #dc3545 !important;
 }
 
-/* Popup de ubicación de contenedor en Leaflet */
+/* Popup de ubicación en MapLibre / Leaflet */
+.map-marker-popup-container .maplibregl-popup-content,
 .map-marker-popup-container .leaflet-popup-content-wrapper {
     border-radius: 14px;
+    padding: 16px 20px;
+    min-width: 305px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
 }
 
 .map-marker-popup-container .leaflet-popup-content {
     min-width: 305px;
     margin: 16px 20px;
+}
+
+.map-layer-switcher {
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+}
+
+.map-layer-switcher .btn-layer {
+    background: #ffffff;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.map-layer-switcher .btn-layer:last-child {
+    border-bottom: none;
+}
+
+.map-layer-switcher .btn-layer.active {
+    background: #0d6efd;
+    color: #ffffff;
+}
+
+.map-layer-switcher .btn-layer:hover:not(.active) {
+    background: #f0f0f0;
 }
 
 .map-marker-popup {

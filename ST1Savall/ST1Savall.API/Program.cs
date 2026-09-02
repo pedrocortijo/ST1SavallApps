@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ST1Savall.API.Data;
@@ -5,6 +6,13 @@ using ST1Savall.API.Services;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add persistent DataProtection keys
+var dataProtectionKeysFolder = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys");
+Directory.CreateDirectory(dataProtectionKeysFolder);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysFolder))
+    .SetApplicationName("ST1Savall");
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -25,16 +33,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<PlanificacionService>();
 builder.Services.AddScoped<EstadoOperariosAusenciasService>();
-builder.Services.Configure<MapboxDirectionsOptions>(
-    builder.Configuration.GetSection(MapboxDirectionsOptions.SectionName));
-builder.Services.AddHttpClient<MapboxDirectionsService>((services, client) =>
-{
-    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<MapboxDirectionsOptions>>().Value;
-    client.BaseAddress = new Uri(options.BaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(20);
-});
+builder.Services.AddScoped<ParametrosIntegracionesService>();
+builder.Services.AddHttpClient<MapboxDirectionsService>(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Logging.AddFilter("System.Net.Http.HttpClient.MapboxDirectionsService", LogLevel.Warning);
 builder.Services.AddScoped<CalculoRutaSolicitudService>();
+builder.Services.AddHttpClient<WialonTrackingService>(client => client.Timeout = TimeSpan.FromSeconds(30));
 
 // Add SageGestion DbContext
 var sageGestionConnectionString = builder.Configuration.GetConnectionString("SageGestionConnection") 
@@ -78,6 +81,7 @@ using (var scope = app.Services.CreateScope())
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         await DbInitializer.InitializeAsync(context, sageGestionContext, userManager, roleManager);
+        await services.GetRequiredService<ParametrosIntegracionesService>().MigrarDesdeConfiguracionAsync();
     }
     catch (Exception ex)
     {
