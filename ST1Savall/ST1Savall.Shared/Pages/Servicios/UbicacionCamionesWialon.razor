@@ -29,9 +29,7 @@
         {
             <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 mb-0 text-muted">Consultando Wialon...</p></div>
         }
-        else if (ubicaciones is not null)
-        {
-            <DxGrid Data="@ubicaciones" KeyFieldName="IdCamion" PageSize="20" AllowSort="true" ShowSearchBox="true" SearchBoxNullText="Buscar camión..." HorizontalScrollBarMode="ScrollBarMode.Auto">
+        <DxGrid Data="@(ubicaciones ?? [])" KeyFieldName="IdCamion" PageSize="20" AllowSort="true" ShowSearchBox="true" SearchBoxNullText="Buscar camión..." HorizontalScrollBarMode="ScrollBarMode.Auto" style="@(cargando || ubicaciones is null ? "display: none;" : null)">
                 <Columns>
                     <DxGridDataColumn Caption="Mapa" Width="50px" AllowSort="false" TextAlignment="GridTextAlignment.Center">
                         <CellDisplayTemplate>
@@ -74,8 +72,7 @@
                     <DxGridDataColumn FieldName="EstadoUnidad" Caption="Estado" Width="110px" />
 @*                  <DxGridDataColumn FieldName="Rumbo" Caption="Rumbo" Width="90px" TextAlignment="GridTextAlignment.Right" /> *@
                 </Columns>
-            </DxGrid>
-        }
+        </DxGrid>
     </div></div>
 </div>
 
