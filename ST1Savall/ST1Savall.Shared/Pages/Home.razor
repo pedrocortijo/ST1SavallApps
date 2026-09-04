@@ -12,6 +12,9 @@
 <PageTitle>Panel de Control - Gestión de Contenedores</PageTitle>
 
 <style>
+    .estado-filtro-seleccionado { border: 4px solid #000000 !important; }
+    html.theme-blazing-dark .estado-filtro-seleccionado,
+    html.theme-fluent-dark .estado-filtro-seleccionado { border: 4px solid #ffffff !important; }
     .grid-filter-bar { background-color: rgba(0, 0, 0, 0.03); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
     html.theme-blazing-dark .grid-filter-bar,
     html.theme-fluent-dark .grid-filter-bar { background-color: rgba(255, 255, 255, 0.03) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
@@ -292,7 +295,7 @@
                     @foreach (var estado in GetFilterableEstados())
                     {
                         var estadoId = estado.IdEstado;
-                        <div class="card text-center" @onclick="() => ToggleEstadoFilter(estadoId)" style="@GetCardStyle(estadoId)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+                        <div class="card text-center @(selectedEstadoId == estadoId ? "estado-filtro-seleccionado" : "")" @onclick="() => ToggleEstadoFilter(estadoId)" style="@GetCardStyle(estadoId)" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
                             <span class="fw-bold" style="font-size: 0.8rem; color: @(GetCardTextStyle(estadoId)) !important; line-height: 1.1; margin-bottom: 4px;">@GetCardLabel(estado)</span>
                             <h3 class="fw-bold mb-0" style="font-size: 1.8rem; color: @(GetCardTextStyle(estadoId)) !important;">@GetStateCount(estadoId)</h3>
                         </div>
@@ -1163,11 +1166,10 @@
     {
         var est = estadosList?.FirstOrDefault(x => x.IdEstado == estado);
         string bg = est?.BgColor ?? "#ffffff";
-        string text = est?.TextColor ?? "#000000";
         bool isSelected = selectedEstadoId == estado;
-        string border = isSelected ? $"4px solid {text}" : "1px solid rgba(0,0,0,0.1)";
+        string border = isSelected ? string.Empty : "border: 1px solid rgba(0,0,0,0.1) !important;";
         
-        return $"background-color: {bg} !important; border: {border} !important; border-radius: 8px; min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;";
+        return $"background-color: {bg} !important; {border} border-radius: 8px; min-height: 90px; display: flex; flex-direction: column; justify-content: center; padding: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); cursor: pointer; transition: transform 0.2s;";
     }
     
     private string GetCardTextStyle(int estado)

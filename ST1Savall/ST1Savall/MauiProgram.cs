@@ -33,10 +33,12 @@ namespace ST1Savall
 #if ANDROID
             // Dirección IPv4 del equipo que ejecuta ST1Savall.API en la red local.
             //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.1.230:4040/") });
-#else
-            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.1.230:4040/") });
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:4040/") });
+#else
+            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.1.230:4040/") });
+            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:4040/") });
+            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
+
 #endif
             builder.Services.AddScoped<IAuthService, DesktopAuthService>();
             builder.Services.AddScoped<ST1Savall.Shared.Services.ObrasMntoGridState>();

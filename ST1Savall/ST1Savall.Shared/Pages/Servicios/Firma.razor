@@ -61,13 +61,17 @@
         <button type="button" class="btn btn-outline-secondary" @onclick="Volver"><i class="oi oi-arrow-left me-1"></i>Volver</button>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+        </div>
+    }
+
     @if (loading)
     {
         <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div>
-    }
-    else if (!string.IsNullOrWhiteSpace(errorMessage))
-    {
-        <div class="alert alert-danger">@errorMessage</div>
     }
     else if (solicitud is not null)
     {
@@ -199,9 +203,20 @@
             await CargarFotosAsync();
             if (!string.IsNullOrWhiteSpace(solicitud.FirmaPath))
             {
-                var bytes = await Http.GetByteArrayAsync($"api/solicitudes/{Id}/firma");
-                firmaImagenBase64 = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
-                firmaPendienteDeMostrar = true;
+                try
+                {
+                    var response = await Http.GetAsync($"api/solicitudes/{Id}/firma");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var bytes = await response.Content.ReadAsByteArrayAsync();
+                        firmaImagenBase64 = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+                        firmaPendienteDeMostrar = true;
+                    }
+                }
+                catch
+                {
+                    // Si el archivo de firma no existe o no se puede cargar, permitir que el usuario firme de nuevo
+                }
             }
         }
         catch (Exception ex) { errorMessage = $"No se han podido cargar los datos: {ex.Message}"; }
@@ -241,6 +256,18 @@
         if (solicitud is not null) { solicitud.FirmaNombre = null; solicitud.FirmaDni = null; }
     }
 
+    private async Task<string> ObtenerMensajeErrorAsync(HttpResponseMessage response, string mensajePorDefecto)
+    {
+        try
+        {
+            var json = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            if (json.TryGetProperty("message", out var msg) && !string.IsNullOrWhiteSpace(msg.GetString()))
+                return msg.GetString()!;
+        }
+        catch { }
+        return mensajePorDefecto;
+    }
+
     private async Task GuardarAsync()
     {
         if (solicitud is null) return;
@@ -260,12 +287,20 @@
                 solicitud.CodigoRecogida,
                 solicitud.CodigoAmbosRecogida
             });
-            if (!datos.IsSuccessStatusCode) throw new InvalidOperationException("No se han podido guardar los datos del albarán.");
+            if (!datos.IsSuccessStatusCode)
+            {
+                var error = await ObtenerMensajeErrorAsync(datos, "No se han podido guardar los datos del albarán.");
+                throw new InvalidOperationException(error);
+            }
             if (firmaEliminada) await Http.DeleteAsync($"api/solicitudes/{Id}/firma");
             if (firmaModificada && !string.IsNullOrWhiteSpace(firmaImagenBase64))
             {
                 var firma = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/firma", new { Nombre = solicitud.FirmaNombre, Dni = solicitud.FirmaDni, ImagenBase64 = firmaImagenBase64 });
-                if (!firma.IsSuccessStatusCode) throw new InvalidOperationException("No se ha podido guardar la firma.");
+                if (!firma.IsSuccessStatusCode)
+                {
+                    var error = await ObtenerMensajeErrorAsync(firma, "No se ha podido guardar la firma.");
+                    throw new InvalidOperationException(error);
+                }
             }
             firmaModificada = false; firmaEliminada = false;
             Volver();
@@ -300,7 +335,11 @@
     private async Task GuardarFotoAsync(string nombreArchivo, string? contentType, byte[] contenido)
     {
         var respuesta = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/fotos", new { NombreArchivo = nombreArchivo, ImagenBase64 = $"data:{contentType ?? "image/jpeg"};base64,{Convert.ToBase64String(contenido)}" });
-        if (!respuesta.IsSuccessStatusCode) throw new InvalidOperationException("No se ha podido guardar la foto.");
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            var error = await ObtenerMensajeErrorAsync(respuesta, "No se ha podido guardar la foto.");
+            throw new InvalidOperationException(error);
+        }
         await CargarFotosAsync();
     }
 

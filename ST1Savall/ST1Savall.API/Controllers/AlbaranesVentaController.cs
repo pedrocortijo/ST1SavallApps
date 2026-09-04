@@ -275,9 +275,26 @@ public class AlbaranesVentaController(
     {
         if (string.IsNullOrWhiteSpace(datos.Obra)) return;
         var hoy = datos.Fecha.Date;
+        var tarifaObra = await comunContext.Obras.AsNoTracking()
+            .Where(o => o.Codigo.Trim() == datos.Obra.Trim())
+            .Select(o => o.Tarifa)
+            .FirstOrDefaultAsync();
+
+        if (!string.IsNullOrWhiteSpace(tarifaObra))
+        {
+            var precioTarifa = await applicationContext.TarifasLineas.AsNoTracking()
+                .Where(l => l.Tarifa == tarifaObra
+                    && l.Articulo.Trim() == datos.Articulo.Trim()
+                    && l.Cabecera != null
+                    && l.Cabecera.Desde <= hoy
+                    && l.Cabecera.Hasta >= hoy)
+                .Select(l => (decimal?)l.Precio)
+                .FirstOrDefaultAsync();
+            if (precioTarifa.HasValue) datos.Precio = precioTarifa.Value;
+        }
         var precio = await applicationContext.PreciosEspecialesDetalles.AsNoTracking()
-            .Where(d => d.ArticuloSage == datos.Articulo && d.IdPrecioEspecialCabecera == applicationContext.PreciosEspecialesCabeceras
-                .Where(c => c.ObraSage == datos.Obra
+            .Where(d => d.ArticuloSage.Trim() == datos.Articulo.Trim() && d.IdPrecioEspecialCabecera == applicationContext.PreciosEspecialesCabeceras
+                .Where(c => c.ObraSage.Trim() == datos.Obra.Trim()
                     && (!c.VigenteDesde.HasValue || c.VigenteDesde <= hoy)
                     && (!c.VigenteHasta.HasValue || c.VigenteHasta >= hoy))
                 .Select(c => c.IdPrecioEspecialCabecera).FirstOrDefault())

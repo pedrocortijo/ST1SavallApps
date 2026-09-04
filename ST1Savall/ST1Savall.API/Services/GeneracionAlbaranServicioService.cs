@@ -95,7 +95,7 @@ public sealed class GeneracionAlbaranServicioService(
                 Fecha = DateTime.Today
             };
 
-            await AplicarPrecioEspecialAsync(datos);
+            await AplicarPrecioObraAsync(datos, obra.Tarifa);
             var calculoFiscal = await CalcularFiscalAsync(datos, cliente);
             await using var transaccion = await sage.Database.BeginTransactionAsync();
             var numero = await ReservarSiguienteNumeroDisponibleAsync(empresa, serie);
@@ -320,12 +320,24 @@ public sealed class GeneracionAlbaranServicioService(
         throw new InvalidOperationException("No se ha encontrado un número libre después de avanzar el contador de albaranes.");
     }
 
-    private async Task AplicarPrecioEspecialAsync(AlbaranVentaEdicion datos)
+    private async Task AplicarPrecioObraAsync(AlbaranVentaEdicion datos, string? tarifaObra)
     {
         var fecha = datos.Fecha.Date;
+        if (!string.IsNullOrWhiteSpace(tarifaObra))
+        {
+            var precioTarifa = await aplicacion.TarifasLineas.AsNoTracking()
+                .Where(l => l.Tarifa == tarifaObra
+                    && l.Articulo.Trim() == datos.Articulo.Trim()
+                    && l.Cabecera != null
+                    && l.Cabecera.Desde <= fecha
+                    && l.Cabecera.Hasta >= fecha)
+                .Select(l => (decimal?)l.Precio)
+                .FirstOrDefaultAsync();
+            if (precioTarifa.HasValue) datos.Precio = precioTarifa.Value;
+        }
         var precio = await aplicacion.PreciosEspecialesDetalles.AsNoTracking()
-            .Where(d => d.ArticuloSage == datos.Articulo && d.IdPrecioEspecialCabecera == aplicacion.PreciosEspecialesCabeceras
-                .Where(c => c.ObraSage == datos.Obra && (!c.VigenteDesde.HasValue || c.VigenteDesde <= fecha)
+            .Where(d => d.ArticuloSage.Trim() == datos.Articulo.Trim() && d.IdPrecioEspecialCabecera == aplicacion.PreciosEspecialesCabeceras
+                .Where(c => c.ObraSage.Trim() == datos.Obra.Trim() && (!c.VigenteDesde.HasValue || c.VigenteDesde <= fecha)
                     && (!c.VigenteHasta.HasValue || c.VigenteHasta >= fecha))
                 .Select(c => c.IdPrecioEspecialCabecera).FirstOrDefault())
             .Select(d => (decimal?)d.Precio).FirstOrDefaultAsync();

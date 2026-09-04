@@ -441,6 +441,29 @@ html.theme-fluent-dark .obra-resumen {
     box-shadow: 0 10px 25px rgba(0,0,0,0.25);
 }
 
+.map-marker-popup-container .maplibregl-popup-content,
+.map-marker-popup-container .leaflet-popup-content-wrapper,
+.map-marker-popup-container .map-marker-popup {
+    background-color: #ffffff;
+    color: #212529 !important;
+}
+
+.map-marker-popup-container .map-marker-popup p,
+.map-marker-popup-container .map-marker-popup span,
+.map-marker-popup-container .map-marker-popup div,
+.map-marker-popup-container .map-marker-popup strong,
+.map-marker-popup-container .map-marker-popup b {
+    color: #212529 !important;
+}
+
+.map-marker-popup-container .maplibregl-popup-tip {
+    border-top-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+
+.map-marker-popup-container .maplibregl-popup-close-button {
+    color: #495057;
+}
 .map-marker-popup-container .leaflet-popup-content {
     min-width: 305px;
     margin: 16px 20px;

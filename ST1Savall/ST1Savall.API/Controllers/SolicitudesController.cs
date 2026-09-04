@@ -877,25 +877,37 @@ public class SolicitudesController : ControllerBase
         if (imagen.Length == 0 || imagen.Length > 10 * 1024 * 1024)
             return BadRequest(new { message = "La foto debe tener un tamaño máximo de 10 MB." });
 
-        var pathFirmas = await _context.Parametros.AsNoTracking().Select(p => p.PathFirmas).FirstOrDefaultAsync();
-        if (string.IsNullOrWhiteSpace(pathFirmas))
-            return BadRequest(new { message = "Configure la ruta de firmas en Parámetros antes de guardar fotos." });
+        var parametro = await _context.Parametros.AsNoTracking().FirstOrDefaultAsync();
+        var rutaBaseFotos = !string.IsNullOrWhiteSpace(parametro?.PathImagenes)
+            ? parametro.PathImagenes
+            : parametro?.PathFirmas;
 
-        var carpetaFotos = Path.Combine(pathFirmas, "Fotos", id.ToString());
-        Directory.CreateDirectory(carpetaFotos);
-        var rutaArchivo = Path.Combine(carpetaFotos, $"{Guid.NewGuid():N}.jpg");
-        await System.IO.File.WriteAllBytesAsync(rutaArchivo, imagen);
+        if (string.IsNullOrWhiteSpace(rutaBaseFotos))
+            return BadRequest(new { message = "Configure la ruta de imágenes en Parámetros antes de guardar fotos." });
 
-        var nuevaFoto = new SolicitudFoto
+        try
         {
-            IdSolicitud = id,
-            RutaArchivo = rutaArchivo,
-            NombreArchivo = foto.NombreArchivo?.Trim(),
-            FechaCreacion = DateTime.Now
-        };
-        _context.SolicitudFotos.Add(nuevaFoto);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(ObtenerFoto), new { id, idFoto = nuevaFoto.Id }, nuevaFoto);
+            var carpetaFotos = Path.Combine(rutaBaseFotos, id.ToString());
+            Directory.CreateDirectory(carpetaFotos);
+            var rutaArchivo = Path.Combine(carpetaFotos, $"{Guid.NewGuid():N}.jpg");
+            await System.IO.File.WriteAllBytesAsync(rutaArchivo, imagen);
+
+            var nuevaFoto = new SolicitudFoto
+            {
+                IdSolicitud = id,
+                RutaArchivo = rutaArchivo,
+                NombreArchivo = foto.NombreArchivo?.Trim(),
+                FechaCreacion = DateTime.Now
+            };
+            _context.SolicitudFotos.Add(nuevaFoto);
+            await _context.SaveChangesAsync();
+            return CreatedAtAction(nameof(ObtenerFoto), new { id, idFoto = nuevaFoto.Id }, nuevaFoto);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { message = $"No se ha podido guardar la foto en la ruta configurada: {ex.Message}" });
+        }
     }
 
     [HttpDelete("{id}/fotos/{idFoto}")]

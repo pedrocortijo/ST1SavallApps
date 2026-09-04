@@ -1,6 +1,4 @@
 @page "/servicios/informes"
-@using System.Net.Http.Json
-@using DevExpress.Blazor.PivotTable
 @using ST1Savall.Shared.Data
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
@@ -11,75 +9,127 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">Informes de Servicios</h2>
-            <p class="text-muted mb-0">Análisis interactivo de servicios, rutas y firmas.</p>
+            <p class="text-muted mb-0">Resumen analítico y estadísticas de los servicios registrados</p>
         </div>
-        <DxButton Text="Actualizar" IconCssClass="oi oi-reload" RenderStyle="ButtonRenderStyle.Primary" Click="LoadDataAsync" Enabled="@(!loading)" />
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    @if (errorMessage != null)
     {
-        <div class="alert alert-danger" role="alert">@errorMessage</div>
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
     }
 
     @if (loading)
     {
         <div class="p-5 text-center">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-2 text-muted mb-0">Cargando datos para los informes...</p>
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted mb-0">Generando informe analítico...</p>
         </div>
     }
-    else
+    else if (solicitudes != null && estadosList != null)
     {
-        <DxTabs>
-            <DxTabPage Text="Servicios">
-                <div class="pt-3">
-                    <p class="text-muted small">Analice servicios por conductor, obra, estado y mes. Puede mover los campos desde sus encabezados.</p>
-                    <DxPivotTable Data="@datosServicios" CssClass="w-100" style="height: 560px;">
-                        <Fields>
-                            <DxPivotTableField Field="@nameof(InformeServicioPivot.Conductor)" Caption="Conductor" Area="@PivotTableArea.Row" AreaIndex="0" />
-                            <DxPivotTableField Field="@nameof(InformeServicioPivot.Obra)" Caption="Obra" Area="@PivotTableArea.Row" AreaIndex="1" />
-                            <DxPivotTableField Field="@nameof(InformeServicioPivot.Mes)" Caption="Mes" Area="@PivotTableArea.Column" AreaIndex="0" />
-                            <DxPivotTableField Field="@nameof(InformeServicioPivot.NumeroServicios)" Caption="Nº servicios" Area="@PivotTableArea.Data" AreaIndex="0" SummaryType="@PivotTableSummaryType.Sum" />
-                        </Fields>
-                    </DxPivotTable>
+        <div class="row g-4 mb-4">
+            <!-- Tarjeta Total -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-primary text-white" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-white-50 small text-uppercase fw-bold mb-1">Total Servicios</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count</h2>
                 </div>
-            </DxTabPage>
-            <DxTabPage Text="Rutas y tiempos">
-                <div class="pt-3">
-                    <p class="text-muted small">Kilómetros y minutos previstos por conductor, obra y mes.</p>
-                    <DxPivotTable Data="@datosRutas" CssClass="w-100" style="height: 560px;">
-                        <Fields>
-                            <DxPivotTableField Field="@nameof(InformeRutaPivot.Conductor)" Caption="Conductor" Area="@PivotTableArea.Row" AreaIndex="0" />
-                            <DxPivotTableField Field="@nameof(InformeRutaPivot.Obra)" Caption="Obra" Area="@PivotTableArea.Row" AreaIndex="1" />
-                            <DxPivotTableField Field="@nameof(InformeRutaPivot.Mes)" Caption="Mes" Area="@PivotTableArea.Column" AreaIndex="0" />
-                            <DxPivotTableField Field="@nameof(InformeRutaPivot.Kilometros)" Caption="Km planificados" Area="@PivotTableArea.Data" AreaIndex="0" SummaryType="@PivotTableSummaryType.Sum" />
-                            <DxPivotTableField Field="@nameof(InformeRutaPivot.MinutosRuta)" Caption="Minutos de ruta" Area="@PivotTableArea.Data" AreaIndex="1" SummaryType="@PivotTableSummaryType.Sum" />
-                            <DxPivotTableField Field="@nameof(InformeRutaPivot.MinutosOperacion)" Caption="Minutos operación" Area="@PivotTableArea.Data" AreaIndex="2" SummaryType="@PivotTableSummaryType.Sum" />
-                        </Fields>
-                    </DxPivotTable>
+            </div>
+            <!-- Tarjeta Hoy -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-info text-white" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-white-50 small text-uppercase fw-bold mb-1">Servicios de Hoy</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count(s => s.FechaTarea?.Date == DateTime.Today)</h2>
                 </div>
-            </DxTabPage>
-            <DxTabPage Text="Firmas e incidencias">
-                <div class="pt-3">
-                    <p class="text-muted small">Controle los servicios firmados, los pendientes de firma y las incidencias de planificación.</p>
-                    <DxPivotTable Data="@datosFirmas" CssClass="w-100" style="height: 560px;">
-                        <Fields>
-                            <DxPivotTableField Field="@nameof(InformeFirmaPivot.EstadoFirma)" Caption="Firma" Area="@PivotTableArea.Row" AreaIndex="0" />
-                            <DxPivotTableField Field="@nameof(InformeFirmaPivot.Incidencia)" Caption="Incidencia" Area="@PivotTableArea.Row" AreaIndex="1" />
-                            <DxPivotTableField Field="@nameof(InformeFirmaPivot.Conductor)" Caption="Conductor" Area="@PivotTableArea.Column" AreaIndex="0" />
-                            <DxPivotTableField Field="@nameof(InformeFirmaPivot.NumeroServicios)" Caption="Nº servicios" Area="@PivotTableArea.Data" AreaIndex="0" SummaryType="@PivotTableSummaryType.Sum" />
-                        </Fields>
-                    </DxPivotTable>
+            </div>
+            <!-- Tarjeta Pendientes -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-warning text-dark" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-dark-50 small text-uppercase fw-bold mb-1">Pendientes de Envío</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count(s => s.Estado == 1)</h2>
                 </div>
-            </DxTabPage>
-        </DxTabs>
+            </div>
+            <!-- Tarjeta Finalizados -->
+            <div class="col-md-3">
+                <div class="card shadow-sm border-0 bg-success text-white" style="border-radius: 12px; min-height: 120px; display: flex; flex-direction: column; justify-content: center; padding: 20px;">
+                    <span class="text-white-50 small text-uppercase fw-bold mb-1">Finalizados (Total)</span>
+                    <h2 class="fw-bold mb-0">@solicitudes.Count(s => s.Estado == 5)</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Distribución por Estado -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold mb-0 text-dark">Distribución por Estado (Total histórico)</h5>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-2">
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var est in estadosList)
+                            {
+                                var count = solicitudes.Count(s => s.Estado == est.IdEstado);
+                                var percentage = solicitudes.Count > 0 ? (double)count / solicitudes.Count * 100 : 0;
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold small">@est.Descripcion</span>
+                                        <span class="badge text-white" style="background-color: @(est.BgColor ?? "#6c757d"); color: @(est.TextColor ?? "#ffffff") !important;">@count (@percentage.ToString("0.0")%)</span>
+                                    </div>
+                                    <div class="progress" style="height: 10px; border-radius: 5px;">
+                                        <div class="progress-bar" role="progressbar" style="width: @(percentage)%; background-color: @(est.BgColor ?? "#6c757d"); border-radius: 5px;" aria-valuenow="@percentage" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribución por Conductor -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 12px;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold mb-0 text-dark">Servicios por Conductor (Top Activos)</h5>
+                    </div>
+                    <div class="card-body px-4 pb-4 pt-2">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Conductor</th>
+                                        <th class="text-center">Total Servicios</th>
+                                        <th class="text-center">De Hoy</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var group in solicitudes.GroupBy(s => s.IdConductor))
+                                    {
+                                        var conductorName = operarios?.FirstOrDefault(x => x.IdOperario == group.Key)?.Nombre ?? $"Operario #{group.Key}";
+                                        <tr>
+                                            <td class="fw-bold">@conductorName</td>
+                                            <td class="text-center">@group.Count()</td>
+                                            <td class="text-center text-primary fw-bold">@group.Count(s => s.FechaTarea?.Date == DateTime.Today)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
 
 @code {
-    private List<InformeServicioPivot> datosServicios = [];
-    private List<InformeRutaPivot> datosRutas = [];
-    private List<InformeFirmaPivot> datosFirmas = [];
+    private List<Solicitud>? solicitudes;
+    private List<EstadoSolicitud>? estadosList;
+    private List<Operario>? operarios;
     private bool loading = true;
     private string? errorMessage;
 
@@ -93,113 +143,29 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var token = authState.User.FindFirst("token")?.Value;
-        if (!string.IsNullOrWhiteSpace(token))
+        if (!string.IsNullOrEmpty(token))
+        {
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
     }
 
     private async Task LoadDataAsync()
     {
-        loading = true;
         try
         {
-            var solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes") ?? [];
-            var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
-            var operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios") ?? [];
-            var estadoPorId = estados.ToDictionary(e => e.IdEstado, e => e.Descripcion ?? $"Estado {e.IdEstado}");
-            var conductorPorId = operarios.ToDictionary(o => o.IdOperario, o => o.Nombre ?? $"Operario {o.IdOperario}");
-
-            datosServicios = solicitudes.Select(s => CrearServicioPivot(s, estadoPorId, conductorPorId)).ToList();
-            datosRutas = solicitudes.Select(s => CrearRutaPivot(s, estadoPorId, conductorPorId)).ToList();
-            datosFirmas = solicitudes.Select(s => CrearFirmaPivot(s, estadoPorId, conductorPorId)).ToList();
+            loading = true;
+            solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+            estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
             errorMessage = null;
         }
         catch (Exception ex)
         {
-            errorMessage = $"No se pudieron cargar los informes: {ex.Message}";
+            errorMessage = $"Error al generar informes: {ex.Message}";
         }
         finally
         {
             loading = false;
         }
-    }
-
-    private static InformeServicioPivot CrearServicioPivot(Solicitud solicitud, IReadOnlyDictionary<int, string> estados, IReadOnlyDictionary<int, string> conductores) => new()
-    {
-        Mes = ObtenerMes(solicitud),
-        Conductor = ObtenerConductor(solicitud, conductores),
-        Cliente = solicitud.NombreCliente ?? "Sin cliente",
-        Obra = solicitud.NombreObra ?? "Sin obra",
-        Estado = ObtenerEstado(solicitud, estados),
-        NumeroServicios = 1
-    };
-
-    private static InformeRutaPivot CrearRutaPivot(Solicitud solicitud, IReadOnlyDictionary<int, string> estados, IReadOnlyDictionary<int, string> conductores) => new()
-    {
-        Mes = ObtenerMes(solicitud),
-        Conductor = ObtenerConductor(solicitud, conductores),
-        Obra = solicitud.NombreObra ?? "Sin obra",
-        Estado = ObtenerEstado(solicitud, estados),
-        Kilometros = (solicitud.DistanciaTotalMetros ?? 0) / 1000m,
-        MinutosRuta = solicitud.DuracionViajeMinutos ?? 0,
-        MinutosOperacion = solicitud.DuracionOperacionMinutos ?? 0
-    };
-
-    private static InformeFirmaPivot CrearFirmaPivot(Solicitud solicitud, IReadOnlyDictionary<int, string> estados, IReadOnlyDictionary<int, string> conductores)
-    {
-        var firmada = !string.IsNullOrWhiteSpace(solicitud.FirmaNombre)
-            && !string.IsNullOrWhiteSpace(solicitud.FirmaDni)
-            && !string.IsNullOrWhiteSpace(solicitud.FirmaPath);
-        var estado = ObtenerEstado(solicitud, estados);
-        return new InformeFirmaPivot
-        {
-            Mes = ObtenerMes(solicitud),
-            Conductor = ObtenerConductor(solicitud, conductores),
-            Estado = estado,
-            EstadoFirma = firmada ? "Firmada" : "Pendiente de firma",
-            Incidencia = ObtenerIncidencia(solicitud, estado, firmada),
-            NumeroServicios = 1
-        };
-    }
-
-    private static string ObtenerMes(Solicitud solicitud) => (solicitud.FechaTarea ?? solicitud.FechaSolicitud)?.ToString("yyyy-MM") ?? "Sin fecha";
-    private static string ObtenerConductor(Solicitud solicitud, IReadOnlyDictionary<int, string> conductores) => solicitud.IdConductor is int id && conductores.TryGetValue(id, out var nombre) ? nombre : "Sin asignar";
-    private static string ObtenerEstado(Solicitud solicitud, IReadOnlyDictionary<int, string> estados) => estados.TryGetValue(solicitud.Estado, out var estado) ? estado : $"Estado {solicitud.Estado}";
-    private static string ObtenerIncidencia(Solicitud solicitud, string estado, bool firmada)
-    {
-        if (estado.Contains("anulad", StringComparison.OrdinalIgnoreCase) || estado.Contains("reprogram", StringComparison.OrdinalIgnoreCase)) return "Anulado o reprogramado";
-        if (solicitud.Bloqueado) return "Bloqueado";
-        if (estado.Contains("finalizado", StringComparison.OrdinalIgnoreCase) && !firmada) return "Finalizado sin firma";
-        return "Sin incidencia";
-    }
-
-    private sealed class InformeServicioPivot
-    {
-        public string Mes { get; init; } = string.Empty;
-        public string Conductor { get; init; } = string.Empty;
-        public string Cliente { get; init; } = string.Empty;
-        public string Obra { get; init; } = string.Empty;
-        public string Estado { get; init; } = string.Empty;
-        public int NumeroServicios { get; init; }
-    }
-
-    private sealed class InformeRutaPivot
-    {
-        public string Mes { get; init; } = string.Empty;
-        public string Conductor { get; init; } = string.Empty;
-        public string Obra { get; init; } = string.Empty;
-        public string Estado { get; init; } = string.Empty;
-        public decimal Kilometros { get; init; }
-        public int MinutosRuta { get; init; }
-        public int MinutosOperacion { get; init; }
-    }
-
-    private sealed class InformeFirmaPivot
-    {
-        public string Mes { get; init; } = string.Empty;
-        public string Conductor { get; init; } = string.Empty;
-        public string Estado { get; init; } = string.Empty;
-        public string EstadoFirma { get; init; } = string.Empty;
-        public string Incidencia { get; init; } = string.Empty;
-        public int NumeroServicios { get; init; }
     }
 }

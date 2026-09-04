@@ -52,7 +52,7 @@
                             }
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
-                    <DxGridDataColumn Caption="Restante" Width="120px" AllowSort="false">
+                    <DxGridDataColumn Caption="Restante" Width="140px" AllowSort="false">
                         <CellDisplayTemplate>
                             @{ var item = (UbicacionCamionWialon)context.DataItem; }
                             @if (item.DistanciaRestanteMetros.HasValue && item.MinutosViajeRestantes.HasValue)
@@ -68,8 +68,8 @@
 @*                  <DxGridDataColumn FieldName="NombreUnidad" Caption="Unidad Wialon" Width="100px" /> *@
 @*                  <DxGridDataColumn FieldName="Latitud" Caption="Latitud" Width="110px" DisplayFormat="N6" TextAlignment="GridTextAlignment.Right" />
                     <DxGridDataColumn FieldName="Longitud" Caption="Longitud" Width="110px" DisplayFormat="N6" TextAlignment="GridTextAlignment.Right" /> *@
-                    <DxGridDataColumn FieldName="VelocidadKmH" Caption="km/h" Width="60px" DisplayFormat="N1" TextAlignment="GridTextAlignment.Right" />
-                    <DxGridDataColumn FieldName="EstadoUnidad" Caption="Estado" Width="110px" />
+                    <DxGridDataColumn FieldName="VelocidadKmH" Caption="km/h" Width="50px" DisplayFormat="N1" TextAlignment="GridTextAlignment.Right" />
+                    <DxGridDataColumn FieldName="EstadoUnidad" Caption="Estado" Width="100px" />
 @*                  <DxGridDataColumn FieldName="Rumbo" Caption="Rumbo" Width="90px" TextAlignment="GridTextAlignment.Right" /> *@
                 </Columns>
         </DxGrid>
