@@ -50,7 +50,7 @@
     {
         <div class="card shadow-sm mb-4">
             <div class="card-body p-4">
-                <DxTabs CssClass="w-100" @bind-ActiveTabIndex="activeTabIndex">
+                <DxTabs CssClass="w-100" ActiveTabIndex="@activeTabIndex" ActiveTabIndexChanged="OnActiveTabIndexChanged">
                     <DxTabPage Text="Datos de la obra">
                 <EditForm Model="@obra" OnValidSubmit="GuardarAsync" Context="editFormContext" FormName="obra-form">
                     <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
@@ -453,6 +453,7 @@
     private string? codigoObraOrigenDuplicada;
     private IGrid? gridPrecios;
     private PrecioEspecialCabecera precioCabecera = new();
+    private bool preciosCargados;
     private List<CodigoNombre> articulosPrecio = [];
     private List<TarifaObraOpcion> tarifasVigentes = [];
     private List<TarifaCabecera> tarifasVigentesDatos = [];
@@ -465,8 +466,7 @@
     {
         activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         await SetupHeadersAsync();
-        await LoadAuxiliaryDataAsync();
-        await LoadObraAsync();
+        await Task.WhenAll(LoadAuxiliaryDataAsync(), LoadObraAsync());
     }
 
     private async Task SetupHeadersAsync()
@@ -607,7 +607,7 @@
                 }
             }
 
-            if (!IsNew && obra != null)
+            if (!IsNew && obra != null && activeTabIndex == 1)
             {
                 await CargarPrecioObraAsync();
             }
@@ -661,6 +661,15 @@
         return true;
     }
 
+    private async Task OnActiveTabIndexChanged(Int32 tabIndex)
+    {
+        activeTabIndex = tabIndex;
+        if (tabIndex == 1 && !IsNew && !preciosCargados)
+        {
+            await CargarPrecioObraAsync();
+        }
+    }
+
     private async Task CargarPrecioObraAsync()
     {
         if (obra == null || string.IsNullOrWhiteSpace(obra.Codigo) || string.IsNullOrWhiteSpace(obra.Cliente))
@@ -670,6 +679,7 @@
         }
 
         var tarifas = await Http.GetFromJsonAsync<List<PrecioEspecialCabecera>>("api/precios-especiales-obra") ?? [];
+        preciosCargados = true;
         foreach (var tarifa in tarifas)
         {
             tarifa.ObraSage = tarifa.ObraSage?.Trim() ?? "";
@@ -1269,6 +1279,7 @@
         if (obra == null || string.IsNullOrWhiteSpace(codigoObraOrigenDuplicada)) return;
 
         var tarifas = await Http.GetFromJsonAsync<List<PrecioEspecialCabecera>>("api/precios-especiales-obra") ?? [];
+        preciosCargados = true;
         var origen = tarifas.FirstOrDefault(x => string.Equals(x.ObraSage.Trim(), codigoObraOrigenDuplicada.Trim(), StringComparison.OrdinalIgnoreCase));
         if (origen is null) return;
 
