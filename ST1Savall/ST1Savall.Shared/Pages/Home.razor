@@ -998,7 +998,7 @@
         vistaDashboard = (VistaDashboard)HomeGridState.VistaDashboardIndex;
 
         await SetupHeadersAsync();
-        await Http.PostAsync("api/operarios/sincronizar-ausencias", null);
+        _ = SincronizarAusenciasAsync();
         await LoadDataAsync();
         tareaRefrescoAutomatico = RefrescarInicioPeriodicamenteAsync(cancelacionRefresco.Token);
     }
@@ -1045,14 +1045,24 @@
         try
         {
             loading = true;
-            await ProcesarAlbaranesPendientesAsync();
-            operarios = await Http.GetFromJsonAsync<List<Operario>>("api/operarios");
-            solicitudes = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
-            clientes = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
-            obras = await Http.GetFromJsonAsync<List<Obra>>("api/obras");
-            parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
-            estadosList = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
-            tareasList = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+            _ = ProcesarAlbaranesPendientesAsync();
+
+            var operariosTask = Http.GetFromJsonAsync<List<Operario>>("api/operarios");
+            var solicitudesTask = Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes");
+            var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
+            var obrasTask = Http.GetFromJsonAsync<List<Obra>>("api/obras");
+            var parametrosTask = Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
+            var estadosTask = Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
+            var tareasTask = Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+
+            await Task.WhenAll(operariosTask, solicitudesTask, clientesTask, obrasTask, parametrosTask, estadosTask, tareasTask);
+            operarios = await operariosTask;
+            solicitudes = await solicitudesTask;
+            clientes = await clientesTask;
+            obras = await obrasTask;
+            parametros = await parametrosTask;
+            estadosList = await estadosTask;
+            tareasList = await tareasTask;
 
             comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
             if (operarios != null)
@@ -1103,6 +1113,17 @@
     }
 
 
+    private async Task SincronizarAusenciasAsync()
+    {
+        try
+        {
+            await Http.PostAsync("api/operarios/sincronizar-ausencias", null);
+        }
+        catch
+        {
+            // La sincronización no debe retrasar la apertura de Inicio.
+        }
+    }
     private async Task ProcesarAlbaranesPendientesAsync()
     {
         try
