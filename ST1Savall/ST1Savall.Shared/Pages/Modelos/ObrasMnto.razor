@@ -123,11 +123,11 @@
                                 </div>
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
-                        <DxGridDataColumn FieldName="Cliente" Caption="Cliente">
+                        <DxGridDataColumn FieldName="ClienteNombre" Caption="Cliente">
                             <CellDisplayTemplate>
                                 @{
                                     var obra = (ObraComunSage50)context.DataItem;
-                                    <span>@GetClientName(obra.Cliente)</span>
+                                    <span>@obra.ClienteNombre</span>
                                 }
                             </CellDisplayTemplate>
                         </DxGridDataColumn>
@@ -164,7 +164,6 @@
 
     private IGrid? grid;
     private List<ObraComunSage50>? obras;
-    private List<ClienteSage50>? clientesList;
     private string? errorMessage;
     private object? filtroFinalizada = false;
 
@@ -200,7 +199,10 @@
     {
         try
         {
-            obras = await Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50");
+            // La vista inicial sólo necesita las obras activas; se filtran en servidor para
+            // evitar descargar las finalizadas y el maestro completo de clientes.
+            obras = await Http.GetFromJsonAsync<List<ObraComunSage50>>(
+                "api/obrascomunsage50?soloNoFinalizadas=true&incluirClienteNombre=true");
             if (obras != null)
             {
                 foreach (var o in obras)
@@ -246,33 +248,12 @@
                     }
                 }
             }
-            clientesList = await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50");
-            if (clientesList != null)
-            {
-                foreach (var c in clientesList)
-                {
-                    c.Codigo = c.Codigo?.Trim() ?? "";
-                    c.Nombre = c.Nombre?.Trim() ?? "";
-                    c.Cif = c.Cif?.Trim() ?? "";
-                    c.Direccion = c.Direccion?.Trim() ?? "";
-                    c.Poblacion = c.Poblacion?.Trim() ?? "";
-                    c.Codpost = c.Codpost?.Trim() ?? "";
-                }
-                clientesList = clientesList.OrderBy(c => c.Codigo).ToList();
-            }
             errorMessage = null;
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar obras/clientes: {ex.Message}";
         }
-    }
-
-    private string GetClientName(string? clientCode)
-    {
-        if (string.IsNullOrEmpty(clientCode) || clientesList == null) return "";
-        var client = clientesList.FirstOrDefault(c => c.Codigo == clientCode);
-        return client?.Nombre ?? "";
     }
 
     private async Task OnDataItemDeleting(GridDataItemDeletingEventArgs e)

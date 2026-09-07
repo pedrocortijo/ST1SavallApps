@@ -12,20 +12,56 @@ namespace ST1Savall.API.Controllers;
 public class ObrasComunSage50Controller : ControllerBase
 {
     private readonly SageComunDbContext _context;
+    private readonly SageGestionDbContext _gestionContext;
     private readonly ApplicationDbContext _applicationContext;
 
-    public ObrasComunSage50Controller(SageComunDbContext context, ApplicationDbContext applicationContext)
+    public ObrasComunSage50Controller(
+        SageComunDbContext context,
+        SageGestionDbContext gestionContext,
+        ApplicationDbContext applicationContext)
     {
         _context = context;
+        _gestionContext = gestionContext;
         _applicationContext = applicationContext;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ObraComunSage50>>> GetObras()
+    public async Task<ActionResult<IEnumerable<ObraComunSage50>>> GetObras(
+        [FromQuery] bool soloNoFinalizadas = false,
+        [FromQuery] bool incluirClienteNombre = false)
     {
-        return await _context.Obras.ToListAsync();
-    }
+        var query = _context.Obras.AsNoTracking();
+        if (soloNoFinalizadas)
+        {
+            query = query.Where(o => o.Terminada == false || o.Terminada == null);
+        }
 
+        var obras = await query.ToListAsync();
+        if (!incluirClienteNombre || obras.Count == 0)
+        {
+            return obras;
+        }
+
+        var codigosCliente = obras
+            .Select(o => o.Cliente?.Trim())
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Distinct()
+            .ToList();
+
+        var nombresCliente = await _gestionContext.Clientes
+            .AsNoTracking()
+            .Where(c => codigosCliente.Contains(c.Codigo.Trim()))
+            .Select(c => new { Codigo = c.Codigo.Trim(), Nombre = c.Nombre.Trim() })
+            .ToDictionaryAsync(c => c.Codigo, c => c.Nombre);
+
+        foreach (var obra in obras)
+        {
+            nombresCliente.TryGetValue(obra.Cliente?.Trim() ?? string.Empty, out var nombreCliente);
+            obra.ClienteNombre = nombreCliente ?? string.Empty;
+        }
+
+        return obras;
+    }
     [HttpGet("{codigo}")]
     public async Task<ActionResult<ObraComunSage50>> GetObra(string codigo)
     {
