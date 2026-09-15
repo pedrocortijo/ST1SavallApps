@@ -105,8 +105,8 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
-        if (solicitud.IdCliente <= 0)
-            return BadRequest(new { message = "Debe seleccionar un cliente antes de dar de alta la solicitud." });
+        if (solicitud.IdCliente <= 0 && string.IsNullOrWhiteSpace(solicitud.NombreCliente))
+            return BadRequest(new { message = "Debe seleccionar un cliente manual antes de dar de alta la solicitud." });
 
         if (solicitud.IdTipoTarea <= 0)
             return BadRequest(new { message = "El tipo de tarea es obligatorio." });
@@ -172,8 +172,8 @@ public class SolicitudesController : ControllerBase
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
-        if (solicitud.IdCliente <= 0)
-            return BadRequest(new { message = "Debe seleccionar un cliente antes de guardar la solicitud." });
+        if (solicitud.IdCliente <= 0 && string.IsNullOrWhiteSpace(solicitud.NombreCliente))
+            return BadRequest(new { message = "Debe seleccionar un cliente manual antes de guardar la solicitud." });
         if (solicitud.IdTipoTarea <= 0)
             return BadRequest(new { message = "El tipo de tarea es obligatorio." });
 

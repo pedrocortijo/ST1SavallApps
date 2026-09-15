@@ -92,6 +92,10 @@ public class Solicitud
     [MaxLength(100)]
     public string? PoblacionCliente { get; set; }
 
+    [MaxLength(2)]
+    [Column(TypeName = "char(2)")]
+    public string? TarifaAplicada { get; set; }
+
     [MaxLength(20)]
     public string? TelefonoCliente { get; set; }
 

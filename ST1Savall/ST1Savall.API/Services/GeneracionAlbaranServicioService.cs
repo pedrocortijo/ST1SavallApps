@@ -53,7 +53,7 @@ public sealed class GeneracionAlbaranServicioService(
 
 
 
-            var errorTarifa = await AsegurarTarifaSageAsync(obra.Tarifa);
+            var errorTarifa = await AsegurarTarifaSageAsync(solicitud.TarifaAplicada ?? obra.Tarifa);
             if (errorTarifa is not null)
                 return ResultadoGeneracionAlbaran.Fallido(errorTarifa);
 
@@ -116,7 +116,7 @@ public sealed class GeneracionAlbaranServicioService(
                 Observaciones = CrearObservacionesAlbaran(solicitud, fechaAlbaran)
             };
 
-            await AplicarPrecioObraAsync(datos, obra.Tarifa);
+            await AplicarPrecioObraAsync(datos, solicitud.TarifaAplicada ?? obra.Tarifa);
             var calculoFiscal = await CalcularFiscalAsync(datos, cliente);
             await using var transaccion = await sage.Database.BeginTransactionAsync();
             var yaExiste = await sage.AlbaranesVenta.AsNoTracking().AnyAsync(a =>

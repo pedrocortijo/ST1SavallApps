@@ -360,7 +360,7 @@
                         <DxDateEdit @bind-Date="@solicitud.FechaSolicitud" />
                     </DxFormLayoutItem>
                     
-                    <DxFormLayoutItem Caption="Obra" ColSpanMd="8">
+                    <DxFormLayoutItem Caption="Obra" ColSpanMd="6">
                         <DxComboBox Data="@obras"
                                     TextFieldName="TextoBusqueda"
                                     ValueFieldName="IdObra"
@@ -368,7 +368,8 @@
                                     ValueChanged="@((int val) => OnObraChangedAsync(val))"
                                     SearchMode="ListSearchMode.AutoSearch"
                                     SearchFilterCondition="ListSearchFilterCondition.Contains"
-                                    AllowUserInput="true">
+                                    AllowUserInput="true"
+                                    Enabled="@(!servicioSinObra)">
                             <Buttons>
                                 <DxEditorButton IconCssClass="oi oi-pencil"
                                                 Tooltip="Editar obra seleccionada"
@@ -381,10 +382,27 @@
                             </ItemTemplate>
                         </DxComboBox>
                     </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Servicio sin obra" ColSpanMd="2">
+                        <DxCheckBox @bind-Checked:get="@servicioSinObra" @bind-Checked:set="@OnServicioSinObraChanged" LabelPosition="LabelPosition.Right">Datos manuales</DxCheckBox>
+                    </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
                         <Template>
                             <div class="obra-resumen small p-3 rounded border mb-2" style="background-color: rgba(128, 128, 128, 0.05);">
-                                <div class="row g-3">
+                                @if (servicioSinObra)
+                                {
+                                    <div class="alert alert-info py-2 mb-3">Servicio sin obra vinculada: complete los datos manualmente. Los cambios solo afectan a esta solicitud.</div>
+                                    <div class="row g-3">
+                                        <div class="col-md-7 col-12"><label class="form-label small mb-1">Nombre de obra o servicio</label><DxTextBox @bind-Text="solicitud.NombreObra" NullText="Indique el nombre del servicio" /></div>
+                                        <div class="col-md-5 col-12"><label class="form-label small mb-1">Cliente</label><DxComboBox Data="@clientesManuales" TData="ClienteSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" Value="@codigoClienteManual" ValueChanged="OnClienteManualChangedAsync" NullText="Seleccione un cliente..." ListRenderMode="ListRenderMode.Virtual" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains"><ItemTemplate Context="cli"><span style="font-size: 0.9rem;"><strong>@cli.Codigo</strong> - @cli.Nombre</span></ItemTemplate></DxComboBox></div>
+                                        <div class="col-md-8 col-12"><label class="form-label small mb-1">Dirección</label><DxTextBox @bind-Text="solicitud.DireccionCliente" NullText="Indique la dirección" /></div>
+                                        <div class="col-md-4 col-12"><label class="form-label small mb-1">Población</label><DxTextBox Text="@solicitud.PoblacionCliente" TextChanged="OnPoblacionManualChanged" NullText="Indique la población" /></div>                                        <div class="col-md-4 col-12"><label class="form-label small mb-1">Encargado</label><DxTextBox @bind-Text="solicitud.Encargado" /></div>
+                                        <div class="col-md-4 col-12"><label class="form-label small mb-1">Teléfono</label><DxTextBox @bind-Text="solicitud.TelefonoCliente" /></div>
+                                        <div class="col-md-4 col-12"><label class="form-label small mb-1">Móvil</label><DxTextBox @bind-Text="solicitud.Movil" /></div>
+                                        <div class="col-md-12 col-12"><label class="form-label small mb-1">Tarifa aplicada</label><DxComboBox Data="@tarifasOpciones" TData="TarifaSolicitudOpcion" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="solicitud.TarifaAplicada" NullText="Seleccione tarifa..."><Columns><DxListEditorColumn FieldName="Codigo" Caption="Código" /><DxListEditorColumn FieldName="Nombre" Caption="Nombre" /><DxListEditorColumn FieldName="Zona" Caption="Zona" /><DxListEditorColumn FieldName="NombreZona" Caption="Nombre de zona" /></Columns></DxComboBox></div>
+                                    </div>
+                                }
+                                else
+                                {                                <div class="row g-3">
                                     <div class="col-md-8 col-12 d-flex align-items-baseline gap-2">
                                         <span class="text-nowrap" style="opacity: 0.75;">Nombre Obra:</span>
                                         <span>@(solicitud.NombreObra ?? "-")</span>
@@ -419,6 +437,7 @@
                                         @if (TienePreciosEspecialesObra) { <NavLink href="@UrlPreciosEspecialesObra" class="link-warning text-nowrap fw-bold">(Con tarifas especiales)</NavLink> }
                                     </div>
                                 </div>
+                                }
                             </div>
                         </Template>
                     </DxFormLayoutItem>
@@ -973,6 +992,11 @@
     private List<Planta>? plantas;
     private List<ArticuloSage50>? tiposContenedor;
     private List<ContenedorTipo>? tiposContenedorLocales;
+    private List<TarifaCabecera> tarifasVigentes = [];
+    private List<ZonaComunSage50> zonasTarifas = [];
+    private List<ClienteSage50> clientesManuales = [];
+    private string? codigoClienteManual;
+    private List<TarifaSolicitudOpcion> tarifasOpciones = [];
     private bool nuevoContenedorVisible;
     private string? destinoNuevoContenedor;
     private string destinoNuevoContenedorDescripcion = string.Empty;
@@ -980,6 +1004,7 @@
     private Contenedor nuevoContenedor = new();
     private string? errorNuevoContenedor;
     private bool loading = true;
+    private bool servicioSinObra;
     private string? errorMessage;
     private string? motivoEstadoMessage;
     private int? estadoInicial;
@@ -1023,6 +1048,8 @@
     private bool confirmacionCrearSolicitudReprogramadaVisible;
     private DateTime? fechaNuevaParaCrear;
     private string? mensajeExitoReprogramacion;
+
+    private sealed record TarifaSolicitudOpcion(string Codigo, string Nombre, string Zona, string NombreZona) { public string Descripcion => $"{Codigo} - {Nombre} ({Zona} - {NombreZona})"; }
 
     private class KeyName
     {
@@ -1146,12 +1173,29 @@
             tiposContenedorLocales = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos");
             motivosList = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos");
             parametrosList = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
+            tarifasVigentes = (await Http.GetFromJsonAsync<List<TarifaCabecera>>("api/tarifas") ?? []).Where(t => t.Desde.Date <= DateTime.Today && t.Hasta.Date >= DateTime.Today).OrderBy(t => t.Codigo).ToList();
+            zonasTarifas = (await Http.GetFromJsonAsync<List<ZonaComunSage50>>("api/zonas") ?? []).Where(z => z.Ruta.Trim() == "01").ToList();
+            clientesManuales = (await Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50") ?? [])
+                .Where(c => !c.BloqCli)
+                .Select(c =>
+                {
+                    c.Codigo = c.Codigo?.Trim() ?? string.Empty;
+                    c.Nombre = c.Nombre?.Trim() ?? string.Empty;
+                    c.Telefono = c.Telefono?.Trim() ?? string.Empty;
+                    c.Direccion = c.Direccion?.Trim() ?? string.Empty;
+                    c.Poblacion = c.Poblacion?.Trim() ?? string.Empty;
+                    return c;
+                })
+                .OrderBy(c => c.Codigo)
+                .ToList();
+            tarifasOpciones = tarifasVigentes.Select(t => { var zona = zonasTarifas.FirstOrDefault(z => string.Equals(z.Zona.Trim(), t.Zona.Trim(), StringComparison.OrdinalIgnoreCase)); return new TarifaSolicitudOpcion(t.Codigo.Trim(), t.Nombre.Trim(), t.Zona.Trim(), zona?.Descripcion.Trim() ?? ""); }).ToList();
 
             if (Id.HasValue)
             {
                 solicitud = await Http.GetFromJsonAsync<Solicitud>($"api/solicitudes/{Id.Value}");
                 if (solicitud != null)
                 {
+                    servicioSinObra = solicitud.IdCliente <= 0;
                     estadoInicial = solicitud.Estado;
                     fechaPrevistaInicial = solicitud.FechaPrevista;
                     if (Duplicate != true)
@@ -1477,10 +1521,42 @@
 
     private void CerrarFoto() { fotoCargando = false; fotoSeleccionadaDataUri = null; }
     private string FotoDataUri(int idFoto) => fotosDataUri.TryGetValue(idFoto, out var uri) ? uri : string.Empty;
+    private Task OnClienteManualChangedAsync(string codigo)
+    {
+        if (solicitud is null) return Task.CompletedTask;
+        codigoClienteManual = codigo;
+        var cliente = clientesManuales.FirstOrDefault(c => string.Equals(c.Codigo, codigo, StringComparison.OrdinalIgnoreCase));
+        if (cliente is null) return Task.CompletedTask;
+
+        solicitud.NombreCliente = cliente.Nombre;
+        solicitud.TelefonoCliente = cliente.Telefono;
+        return Task.CompletedTask;
+    }
+    private Task OnPoblacionManualChanged(string valor)
+    {
+        if (solicitud is null) return Task.CompletedTask;
+        solicitud.PoblacionCliente = valor?.Trim();
+        var texto = solicitud.PoblacionCliente?.ToUpperInvariant();
+        var propuesta = tarifasVigentes.FirstOrDefault(t => !string.IsNullOrWhiteSpace(texto) && zonasTarifas.Any(z => string.Equals(z.Zona.Trim(), t.Zona.Trim(), StringComparison.OrdinalIgnoreCase) && z.Descripcion.ToUpperInvariant().Contains(texto)));
+        if (propuesta is not null) solicitud.TarifaAplicada = propuesta.Codigo.Trim();
+        return Task.CompletedTask;
+    }
+    private void OnServicioSinObraChanged(bool valor)
+    {
+        if (solicitud is null) return;
+
+        servicioSinObra = valor;
+        if (valor)
+        {
+            solicitud.IdCliente = 0;
+            solicitud.Bloqueado = false;
+        }
+    }
     private async Task OnObraChangedAsync(int val)
     {
         if (solicitud == null) return;
         solicitud.IdCliente = val;
+        servicioSinObra = false;
         var obra = obras?.FirstOrDefault(o => o.IdObra == val);
         if (obra != null)
         {
@@ -2184,6 +2260,12 @@
                 passwordFinalizadaVisible = true;
                 return false;
             }
+        }
+
+        if (!ValidarDatosServicioSinObra(out var motivoDatosManual))
+        {
+            errorMessage = motivoDatosManual;
+            return false;
         }
 
         if (!ValidarEstadoAlGuardar(out var motivoError))
@@ -3212,6 +3294,28 @@
         ? operarios?.FirstOrDefault(o => o.IdOperario == idConductor)?.Camion?.Matricula?.Trim() ?? string.Empty
         : string.Empty;
 
+    private bool ValidarDatosServicioSinObra(out string? mensaje)
+    {
+        mensaje = null;
+        if (!servicioSinObra || solicitud is null) return true;
+
+        if (string.IsNullOrWhiteSpace(solicitud.NombreObra) && string.IsNullOrWhiteSpace(solicitud.NombreCliente))
+        {
+            mensaje = "En un servicio sin obra debe indicar el nombre del servicio o el cliente.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(solicitud.DireccionCliente))
+        {
+            mensaje = "En un servicio sin obra debe indicar la dirección.";
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(solicitud.PoblacionCliente))
+        {
+            mensaje = "En un servicio sin obra debe indicar la población.";
+            return false;
+        }
+        return true;
+    }
     private bool ValidarEstadoAlGuardar(out string? motivoError)
     {
         motivoError = null;
