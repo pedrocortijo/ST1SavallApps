@@ -29,6 +29,12 @@
     <Content Include="Assets\CabeceraAlbaran.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets\CabeceraPesaje.png" />
     <Content Include="Assets\CabeceraPesaje.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\CabeceraPesajeAlicante.png" />
+    <Content Include="Assets\CabeceraPesajeAlicante.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\CabeceraPesajeFinestrat.png" />
+    <Content Include="Assets\CabeceraPesajeFinestrat.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\CabeceraPesajeMonforte.png" />
+    <Content Include="Assets\CabeceraPesajeMonforte.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets\FirmaPesaje.png" />
     <Content Include="Assets\FirmaPesaje.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

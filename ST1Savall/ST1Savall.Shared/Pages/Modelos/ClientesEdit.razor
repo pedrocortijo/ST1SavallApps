@@ -357,6 +357,10 @@
 </div>
 
 @code {
+    [Parameter, SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+
     [Parameter]
     public string? Codigo { get; set; }
 
@@ -1214,7 +1218,12 @@
 
     private void GoBack()
     {
-        NavigationManager.NavigateTo("/modelos/clientes");
+        var destino = !string.IsNullOrWhiteSpace(ReturnUrl)
+            && ReturnUrl.StartsWith("/", StringComparison.Ordinal)
+            && !ReturnUrl.StartsWith("//", StringComparison.Ordinal)
+                ? ReturnUrl
+                : "/modelos/clientes";
+        NavigationManager.NavigateTo(destino);
     }
 
     private UnsavedChangesGuard? unsavedChangesGuard;

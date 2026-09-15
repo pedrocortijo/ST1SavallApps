@@ -18,6 +18,9 @@
     .solicitud-visor-contenido { position: relative; max-width: min(100%, 1100px); max-height: 100%; }
     .solicitud-visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
     .solicitud-visor-cerrar { position: absolute; top: 8px; right: 8px; min-width: 40px; min-height: 40px; }
+    .cliente-plus-fino { position: relative; display: inline-block; width: 14px; height: 14px; }
+    .cliente-plus-fino::before, .cliente-plus-fino::after { content: ""; position: absolute; left: 1px; top: 6px; width: 12px; height: 1px; background: currentColor; }
+    .cliente-plus-fino::after { transform: rotate(90deg); }
     .solicitud-visor-cargando { color: #fff; text-align: center; }
     @@media (max-width: 700px) { .solicitud-fotos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
@@ -393,7 +396,7 @@
                                     <div class="alert alert-info py-2 mb-3">Servicio sin obra vinculada: complete los datos manualmente. Los cambios solo afectan a esta solicitud.</div>
                                     <div class="row g-3">
                                         <div class="col-md-7 col-12"><label class="form-label small mb-1">Nombre de obra o servicio</label><DxTextBox @bind-Text="solicitud.NombreObra" NullText="Indique el nombre del servicio" /></div>
-                                        <div class="col-md-5 col-12"><label class="form-label small mb-1">Cliente</label><DxComboBox Data="@clientesManuales" TData="ClienteSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" Value="@codigoClienteManual" ValueChanged="OnClienteManualChangedAsync" NullText="Seleccione un cliente..." ListRenderMode="ListRenderMode.Virtual" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains"><ItemTemplate Context="cli"><span style="font-size: 0.9rem;"><strong>@cli.Codigo</strong> - @cli.Nombre</span></ItemTemplate></DxComboBox></div>
+                                        <div class="col-md-5 col-12"><label class="form-label small mb-1">Cliente</label><DxComboBox Data="@clientesManuales" TData="ClienteSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" Value="@solicitud.CodigoClienteManual" ValueChanged="OnClienteManualChangedAsync" Text="@solicitud.NombreCliente" TextChanged="OnNombreClienteManualChanged" NullText="Seleccione un cliente..." ListRenderMode="ListRenderMode.Virtual" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" AllowUserInput="true"><Buttons><DxEditorButton IconCssClass="cliente-plus-fino" Tooltip="Nuevo cliente" Click="NuevoClienteManual" /></Buttons><ItemTemplate Context="cli"><span style="font-size: 0.9rem;"><strong>@cli.Codigo</strong> - @cli.Nombre</span></ItemTemplate></DxComboBox></div>
                                         <div class="col-md-8 col-12"><label class="form-label small mb-1">Dirección</label><DxTextBox @bind-Text="solicitud.DireccionCliente" NullText="Indique la dirección" /></div>
                                         <div class="col-md-4 col-12"><label class="form-label small mb-1">Población</label><DxTextBox Text="@solicitud.PoblacionCliente" TextChanged="OnPoblacionManualChanged" NullText="Indique la población" /></div>                                        <div class="col-md-4 col-12"><label class="form-label small mb-1">Encargado</label><DxTextBox @bind-Text="solicitud.Encargado" /></div>
                                         <div class="col-md-4 col-12"><label class="form-label small mb-1">Teléfono</label><DxTextBox @bind-Text="solicitud.TelefonoCliente" /></div>
@@ -641,8 +644,12 @@
                         </DxFormLayoutItem>
                     }
 
-                    <DxFormLayoutItem Caption="Observaciones" ColSpanMd="12" BeginRow="true">
-                        <DxMemo @bind-Text="@solicitud.Observaciones" Rows="2" />
+                    <DxFormLayoutItem Caption="Observaciones" ColSpanMd="6" BeginRow="true">
+                        <DxMemo @bind-Text="@solicitud.Observaciones" Rows="4" />
+                    </DxFormLayoutItem>
+
+                    <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="6" BeginRow="false">
+                        <DxMemo @bind-Text="@solicitud.ComentariosOficina" Rows="4" />
                     </DxFormLayoutItem>
 
                     <DxFormLayoutItem Caption="Observaciones del conductor para la oficna" ColSpanMd="12" >
@@ -650,9 +657,6 @@
                                 @bind-Text:set="@OnObservacionesConductorChanged" Rows="2" />
                     </DxFormLayoutItem>
 
-                    <DxFormLayoutItem Caption="Comentarios para oficina" ColSpanMd="12" BeginRow="true">
-                        <DxMemo @bind-Text="@solicitud.ComentariosOficina" Rows="2" />
-                    </DxFormLayoutItem>
 
                     <!-- Grupo 3: Contenedor y Ubicación -->
                     <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
@@ -995,8 +999,7 @@
     private List<TarifaCabecera> tarifasVigentes = [];
     private List<ZonaComunSage50> zonasTarifas = [];
     private List<ClienteSage50> clientesManuales = [];
-    private string? codigoClienteManual;
-    private List<TarifaSolicitudOpcion> tarifasOpciones = [];
+private List<TarifaSolicitudOpcion> tarifasOpciones = [];
     private bool nuevoContenedorVisible;
     private string? destinoNuevoContenedor;
     private string destinoNuevoContenedorDescripcion = string.Empty;
@@ -1188,6 +1191,11 @@
                 })
                 .OrderBy(c => c.Codigo)
                 .ToList();
+            if (servicioSinObra && solicitud is not null && string.IsNullOrWhiteSpace(solicitud.CodigoClienteManual) && !string.IsNullOrWhiteSpace(solicitud.NombreCliente))
+            {
+                solicitud.CodigoClienteManual = clientesManuales.FirstOrDefault(cliente =>
+                    string.Equals(cliente.Nombre?.Trim(), solicitud.NombreCliente.Trim(), StringComparison.OrdinalIgnoreCase))?.Codigo;
+            }
             tarifasOpciones = tarifasVigentes.Select(t => { var zona = zonasTarifas.FirstOrDefault(z => string.Equals(z.Zona.Trim(), t.Zona.Trim(), StringComparison.OrdinalIgnoreCase)); return new TarifaSolicitudOpcion(t.Codigo.Trim(), t.Nombre.Trim(), t.Zona.Trim(), zona?.Descripcion.Trim() ?? ""); }).ToList();
 
             if (Id.HasValue)
@@ -1524,12 +1532,31 @@
     private Task OnClienteManualChangedAsync(string codigo)
     {
         if (solicitud is null) return Task.CompletedTask;
-        codigoClienteManual = codigo;
-        var cliente = clientesManuales.FirstOrDefault(c => string.Equals(c.Codigo, codigo, StringComparison.OrdinalIgnoreCase));
-        if (cliente is null) return Task.CompletedTask;
 
-        solicitud.NombreCliente = cliente.Nombre;
-        solicitud.TelefonoCliente = cliente.Telefono;
+        var valor = codigo?.Trim() ?? string.Empty;
+        var cliente = clientesManuales.FirstOrDefault(c => string.Equals(c.Codigo, valor, StringComparison.OrdinalIgnoreCase));
+        if (cliente is null)
+        {
+            solicitud.CodigoClienteManual = null;
+            return Task.CompletedTask;
+        }
+
+        solicitud.CodigoClienteManual = cliente.Codigo?.Trim();
+        solicitud.NombreCliente = cliente.Nombre?.Trim();
+        solicitud.TelefonoCliente = cliente.Telefono?.Trim();
+        return Task.CompletedTask;
+    }
+
+    private Task OnNombreClienteManualChanged(string nombre)
+    {
+        if (solicitud is null) return Task.CompletedTask;
+
+        var valor = nombre?.Trim() ?? string.Empty;
+        solicitud.NombreCliente = valor;
+        var cliente = clientesManuales.FirstOrDefault(c => string.Equals(c.Nombre?.Trim(), valor, StringComparison.OrdinalIgnoreCase));
+        solicitud.CodigoClienteManual = cliente?.Codigo?.Trim();
+        if (cliente is not null)
+            solicitud.TelefonoCliente = cliente.Telefono?.Trim();
         return Task.CompletedTask;
     }
     private Task OnPoblacionManualChanged(string valor)
@@ -1567,6 +1594,14 @@
             solicitud.TelefonoCliente = obra.Telefono;
             solicitud.Encargado = obra.Encargado;
             solicitud.Movil = obra.Movil;
+            var observacionesObra = obra.Observaciones?.Trim();
+            if (!string.IsNullOrWhiteSpace(observacionesObra)
+                && !(solicitud.Observaciones ?? string.Empty).Contains(observacionesObra, StringComparison.Ordinal))
+            {
+                solicitud.Observaciones = string.IsNullOrWhiteSpace(solicitud.Observaciones)
+                    ? observacionesObra
+                    : solicitud.Observaciones.TrimEnd() + Environment.NewLine + observacionesObra;
+            }
 
             if (obra.Visible == false)
             {
@@ -3243,6 +3278,13 @@
 
     private Obra? ObraSeleccionada => obras?.FirstOrDefault(o => o.IdObra == solicitud?.IdCliente); private bool TienePreciosEspecialesObra => ObraSeleccionada?.TienePreciosEspeciales == true; private string UrlPreciosEspecialesObra { get { var retorno = solicitud is null ? "/modelos/solicitudes" : $"/modelos/solicitudes/edit/{solicitud.IdSolicitud}"; return $"/modelos/obrasmnto/edit/{Uri.EscapeDataString(ObraSeleccionada?.Codigo ?? string.Empty)}?tab=precios&returnUrl={Uri.EscapeDataString(retorno)}"; } } private string TextoTarifaObra { get { var obra = ObraSeleccionada; return obra is null || string.IsNullOrWhiteSpace(obra.Tarifa) ? "-" : $"{obra.Tarifa.Trim()} · Zona {obra.Zona?.Trim()} - {obra.ZonaDescripcion?.Trim()}"; } }
 
+    private void NuevoClienteManual()
+    {
+        var retorno = solicitud?.IdSolicitud > 0
+            ? $"/modelos/solicitudes/edit/{solicitud.IdSolicitud}"
+            : "/modelos/solicitudes/edit";
+        NavigationManager.NavigateTo($"/modelos/clientes/edit?returnUrl={Uri.EscapeDataString(retorno)}");
+    }
     private bool TieneObraSeleccionada => obras?.Any(o => o.IdObra == solicitud?.IdCliente && !string.IsNullOrWhiteSpace(o.Codigo)) == true;
 
     private async Task EditarObraSeleccionada()

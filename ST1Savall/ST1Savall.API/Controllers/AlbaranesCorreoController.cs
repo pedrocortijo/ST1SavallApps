@@ -140,7 +140,11 @@ public sealed class AlbaranesCorreoController(SageGestionDbContext sage, Applica
                 var idCamion = await app.Operarios.AsNoTracking().Where(o => o.IdOperario == idConductor).Select(o => o.IdCamion).FirstOrDefaultAsync();
                 if (idCamion.HasValue) camion = await app.Camiones.AsNoTracking().FirstOrDefaultAsync(c => c.IdCamion == idCamion.Value);
             }
-            var pdf = albaranPdf.Crear(p.Empresa, a, c, obra, lineas, tipoIva, solicitud?.FirmaNombre, solicitud?.FirmaDni, rutaFirma, fotosSolicitud, contenedoresEntregados, contenedoresRetirados, solicitud, camion);
+            var idPlantaReciclaje = solicitud?.IdPlantaDescarga ?? solicitud?.IdPlantaOrigen;
+            var plantaReciclaje = idPlantaReciclaje.HasValue
+                ? await app.Plantas.AsNoTracking().FirstOrDefaultAsync(planta => planta.IdPlanta == idPlantaReciclaje.Value)
+                : null;
+            var pdf = albaranPdf.Crear(p.Empresa, a, c, obra, lineas, tipoIva, solicitud?.FirmaNombre, solicitud?.FirmaDni, rutaFirma, fotosSolicitud, contenedoresEntregados, contenedoresRetirados, solicitud, camion, plantaReciclaje);
             await System.IO.File.WriteAllBytesAsync(rutaPdf, pdf);
             using var limite = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             iniciado = true;

@@ -83,6 +83,9 @@ public class Solicitud
     [MaxLength(200)]
     public string? NombreCliente { get; set; }
 
+    [MaxLength(25)]
+    public string? CodigoClienteManual { get; set; }
+
     [MaxLength(200)]
     public string? NombreObra { get; set; }
 

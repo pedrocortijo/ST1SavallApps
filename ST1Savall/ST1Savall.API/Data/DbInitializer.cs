@@ -320,6 +320,8 @@ public static class DbInitializer
             BEGIN
                 IF COL_LENGTH('Solicitudes', 'TarifaAplicada') IS NULL
                     ALTER TABLE Solicitudes ADD TarifaAplicada CHAR(2) NULL;
+                IF COL_LENGTH('Solicitudes', 'CodigoClienteManual') IS NULL
+                    ALTER TABLE Solicitudes ADD CodigoClienteManual VARCHAR(25) NULL;
                 IF EXISTS (
                     SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
                     WHERE TABLE_NAME = 'Solicitudes' AND COLUMN_NAME = 'IdOperario' AND (CHARACTER_MAXIMUM_LENGTH < 100 OR CHARACTER_MAXIMUM_LENGTH IS NULL)
@@ -412,6 +414,8 @@ public static class DbInitializer
             BEGIN
                 IF COL_LENGTH('Solicitudes', 'TarifaAplicada') IS NULL
                     ALTER TABLE Solicitudes ADD TarifaAplicada CHAR(2) NULL;
+                IF COL_LENGTH('Solicitudes', 'CodigoClienteManual') IS NULL
+                    ALTER TABLE Solicitudes ADD CodigoClienteManual VARCHAR(25) NULL;
                 IF COL_LENGTH('Solicitudes', 'FechaHoraInicioPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraInicioPlanificada DATETIME2 NULL;
                 IF COL_LENGTH('Solicitudes', 'FechaHoraFinPlanificada') IS NULL ALTER TABLE Solicitudes ADD FechaHoraFinPlanificada DATETIME2 NULL;
                 IF COL_LENGTH('Solicitudes', 'NotificacionInicioVisualizada') IS NULL ALTER TABLE Solicitudes ADD NotificacionInicioVisualizada BIT NOT NULL CONSTRAINT DF_Solicitudes_NotificacionInicioVisualizada DEFAULT (0);
@@ -486,6 +490,8 @@ public static class DbInitializer
             BEGIN
                 IF COL_LENGTH('Solicitudes', 'TarifaAplicada') IS NULL
                     ALTER TABLE Solicitudes ADD TarifaAplicada CHAR(2) NULL;
+                IF COL_LENGTH('Solicitudes', 'CodigoClienteManual') IS NULL
+                    ALTER TABLE Solicitudes ADD CodigoClienteManual VARCHAR(25) NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranPlanta') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranPlanta VARCHAR(20) NULL;
                 IF COL_LENGTH('Solicitudes', 'KgAlbaran') IS NULL
