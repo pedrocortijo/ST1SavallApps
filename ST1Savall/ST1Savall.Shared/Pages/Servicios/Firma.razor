@@ -94,7 +94,7 @@
             </section>
 
             <div class="row g-2 border-top pt-3 mb-3">
-                <div class="col-12 col-md-6"><label class="form-label small fw-bold">Tipo de residuo</label>
+                <div class="col-12 col-md-4"><label class="form-label small fw-bold">Tipo de residuo</label>
                     <DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" 
                         TData="ArticuloSage50" TValue="string" 
                         TextFieldName="Descripcion" 
@@ -103,7 +103,8 @@
                         NullText="Seleccione el tipo de residuo..." />
                 </div>
                 <div class="col-12 col-md-3"><label class="form-label small fw-bold">Albarán de planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div>
-                <div class="col-12 col-md-3"><label class="form-label small fw-bold">Kg albarán</label><DxSpinEdit @bind-Value="solicitud.KgAlbaran" MinValue="0" Increment="1" CssClass="w-100" /></div>
+                <div class="col-12 col-md-3"><label class="form-label small fw-bold">Kg albarán</label><DxSpinEdit @bind-Value="solicitud.KgAlbaran" @bind-Value:after="OnKgAlbaranChanged" MinValue="0" Increment="1" CssClass="w-100" /></div>
+                <div class="col-12 col-md-2"><label class="form-label small fw-bold">Hora pesaje</label><DxTimeEdit @bind-Time="solicitud.HoraPesaje" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="w-100 text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></div>
             </div>
 
             <section class="border-top pt-3 mb-3">
@@ -132,9 +133,9 @@
             </section>
 
             <section class="border-top pt-3 mt-3">
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h3 class="h6 text-primary fw-bold mb-0">Fotos</h3><div class="d-flex gap-2">@if (esAplicacionNativa) { <button type="button" class="btn btn-primary" @onclick="CapturarFotoAsync"><i class="oi oi-camera-slr me-1"></i>Cámara</button> }<label class="btn btn-outline-primary mb-0"><i class="oi oi-folder me-1"></i>Seleccionar<InputFile class="d-none" OnChange="SubirFotoAsync" accept="image/*" /></label></div></div>
-                <p class="small text-muted">Use Cámara en la tableta o seleccione una imagen desde el dispositivo.</p>
-                @if (fotos.Count == 0) { <div class="small text-muted border rounded p-3">No se han añadido fotos.</div> }
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h3 class="h6 text-primary fw-bold mb-0">Foto de la entrega o recogida <span class="text-danger" aria-label="Obligatoria">*</span></h3><div class="d-flex gap-2">@if (esAplicacionNativa) { <button type="button" class="btn btn-primary" @onclick="CapturarFotoAsync"><i class="oi oi-camera-slr me-1"></i>Cámara</button> }<label class="btn btn-outline-primary mb-0"><i class="oi oi-folder me-1"></i>Seleccionar<InputFile class="d-none" OnChange="SubirFotoAsync" accept="image/*" /></label></div></div>
+                <p class="small text-muted">Obligatoria para completar el servicio. Use Cámara en la tableta o seleccione una imagen desde el dispositivo.</p>
+                @if (fotos.Count == 0) { <div class="small text-danger border border-danger rounded p-3">Debe añadir una foto de la entrega o recogida.</div> }
                 else { <div class="firma-fotos">@foreach (var foto in fotos) { <div class="firma-foto"><button type="button" class="firma-miniatura" title="Abrir foto original" @onclick="() => AbrirFotoOriginalAsync(foto.Id)" @onclick:stopPropagation="true"><img src="@FotoDataUri(foto.Id)" alt="Abrir foto original" /></button><button type="button" class="btn btn-danger" title="Eliminar foto" @onclick="() => EliminarFotoAsync(foto.Id)"><i class="oi oi-trash"></i></button></div> }</div> }
             </section>
 
@@ -268,6 +269,14 @@
         return mensajePorDefecto;
     }
 
+    private void OnKgAlbaranChanged()
+    {
+        if (solicitud != null && solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+        {
+            solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
+        }
+    }
+
     private async Task GuardarAsync()
     {
         if (solicitud is null) return;
@@ -278,6 +287,7 @@
             {
                 solicitud.AlbaranPlanta,
                 solicitud.KgAlbaran,
+                solicitud.HoraPesaje,
                 solicitud.TipoResiduo,
                 solicitud.FirmaNombre,
                 solicitud.FirmaDni,

@@ -105,6 +105,12 @@ public class SolicitudesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Solicitud>> PostSolicitud(Solicitud solicitud)
     {
+        if (solicitud.IdCliente <= 0)
+            return BadRequest(new { message = "Debe seleccionar un cliente antes de dar de alta la solicitud." });
+
+        if (solicitud.IdTipoTarea <= 0)
+            return BadRequest(new { message = "El tipo de tarea es obligatorio." });
+
         if (TieneContenedorEnEntregaYRetirada(solicitud))
             return BadRequest(new { message = "Un contenedor no puede entregarse y retirarse en la misma solicitud." });
 
@@ -151,6 +157,11 @@ public class SolicitudesController : ControllerBase
             }
         }
 
+        if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+        {
+            solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
+        }
+
         _context.Solicitudes.Add(solicitud);
         await ActualizarEstadosContenedores(solicitud);
         await _context.SaveChangesAsync();
@@ -161,6 +172,11 @@ public class SolicitudesController : ControllerBase
     public async Task<IActionResult> PutSolicitud(int id, Solicitud solicitud)
     {
         if (id != solicitud.IdSolicitud) return BadRequest();
+        if (solicitud.IdCliente <= 0)
+            return BadRequest(new { message = "Debe seleccionar un cliente antes de guardar la solicitud." });
+        if (solicitud.IdTipoTarea <= 0)
+            return BadRequest(new { message = "El tipo de tarea es obligatorio." });
+
         if (TieneContenedorEnEntregaYRetirada(solicitud))
             return BadRequest(new { message = "Un contenedor no puede entregarse y retirarse en la misma solicitud." });
 
@@ -176,7 +192,7 @@ public class SolicitudesController : ControllerBase
             .Select(e => (int?)e.IdEstado)
             .FirstOrDefaultAsync();
         var idFinalizado = idEstadoFinalizadoPorDescripcion ?? parametro?.EstadoFinalizado ?? 5;
-        if (solicitudAnterior.Estado == idFinalizado)
+        if (solicitudAnterior.Estado == idFinalizado && solicitud.Estado == idFinalizado)
         {
             var isUserAdmin = User.IsInRole("Admin")
                 || string.Equals(User.Identity?.Name, "admin@savall.com", StringComparison.OrdinalIgnoreCase)
@@ -257,6 +273,11 @@ public class SolicitudesController : ControllerBase
             {
                 return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} iniciado y sin finalizar." });
             }
+        }
+
+        if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+        {
+            solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
         }
 
         _context.Entry(solicitud).State = EntityState.Modified;
@@ -501,6 +522,67 @@ public class SolicitudesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id}/regresar-planta")]
+    public async Task<IActionResult> RegresarAPlanta(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+        var estadoActual = await _context.EstadosSolicitud.AsNoTracking().FirstOrDefaultAsync(e => e.IdEstado == solicitud.Estado);
+        var estadoPlanta = await _context.EstadosSolicitud.AsNoTracking().FirstOrDefaultAsync(e =>
+            e.EstadoServicio == EstadoServicio.RutaPlanta || e.Descripcion!.Contains("ruta a planta"));
+        if (estadoActual?.EstadoServicio != EstadoServicio.RutaObra
+            && estadoActual?.Descripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) != true)
+            return Conflict(new { message = "Solo se puede iniciar el regreso a planta desde una ruta a obra." });
+        if (estadoPlanta == null)
+        {
+            var siguienteIdEstado = (await _context.EstadosSolicitud
+                .Select(e => (int?)e.IdEstado)
+                .MaxAsync() ?? 0) + 1;
+            estadoPlanta = new EstadoSolicitud
+            {
+                IdEstado = siguienteIdEstado,
+                Descripcion = "Ruta a Planta",
+                BgColor = "#f58220",
+                TextColor = "#ffffff",
+                EstadoServicio = EstadoServicio.RutaPlanta
+            };
+            _context.EstadosSolicitud.Add(estadoPlanta);
+            await _context.SaveChangesAsync();
+        }
+
+        var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
+        if (tarea == null) return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
+        var datosPendientes = new List<string>();
+        if (string.IsNullOrWhiteSpace(solicitud.FirmaPath) || !System.IO.File.Exists(solicitud.FirmaPath)) datosPendientes.Add(" • Firma");
+        if (string.IsNullOrWhiteSpace(solicitud.FirmaNombre)) datosPendientes.Add(" • Nombre del firmante");
+        if (string.IsNullOrWhiteSpace(solicitud.FirmaDni)) datosPendientes.Add(" • DNI del firmante");
+        if (!await TieneFotoEntregaORecogidaAsync(solicitud.IdSolicitud)) datosPendientes.Add(" • Foto de la entrega o recogida");
+        if ((tarea.Recoger1 || tarea.Recoger2) && string.IsNullOrWhiteSpace(solicitud.TipoResiduo)) datosPendientes.Add(" • Tipo de residuo");
+        if (tarea.Entrega1 && string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)) datosPendientes.Add(" • Número de serie de Entrega [1]");
+        if (tarea.Entrega2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)) datosPendientes.Add(" • Número de serie de Entrega [2]");
+        if (tarea.Recoger1 && string.IsNullOrWhiteSpace(solicitud.CodigoRecogida)) datosPendientes.Add(" • Número de serie de Retirada [1]");
+        if (tarea.Recoger2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida)) datosPendientes.Add(" • Número de serie de Retirada [2]");
+        if (datosPendientes.Count > 0) return BadRequest(new { message = $"Debe cumplimentar:{Environment.NewLine}{string.Join(Environment.NewLine, datosPendientes)}." });
+
+        // KgAlbaran y los datos propios de planta se completan posteriormente en planta.
+        solicitud.Estado = estadoPlanta.IdEstado;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+    [HttpPost("{id}/cancelar-planta")]
+    public async Task<IActionResult> CancelarRutaPlanta(int id)
+    {
+        var solicitud = await _context.Solicitudes.FindAsync(id);
+        if (solicitud == null) return NotFound();
+        var actual = await _context.EstadosSolicitud.AsNoTracking().FirstOrDefaultAsync(e => e.IdEstado == solicitud.Estado);
+        if (actual?.EstadoServicio != EstadoServicio.RutaPlanta && actual?.Descripcion?.Contains("ruta a planta", StringComparison.OrdinalIgnoreCase) != true)
+            return Conflict(new { message = "Solo se puede cancelar una ruta a planta." });
+        var rutaObra = await _context.EstadosSolicitud.AsNoTracking().FirstOrDefaultAsync(e => e.EstadoServicio == EstadoServicio.RutaObra || e.Descripcion!.Contains("iniciado"));
+        if (rutaObra == null) return BadRequest(new { message = "No hay un estado configurado para Ruta a Obra." });
+        solicitud.Estado = rutaObra.IdEstado;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
     [HttpPost("{id}/finalizar")]
     public async Task<ActionResult<ResultadoFinalizacionServicio>> FinalizarSolicitud(int id)
     {
@@ -521,8 +603,10 @@ public class SolicitudesController : ControllerBase
 
         if (!estadoIniciado.HasValue || !estadoFinalizado.HasValue)
             return BadRequest(new { message = "No hay estados de servicio iniciado y finalizado configurados." });
-        if (solicitud.Estado != estadoIniciado.Value)
-            return Conflict(new { message = "Solo se puede finalizar un servicio iniciado." });
+        var estadoRutaActual = await _context.EstadosSolicitud.AsNoTracking().FirstOrDefaultAsync(e => e.IdEstado == solicitud.Estado);
+        if (estadoRutaActual?.EstadoServicio != EstadoServicio.RutaPlanta
+            && estadoRutaActual?.Descripcion?.Contains("ruta a planta", StringComparison.OrdinalIgnoreCase) != true)
+            return Conflict(new { message = "Solo se puede finalizar un servicio en ruta a planta." });
         var datosPendientes = new List<string>();
         if (string.IsNullOrWhiteSpace(solicitud.FirmaPath) || !System.IO.File.Exists(solicitud.FirmaPath))
             datosPendientes.Add(" • Firma");
@@ -530,6 +614,8 @@ public class SolicitudesController : ControllerBase
             datosPendientes.Add(" • Nombre del firmante");
         if (string.IsNullOrWhiteSpace(solicitud.FirmaDni))
             datosPendientes.Add(" • DNI del firmante");
+        if (!await TieneFotoEntregaORecogidaAsync(solicitud.IdSolicitud))
+            datosPendientes.Add(" • Foto de la entrega o recogida");
         var tarea = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
         if (tarea == null)
             return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
@@ -559,6 +645,17 @@ public class SolicitudesController : ControllerBase
             Numero = solicitud.AlbaranNumeroSage,
             Aviso = null
         });
+    }
+
+    private async Task<bool> TieneFotoEntregaORecogidaAsync(int idSolicitud)
+    {
+        var rutasFotos = await _context.SolicitudFotos
+            .AsNoTracking()
+            .Where(foto => foto.IdSolicitud == idSolicitud)
+            .Select(foto => foto.RutaArchivo)
+            .ToListAsync();
+
+        return rutasFotos.Any(ruta => !string.IsNullOrWhiteSpace(ruta) && System.IO.File.Exists(ruta));
     }
 
     [HttpPost("generar-albaranes-pendientes")]
@@ -712,6 +809,14 @@ public class SolicitudesController : ControllerBase
 
         solicitud.AlbaranPlanta = datos.AlbaranPlanta?.Trim();
         solicitud.KgAlbaran = datos.KgAlbaran;
+        if (datos.HoraPesaje.HasValue)
+        {
+            solicitud.HoraPesaje = datos.HoraPesaje;
+        }
+        else if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+        {
+            solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
+        }
         solicitud.TipoResiduo = datos.TipoResiduo?.Trim();
         if (!string.IsNullOrWhiteSpace(solicitud.TipoResiduo)
             && !await _articulosSage50Service.EsArticuloContenedorAsync(solicitud.TipoResiduo))
@@ -985,6 +1090,7 @@ public class SolicitudesController : ControllerBase
     {
         public string? AlbaranPlanta { get; init; }
         public int? KgAlbaran { get; init; }
+        public TimeSpan? HoraPesaje { get; init; }
         public string? TipoResiduo { get; init; }
         public string? FirmaNombre { get; init; }
         public string? FirmaDni { get; init; }

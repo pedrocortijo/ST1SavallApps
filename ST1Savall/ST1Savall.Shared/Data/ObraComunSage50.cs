@@ -8,6 +8,7 @@ public class ObraComunSage50
 {
     [MaxLength(16)] public string Cif { get; set; } = string.Empty;
     [MaxLength(8)] public string Cliente { get; set; } = string.Empty;
+    [NotMapped] public string ClienteNombre { get; set; } = string.Empty;
     [MaxLength(5)] public string Codigo { get; set; } = string.Empty;
     [MaxLength(13)] public string Codpost { get; set; } = string.Empty;
     public DateTime Created { get; set; } = DateTime.Now;

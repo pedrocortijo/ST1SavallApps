@@ -16,6 +16,16 @@ public static class DbInitializer
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
         await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'HorariosObra', N'U') IS NULL
+            BEGIN
+                CREATE TABLE HorariosObra (
+                    CODIGO CHAR(5) NOT NULL CONSTRAINT PK_HorariosObra PRIMARY KEY,
+                    HORAINICIO TIME NOT NULL,
+                    HORAFIN TIME NOT NULL
+                );
+            END;
+        ");
+        await context.Database.ExecuteSqlRawAsync(@"
             IF EXISTS (SELECT 1 FROM sys.tables WHERE name COLLATE Latin1_General_100_BIN2 = N'TARIFASCAB')
                 EXEC sp_rename N'TARIFASCAB', N'TarifasCab';
             IF EXISTS (SELECT 1 FROM sys.tables WHERE name COLLATE Latin1_General_100_BIN2 = N'TARIFASLIN')
@@ -52,11 +62,15 @@ public static class DbInitializer
                     Matricula NVARCHAR(20) NOT NULL,
                     Descripcion NVARCHAR(100) NULL,
                     UnidadWialonId NVARCHAR(50) NULL,
+                    TaraKg INT NULL,
                     Activo BIT NOT NULL CONSTRAINT DF_Camiones_Activo DEFAULT (1)
                 );
                 CREATE UNIQUE INDEX IX_Camiones_Matricula ON Camiones(Matricula);
                 CREATE UNIQUE INDEX IX_Camiones_UnidadWialonId ON Camiones(UnidadWialonId) WHERE UnidadWialonId IS NOT NULL;
             END;
+
+            IF COL_LENGTH(N'Camiones', N'TaraKg') IS NULL
+                EXEC(N'ALTER TABLE Camiones ADD TaraKg INT NULL;');
 
             IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Camiones_Operarios_IdConductor')
                 ALTER TABLE Camiones DROP CONSTRAINT FK_Camiones_Operarios_IdConductor;
@@ -248,6 +262,9 @@ public static class DbInitializer
                 IF COL_LENGTH('Parametros', 'PathFirmas') IS NULL
                     ALTER TABLE Parametros ADD PathFirmas VARCHAR(255) NULL;
 
+                IF COL_LENGTH('Parametros', 'PathDocumentos') IS NULL
+                    ALTER TABLE Parametros ADD PathDocumentos VARCHAR(255) NULL;
+
                 IF COL_LENGTH('Parametros', 'EstadoReprogramacion') IS NULL
                     ALTER TABLE Parametros ADD EstadoReprogramacion INT NULL;
 
@@ -262,6 +279,21 @@ public static class DbInitializer
 
                 IF COL_LENGTH('Parametros', 'EstadoPendiente') IS NULL
                     ALTER TABLE Parametros ADD EstadoPendiente INT NULL;
+
+                IF COL_LENGTH('EstadosSolicitud', 'EstadoServicio') IS NULL
+                    ALTER TABLE EstadosSolicitud ADD EstadoServicio INT NULL;
+
+                IF COL_LENGTH('EstadosSolicitud', 'RutaSinIniciar') IS NULL
+                    ALTER TABLE EstadosSolicitud ADD RutaSinIniciar BIT NOT NULL CONSTRAINT DF_EstadosSolicitud_RutaSinIniciar DEFAULT (0);
+
+                IF COL_LENGTH('EstadosSolicitud', 'RutaObra') IS NULL
+                    ALTER TABLE EstadosSolicitud ADD RutaObra BIT NOT NULL CONSTRAINT DF_EstadosSolicitud_RutaObra DEFAULT (0);
+
+                IF COL_LENGTH('EstadosSolicitud', 'RutaPlanta') IS NULL
+                    ALTER TABLE EstadosSolicitud ADD RutaPlanta BIT NOT NULL CONSTRAINT DF_EstadosSolicitud_RutaPlanta DEFAULT (0);
+
+                IF COL_LENGTH('EstadosSolicitud', 'RutaFinalizada') IS NULL
+                    ALTER TABLE EstadosSolicitud ADD RutaFinalizada BIT NOT NULL CONSTRAINT DF_EstadosSolicitud_RutaFinalizada DEFAULT (0);
 
                 IF COL_LENGTH('Parametros', 'AdminPassword') IS NULL
                     ALTER TABLE Parametros ADD AdminPassword NVARCHAR(100) NULL;
@@ -357,6 +389,8 @@ public static class DbInitializer
                 IF COL_LENGTH('Operarios', 'fin_jornada') IS NULL ALTER TABLE Operarios ADD fin_jornada TIME NOT NULL CONSTRAINT DF_Operarios_FinJornada DEFAULT ('17:00');
                 IF COL_LENGTH('Operarios', 'inicio_descanso') IS NULL ALTER TABLE Operarios ADD inicio_descanso TIME NULL;
                 IF COL_LENGTH('Operarios', 'fin_descanso') IS NULL ALTER TABLE Operarios ADD fin_descanso TIME NULL;
+                IF COL_LENGTH('Operarios', 'inicio_comida') IS NULL ALTER TABLE Operarios ADD inicio_comida TIME NULL;
+                IF COL_LENGTH('Operarios', 'fin_comida') IS NULL ALTER TABLE Operarios ADD fin_comida TIME NULL;
             END
 
             IF OBJECT_ID(N'Ausencias', N'U') IS NULL
@@ -450,6 +484,8 @@ public static class DbInitializer
                     ALTER TABLE Solicitudes ADD AlbaranPlanta VARCHAR(20) NULL;
                 IF COL_LENGTH('Solicitudes', 'KgAlbaran') IS NULL
                     ALTER TABLE Solicitudes ADD KgAlbaran INT NULL;
+                IF COL_LENGTH('Solicitudes', 'HoraPesaje') IS NULL
+                    ALTER TABLE Solicitudes ADD HoraPesaje TIME NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranSerieSage') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranSerieSage VARCHAR(2) NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranNumeroSage') IS NULL
@@ -459,7 +495,6 @@ public static class DbInitializer
                 IF OBJECT_ID('SolicitudFotos', 'U') IS NULL
                 BEGIN
                     CREATE TABLE SolicitudFotos (
-                        Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
                         IdSolicitud INT NOT NULL,
                         RutaArchivo VARCHAR(255) NOT NULL,
                         NombreArchivo VARCHAR(150) NULL,
@@ -902,11 +937,12 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
             new EstadoSolicitud { IdEstado = 2, Descripcion = "Whatsapp enviado", BgColor = "#38b449", TextColor = "#ffffff" },
             new EstadoSolicitud { IdEstado = 3, Descripcion = "Leer observaciones", BgColor = "#dbe5f1", TextColor = "#002060", Filtrar = true },
             new EstadoSolicitud { IdEstado = 4, Descripcion = "No seguir contenedor", BgColor = "#ffc000", TextColor = "#000000" },
-            new EstadoSolicitud { IdEstado = 5, Descripcion = "Finalizado servicio", BgColor = "#8db4e2", TextColor = "#002060" },
+            new EstadoSolicitud { IdEstado = 5, Descripcion = "Finalizado servicio", BgColor = "#8db4e2", TextColor = "#002060", EstadoServicio = EstadoServicio.RutaFinalizada },
             new EstadoSolicitud { IdEstado = 6, Descripcion = "Anulado / reprogramado", BgColor = "#ff0000", TextColor = "#ffffff", Filtrar = true },
             new EstadoSolicitud { IdEstado = 7, Descripcion = "Falta disponibilidad contenedor", BgColor = "#ffffff", TextColor = "#ff0000" },
-            new EstadoSolicitud { IdEstado = 8, Descripcion = "Servicio iniciado", BgColor = "#198754", TextColor = "#ffffff", Filtrar = true },
-            new EstadoSolicitud { IdEstado = 9, Descripcion = "Adjudicado", BgColor = "#0d6efd", TextColor = "#ffffff", Filtrar = true }
+            new EstadoSolicitud { IdEstado = 8, Descripcion = "Servicio iniciado", BgColor = "#198754", TextColor = "#ffffff", Filtrar = true, EstadoServicio = EstadoServicio.RutaObra },
+            new EstadoSolicitud { IdEstado = 9, Descripcion = "Adjudicado", BgColor = "#0d6efd", TextColor = "#ffffff", Filtrar = true, EstadoServicio = EstadoServicio.RutaSinIniciar },
+            new EstadoSolicitud { IdEstado = 10, Descripcion = "Ruta a Planta", BgColor = "#f58220", TextColor = "#ffffff", EstadoServicio = EstadoServicio.RutaPlanta }
         };
 
         foreach (var estado in estados)
@@ -933,6 +969,8 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
             }
         }
         await context.SaveChangesAsync();
+
+        await context.Database.ExecuteSqlRawAsync(@"UPDATE EstadosSolicitud SET EstadoServicio = CASE WHEN IdEstado = 9 THEN 1 WHEN IdEstado = 8 THEN 2 WHEN IdEstado = 10 THEN 3 WHEN IdEstado = 5 THEN 4 ELSE NULL END;");
 
         var parametroDb = await context.Parametros.FirstOrDefaultAsync();
         if (parametroDb != null)

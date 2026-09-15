@@ -47,6 +47,8 @@ builder.Services.AddDbContext<SageGestionDbContext>(options =>
 builder.Services.AddScoped<ArticulosSage50Service>();
 builder.Services.AddScoped<DatosAlbaranPlantaExcelService>();
 builder.Services.AddScoped<GeneracionAlbaranServicioService>();
+builder.Services.AddScoped<AlbaranPdfService>();
+builder.Services.AddScoped<SmtpAlbaranService>();
 
 // Add SageComun DbContext
 var sageComunConnectionString = builder.Configuration.GetConnectionString("SageComunConnection") 
@@ -80,6 +82,11 @@ using (var scope = app.Services.CreateScope())
         var sageGestionContext = services.GetRequiredService<SageGestionDbContext>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        // Aplicación instalada antes de PathDocumentos: esta actualización debe
+        // ejecutarse antes de que EF consulte la tabla Parametros.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Parametros', 'PathDocumentos') IS NULL
+                ALTER TABLE Parametros ADD PathDocumentos VARCHAR(255) NULL;");
         await DbInitializer.InitializeAsync(context, sageGestionContext, userManager, roleManager);
         await services.GetRequiredService<ParametrosIntegracionesService>().MigrarDesdeConfiguracionAsync();
     }

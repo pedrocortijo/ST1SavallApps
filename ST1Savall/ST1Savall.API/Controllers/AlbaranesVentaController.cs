@@ -53,7 +53,7 @@ public class AlbaranesVentaController(
                 ?? clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE),
             obras.FirstOrDefault(obra => obra.Codigo == c.OBRA),
             direccionesEnvio.FirstOrDefault(d => d.CLIENTE == c.CLIENTE && d.LINEA == c.ENV_CLI),
-            tiposIva.FirstOrDefault(t => t.Codigo.Trim() == (lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA)?.TIPO_IVA.Trim() ?? string.Empty)), camposAdicionales)).ToList();
+            tiposIva.FirstOrDefault(t => t.Codigo.Trim() == (lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA)?.TIPO_IVA.Trim() ?? string.Empty)), camposAdicionales.Where(campo => campo.EMPRESA.Trim() == c.EMPRESA.Trim() && campo.NUMERO.Trim() == c.NUMERO.Trim() && campo.LETRA.Trim() == c.LETRA.Trim()))).ToList();
     }
 
     [HttpGet("{empresa}/{numero}/{serie}")]
@@ -138,6 +138,8 @@ public class AlbaranesVentaController(
         datos.Usuario = parametros.UsuarioAlbaranes;
         var error = await ValidarYNormalizarAsync(datos, true);
         if (error is not null) return BadRequest(new { message = error });
+        var errorTarifa = await AsegurarTarifaSageAsync(datos.Obra);
+        if (errorTarifa is not null) return BadRequest(new { message = errorTarifa });
         await AplicarPrecioEspecialAsync(datos);
 
         await using var transaccion = await context.Database.BeginTransactionAsync();
@@ -192,6 +194,11 @@ public class AlbaranesVentaController(
             a.EMPRESA.Trim() == empresa && a.NUMERO.Trim() == numero && a.LETRA.Trim() == serie);
         if (cabecera is null)
             return NotFound(new { message = $"No se encuentra el albarán Sage {empresa}/{serie}/{numero}." });
+        var solicitudesAsignadas = await applicationContext.Solicitudes
+            .Where(s => s.AlbaranSerieSage != null && s.AlbaranNumeroSage != null
+                && s.AlbaranSerieSage.Trim() == serie && s.AlbaranNumeroSage.Trim() == numero)
+            .ToListAsync();
+
         await using var transaccion = await context.Database.BeginTransactionAsync();
         var lineas = await context.LineasAlbaranesVenta.Where(l =>
             l.EMPRESA.Trim() == empresa && l.NUMERO.Trim() == numero && l.LETRA.Trim() == serie).ToListAsync();
@@ -199,6 +206,17 @@ public class AlbaranesVentaController(
         context.AlbaranesVenta.Remove(cabecera);
         await context.SaveChangesAsync();
         await transaccion.CommitAsync();
+
+        if (solicitudesAsignadas.Count > 0)
+        {
+            foreach (var solicitud in solicitudesAsignadas)
+            {
+                solicitud.AlbaranSerieSage = null;
+                solicitud.AlbaranNumeroSage = null;
+            }
+            await applicationContext.SaveChangesAsync();
+        }
+
         return NoContent();
     }
 
@@ -303,6 +321,47 @@ public class AlbaranesVentaController(
         if (precio.HasValue) datos.Precio = precio.Value;
     }
 
+    private async Task<string?> AsegurarTarifaSageAsync(string? codigoObra)
+    {
+        var obra = codigoObra?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(obra)) return null;
+
+        var codigoTarifa = await comunContext.Obras.AsNoTracking()
+            .Where(o => o.Codigo.Trim() == obra)
+            .Select(o => o.Tarifa)
+            .FirstOrDefaultAsync();
+        var codigo = codigoTarifa?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(codigo)) return null;
+
+        var tarifaApp = await applicationContext.TarifasCabeceras.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Codigo.Trim() == codigo);
+        if (tarifaApp is null)
+            return $"La tarifa {codigo} asignada a la obra no existe en la aplicación.";
+
+        var tarifaSage = await context.Tarifas
+            .FirstOrDefaultAsync(t => t.Codigo.Trim() == codigo);
+        var nombreTarifa = tarifaApp.Nombre.Trim();
+        if (tarifaSage is null)
+        {
+            context.Tarifas.Add(new TarifaSage50
+            {
+                Codigo = tarifaApp.Codigo.Trim().ToUpperInvariant(),
+                Nombre = nombreTarifa
+            });
+        }
+        else if (!string.Equals(tarifaSage.Nombre.Trim(), nombreTarifa, StringComparison.Ordinal))
+        {
+            tarifaSage.Nombre = nombreTarifa;
+        }
+        else
+        {
+            return null;
+        }
+
+        await context.SaveChangesAsync();
+        return null;
+    }
+
     private static AlbaranVentaEdicion CrearEdicion(AlbaranVentaSage50 cabecera, LineaAlbaranVentaSage50? linea, ClienteSage50? cliente, ObraComunSage50? obra = null, DireccionEnvioClienteSage50? direccionEnvio = null, TipoIvaSage50? tipoIva = null, IEnumerable<CampoAdicionalDocumentoVentaSage50>? camposAdicionales = null) => new()
     {
         Empresa = cabecera.EMPRESA.Trim(), Numero = cabecera.NUMERO.Trim(), Serie = cabecera.LETRA.Trim(), Fecha = cabecera.FECHA,
@@ -312,6 +371,7 @@ public class AlbaranesVentaController(
         Tarifa = cliente?.Tarifa.Trim() ?? string.Empty, Articulo = linea?.ARTICULO.Trim() ?? string.Empty, Definicion = linea?.DEFINICION.Trim() ?? string.Empty, Suplido = linea?.SUPLIDO ?? false,
         Unidades = linea?.UNIDADES ?? 0, Precio = linea?.PRECIO ?? 0, Descuento1 = linea?.DTO1 ?? 0, Descuento2 = linea?.DTO2 ?? 0, ImporteLinea = linea?.IMPORTE ?? 0,
         PorcentajeIva = tipoIva?.Iva ?? 0, ImporteIva = Math.Round((linea?.IMPORTE ?? 0) * (tipoIva?.Iva ?? 0) / 100m, 2, MidpointRounding.AwayFromZero), TotalDocumento = cabecera.TOTALDOC,
+        Observaciones = cabecera.OBSERVACIO.Trim(),
         ClienteCif = cliente?.Cif.Trim() ?? string.Empty, ClienteNombre = cliente?.Nombre.Trim() ?? string.Empty,
         ClienteDireccion = direccionEnvio?.DIRECCION.Trim() ?? cliente?.Direccion.Trim() ?? string.Empty, ClienteCodigoPostal = direccionEnvio?.CODPOS.Trim() ?? cliente?.Codpost.Trim() ?? string.Empty,
         ClientePoblacion = direccionEnvio?.POBLACION.Trim() ?? cliente?.Poblacion.Trim() ?? string.Empty, ClienteProvincia = direccionEnvio?.PROVINCIA.Trim() ?? cliente?.Provincia.Trim() ?? string.Empty,
@@ -334,8 +394,9 @@ public class AlbaranesVentaController(
     {
         var ahora = DateTime.Now;
         c.USUARIO = d.Usuario; c.FECHA = d.Fecha.Date; c.CLIENTE = d.Cliente; c.CLIENTEERP = cliente.Clienteerp.Trim(); c.ALMACEN = d.Almacen;
-        c.FPAG = string.IsNullOrWhiteSpace(d.FormaPago) ? cliente.Fpag.Trim() : d.FormaPago; c.VENDEDOR = "     ";
+        c.FPAG = string.IsNullOrWhiteSpace(d.FormaPago) ? cliente.Fpag.Trim() : d.FormaPago; c.VENDEDOR = string.IsNullOrWhiteSpace(d.Vendedor) ? "00001" : d.Vendedor;
         c.OPERARIO = "01"; c.OBRA = d.Obra; c.RUTA = cliente.Ruta.Trim(); c.PRONTO = cliente.Pronto; c.ENV_CLI = 1;
+        c.OBSERVACIO = d.Observaciones?.Trim() ?? string.Empty;
         c.DIVISA = "000"; c.CAMBIO = 1m; c.STOCK_COEF = 1m; c.CANAL = "MATRICULA";
         c.IMPORTE = calculoFiscal.BaseImponible; c.TOTALDOC = calculoFiscal.TotalDocumento; c.TOTALDIV = calculoFiscal.TotalDocumento; c.IMPDIVISA = calculoFiscal.TotalDocumento;
         c.PORCEN_RET = calculoFiscal.PorcentajeRetencion; c.MODO_RET = calculoFiscal.ModoRetencion; c.TPCRETNOFI = calculoFiscal.PorcentajeRetencion;

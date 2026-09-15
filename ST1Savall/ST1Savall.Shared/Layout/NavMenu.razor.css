@@ -114,6 +114,10 @@
     background-image: url("images/doc.svg");
 }
 
+::deep .mail-icon {
+    background-image: url("images/mail.svg");
+}
+
 ::deep .chart-icon {
     background-image: url("/_content/ST1Savall.Shared/images/weather.svg");
 }

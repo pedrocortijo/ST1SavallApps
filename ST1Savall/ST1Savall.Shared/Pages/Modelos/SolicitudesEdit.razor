@@ -1,10 +1,26 @@
 @page "/modelos/solicitudes/edit"
 @page "/modelos/solicitudes/edit/{Id:int}"
+@using Microsoft.AspNetCore.Components.Forms
 @using ST1Savall.Shared.Data
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ST1Savall.Shared.Services.IFormFactor FormFactor
+
+<style>
+    .solicitud-fotos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .solicitud-foto { position: relative; aspect-ratio: 1; border: 1px solid var(--bs-border-color); border-radius: 10px; overflow: hidden; background: #fff; }
+    .solicitud-foto-miniatura { width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
+    .solicitud-foto-miniatura img { width: 100%; height: 100%; object-fit: cover; }
+    .solicitud-foto .btn-eliminar { position: absolute; right: 6px; top: 6px; min-width: 36px; min-height: 36px; }
+    .solicitud-visor-foto { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .78); }
+    .solicitud-visor-contenido { position: relative; max-width: min(100%, 1100px); max-height: 100%; }
+    .solicitud-visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
+    .solicitud-visor-cerrar { position: absolute; top: 8px; right: 8px; min-width: 40px; min-height: 40px; }
+    .solicitud-visor-cargando { color: #fff; text-align: center; }
+    @@media (max-width: 700px) { .solicitud-fotos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
 
 <PageTitle>@(Id.HasValue ? "Editar - Solicitud de Servicio" : "Nueva - Solicitud de Servicio")</PageTitle>
 
@@ -193,7 +209,7 @@
 </DxPopup>
 
 <DxPopup Visible="@(!string.IsNullOrWhiteSpace(errorMessage))"
-         VisibleChanged="@((bool visible) => { if (!visible) errorMessage = null; })"
+         VisibleChanged="CerrarMensajeError"
          HeaderText="Error"
          ShowFooter="true"
          Width="480px"
@@ -202,14 +218,27 @@
     <BodyContentTemplate>
         <div class="py-2 d-flex align-items-center gap-3">
             <i class="oi oi-circle-x text-danger fs-3"></i>
-            <div>
+            <div class="flex-grow-1">
                 <p class="mb-0">@errorMessage</p>
+                @if (EsErrorSolicitudFinalizada)
+                {
+                    <p class="small text-muted mt-3 mb-2">Introduzca la contraseña de administración para desbloquear la solicitud.</p>
+                    <DxTextBox @bind-Text="passwordFinalizada" Password="true" NullText="Contraseña" CssClass="w-100" Attributes="@(new Dictionary<string, object> { { "autocomplete", "new-password" } })" />
+                    @if (!string.IsNullOrWhiteSpace(errorPasswordFinalizada))
+                    {
+                        <div class="text-danger small mt-2">@errorPasswordFinalizada</div>
+                    }
+                }
             </div>
         </div>
     </BodyContentTemplate>
     <FooterContentTemplate>
-        <div class="d-flex justify-content-end w-100">
-            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="() => errorMessage = null" />
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="@(EsErrorSolicitudFinalizada ? "Cancelar" : "Aceptar")" RenderStyle="ButtonRenderStyle.Secondary" Click="() => CerrarMensajeError(false)" />
+            @if (EsErrorSolicitudFinalizada)
+            {
+                <DxButton Text="Desbloquear" RenderStyle="ButtonRenderStyle.Primary" Click="DesbloquearSolicitudDesdeErrorAsync" />
+            }
         </div>
     </FooterContentTemplate>
 </DxPopup>
@@ -741,9 +770,10 @@
 
                                     <h6 class="fw-bold text-primary mt-3 mb-3 pb-2 border-bottom">Albaranes</h6>
                                     <div class="row g-2">
-                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Albarán planta</label><DxTextBox @bind-Text="@solicitud.AlbaranPlanta" MaxLength="20" />
-                                        </div><div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Kg pesaje</label><DxSpinEdit @bind-Value="@solicitud.KgAlbaran" MinValue="0" Increment="1" /></div>
-                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Serie Sage</label><DxTextBox @bind-Text="@solicitud.AlbaranSerieSage" MaxLength="2" Enabled="false" /></div>
+                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Albarán planta</label><DxTextBox @bind-Text="@solicitud.AlbaranPlanta" MaxLength="20" /></div>
+                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Kg pesaje</label><DxSpinEdit @bind-Value="@solicitud.KgAlbaran" @bind-Value:after="OnKgAlbaranChanged" MinValue="0" Increment="1" /></div>
+                                        <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Hora pesaje</label><DxTimeEdit @bind-Time="@solicitud.HoraPesaje" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></div>
+                                        @* <div class="col-md-2"><label class="form-label fw-bold text-muted small mb-1">Serie Sage</label><DxTextBox @bind-Text="@solicitud.AlbaranSerieSage" MaxLength="2" Enabled="false" /></div> *@
                                         <div class="col-md-3"><label class="form-label fw-bold text-muted small mb-1">Número Sage</label><DxTextBox Text="@solicitud.AlbaranNumeroSage" TextChanged="MantenerNumeroSage" MaxLength="10" EnableValidation="false" @onkeydown:preventDefault="true"><Buttons><DxEditorButton IconCssClass="oi oi-external-link" Tooltip="Abrir albarán de venta" Click="AbrirAlbaranSage" Enabled="@TieneAlbaranSage" Visible="@TieneAlbaranSage" /></Buttons></DxTextBox></div>
                                     </div>
                                     @if (EsEstadoFinalizado(solicitud.Estado) && string.IsNullOrWhiteSpace(solicitud.AlbaranSerieSage)) { <div class="mt-2"><DxButton Text="Generar albarán Sage" IconCssClass="oi oi-document" RenderStyle="ButtonRenderStyle.Primary" Click="GenerarAlbaranSageAsync" /></div> }
@@ -834,6 +864,45 @@
                         </Template>
                     </DxFormLayoutItem>
 
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                        <Template>
+                            <section class="border-top pt-3 mt-3">
+                                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                    <h6 class="fw-bold text-primary mb-0">Foto de la entrega o recogida <span class="text-danger" aria-label="Obligatoria">*</span></h6>
+                                    @if (solicitud.IdSolicitud > 0)
+                                    {
+                                        <div class="d-flex gap-2">
+                                            @if (esAplicacionNativa)
+                                            {
+                                                <button type="button" class="btn btn-primary btn-sm" @onclick="CapturarFotoAsync"><i class="oi oi-camera-slr me-1"></i>Cámara</button>
+                                            }
+                                            <label class="btn btn-outline-primary btn-sm mb-0"><i class="oi oi-folder me-1"></i>Seleccionar<InputFile class="d-none" OnChange="SubirFotoAsync" accept="image/*" /></label>
+                                        </div>
+                                    }
+                                </div>
+                                @if (solicitud.IdSolicitud <= 0)
+                                {
+                                    <p class="small text-muted mb-0">Obligatoria para completar el servicio. Guarde la solicitud para poder añadirla.</p>
+                                }
+                                else if (fotos.Count == 0)
+                                {
+                                    <p class="small text-muted mb-2">Obligatoria para completar el servicio. Use Cámara en la tableta o seleccione una imagen desde el dispositivo.</p><div class="small text-danger border border-danger rounded p-3">Debe añadir una foto de la entrega o recogida.</div>
+                                }
+                                else
+                                {
+                                    <div class="solicitud-fotos">
+                                        @foreach (var foto in fotos)
+                                        {
+                                            <div class="solicitud-foto">
+                                                <button type="button" class="solicitud-foto-miniatura" title="Abrir foto original" @onclick="() => AbrirFotoOriginalAsync(foto.Id)"><img src="@FotoDataUri(foto.Id)" alt="Abrir foto original" /></button>
+                                                <button type="button" class="btn btn-danger btn-sm btn-eliminar" title="Eliminar foto" aria-label="Eliminar foto" @onclick="() => EliminarFotoAsync(foto.Id)"><i class="oi oi-trash"></i></button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </section>
+                        </Template>
+                    </DxFormLayoutItem>
                     <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
                         <button class="btn btn-outline-secondary btn-sm px-4" @onclick="GoBack">Cancelar</button>
                         <button class="btn btn-primary btn-sm px-4" @onclick="SaveAsync">Guardar</button>
@@ -843,6 +912,23 @@
         </div>
     }
 </div>
+
+@if (fotoCargando || !string.IsNullOrWhiteSpace(fotoSeleccionadaDataUri))
+{
+    <div class="solicitud-visor-foto" role="dialog" aria-modal="true" aria-label="Foto original" @onclick="CerrarFoto">
+        <div class="solicitud-visor-contenido" @onclick:stopPropagation="true">
+            @if (fotoCargando)
+            {
+                <div class="solicitud-visor-cargando"><div class="spinner-border mb-3" role="status"></div><div>Cargando foto...</div></div>
+            }
+            else
+            {
+                <img src="@fotoSeleccionadaDataUri" alt="Foto original de la solicitud" />
+                <button type="button" class="btn btn-light solicitud-visor-cerrar" title="Cerrar" aria-label="Cerrar" @onclick="CerrarFoto"><i class="oi oi-x"></i></button>
+            }
+        </div>
+    </div>
+}
 
 @code {
     [Parameter]
@@ -928,6 +1014,11 @@
     private bool firmaInicializada;
     private bool firmaPendienteDeMostrar;
     private bool firmaEliminada;
+    private List<SolicitudFoto> fotos = [];
+    private readonly Dictionary<int, string> fotosDataUri = [];
+    private string? fotoSeleccionadaDataUri;
+    private bool fotoCargando;
+    private bool esAplicacionNativa;
     private DateTime? fechaPrevistaInicial;
     private bool confirmacionCrearSolicitudReprogramadaVisible;
     private DateTime? fechaNuevaParaCrear;
@@ -950,6 +1041,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        esAplicacionNativa = !string.Equals(FormFactor.GetFormFactor(), "Web", StringComparison.OrdinalIgnoreCase);
         await SetupHeadersAsync();
         await LoadDataAsync();
     }
@@ -1063,7 +1155,10 @@
                     estadoInicial = solicitud.Estado;
                     fechaPrevistaInicial = solicitud.FechaPrevista;
                     if (Duplicate != true)
+                    {
                         await CargarFirmaAsync();
+                        await CargarFotosAsync();
+                    }
                 }
                 if (Duplicate == true && solicitud != null)
                 {
@@ -1293,6 +1388,95 @@
         firmaPendienteDeMostrar = true;
     }
 
+    private async Task SubirFotoAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var archivo = args.File;
+            await using var stream = archivo.OpenReadStream(10 * 1024 * 1024);
+            using var memoria = new MemoryStream();
+            await stream.CopyToAsync(memoria);
+            await GuardarFotoAsync(archivo.Name, archivo.ContentType, memoria.ToArray());
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido añadir la foto: {ex.Message}"; }
+    }
+
+    private async Task CapturarFotoAsync()
+    {
+        try
+        {
+            var foto = await FormFactor.CapturePhotoAsync();
+            if (foto is not null) await GuardarFotoAsync(foto.FileName, foto.ContentType, foto.Content);
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido abrir la cámara: {ex.Message}"; }
+    }
+
+    private async Task GuardarFotoAsync(string nombreArchivo, string? contentType, byte[] contenido)
+    {
+        if (solicitud?.IdSolicitud <= 0) return;
+        var response = await Http.PostAsJsonAsync($"api/solicitudes/{solicitud.IdSolicitud}/fotos", new
+        {
+            NombreArchivo = nombreArchivo,
+            ImagenBase64 = $"data:{contentType ?? "image/jpeg"};base64,{Convert.ToBase64String(contenido)}"
+        });
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException(await ObtenerMensajeErrorAsync(response, "No se ha podido guardar la foto."));
+        await CargarFotosAsync();
+    }
+
+    private async Task CargarFotosAsync()
+    {
+        if (solicitud?.IdSolicitud <= 0) return;
+        fotos = await Http.GetFromJsonAsync<List<SolicitudFoto>>($"api/solicitudes/{solicitud.IdSolicitud}/fotos") ?? [];
+        fotosDataUri.Clear();
+        foreach (var foto in fotos)
+        {
+            try
+            {
+                var contenido = await Http.GetByteArrayAsync($"api/solicitudes/{solicitud.IdSolicitud}/fotos/{foto.Id}/miniatura");
+                fotosDataUri[foto.Id] = $"data:image/jpeg;base64,{Convert.ToBase64String(contenido)}";
+            }
+            catch { }
+        }
+    }
+
+    private async Task EliminarFotoAsync(int idFoto)
+    {
+        if (solicitud?.IdSolicitud <= 0) return;
+        var response = await Http.DeleteAsync($"api/solicitudes/{solicitud.IdSolicitud}/fotos/{idFoto}");
+        if (response.IsSuccessStatusCode)
+        {
+            fotos.RemoveAll(foto => foto.Id == idFoto);
+            fotosDataUri.Remove(idFoto);
+        }
+        else errorMessage = await ObtenerMensajeErrorAsync(response, "No se ha podido eliminar la foto.");
+    }
+
+    private async Task AbrirFotoOriginalAsync(int idFoto)
+    {
+        if (solicitud?.IdSolicitud <= 0) return;
+        try
+        {
+            if (!esAplicacionNativa)
+            {
+                var url = new Uri(Http.BaseAddress!, $"api/solicitudes/{solicitud.IdSolicitud}/fotos/{idFoto}").AbsoluteUri;
+                if (!await JSRuntime.InvokeAsync<bool>("openPhotoWithLoading", url))
+                    errorMessage = "El navegador ha bloqueado la apertura de la foto.";
+                return;
+            }
+
+            fotoCargando = true;
+            fotoSeleccionadaDataUri = null;
+            await InvokeAsync(StateHasChanged);
+            var contenido = await Http.GetByteArrayAsync($"api/solicitudes/{solicitud.IdSolicitud}/fotos/{idFoto}");
+            fotoSeleccionadaDataUri = $"data:image/jpeg;base64,{Convert.ToBase64String(contenido)}";
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido abrir la foto: {ex.Message}"; }
+        finally { fotoCargando = false; }
+    }
+
+    private void CerrarFoto() { fotoCargando = false; fotoSeleccionadaDataUri = null; }
+    private string FotoDataUri(int idFoto) => fotosDataUri.TryGetValue(idFoto, out var uri) ? uri : string.Empty;
     private async Task OnObraChangedAsync(int val)
     {
         if (solicitud == null) return;
@@ -2210,6 +2394,20 @@
         errorPasswordFinalizada = "La contraseña de administración no es correcta.";
     }
 
+    private bool EsErrorSolicitudFinalizada =>
+        errorMessage?.Contains("La solicitud está finalizada", StringComparison.OrdinalIgnoreCase) == true;
+
+    private async Task DesbloquearSolicitudDesdeErrorAsync()
+    {
+        await ValidarPasswordFinalizadaAsync();
+        if (finalizadaDesbloqueada)
+            errorMessage = null;
+    }
+
+    private void CerrarMensajeError(bool visible)
+    {
+        if (!visible) errorMessage = null;
+    }
     private void CancelarEdicionFinalizada()
     {
         passwordFinalizada = string.Empty;
@@ -2453,6 +2651,14 @@
     {
         if (solicitud?.FechaHoraInicioPlanificada.HasValue == true && solicitud.DuracionPlanificadaMinutos > 0)
             solicitud.FechaHoraFinPlanificada = solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(solicitud.DuracionPlanificadaMinutos.Value);
+    }
+
+    private void OnKgAlbaranChanged()
+    {
+        if (solicitud != null && solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+        {
+            solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
+        }
     }
 
     private static string FormatKilometros(int? metros) => $"{metros.GetValueOrDefault() / 1000d:0.0} km";

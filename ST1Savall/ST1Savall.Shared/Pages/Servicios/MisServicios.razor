@@ -16,13 +16,15 @@
     .servicios-tablet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .servicio-tablet-card { border: 1px solid var(--bs-border-color, #d8dce1); border-left: 5px solid #0d6efd; border-radius: 12px; padding: 16px; min-height: 225px; display: flex; flex-direction: column; gap: 12px; }
     .servicio-tablet-card .servicio-hora { font-size: 1.7rem; font-weight: 700; line-height: 1; color: #0d6efd; }
+    .servicio-tablet-card .servicio-hora-fin { color: #0d6efd; }
     .servicio-tablet-card .servicio-tarea { font-size: 1rem; font-weight: 700; }
     .servicio-tablet-card .servicio-cliente { font-size: 1rem; font-weight: 600; }
     .servicio-tablet-card .servicio-direccion { font-size: .9rem; }
     .servicio-estado-badge { font-size: 1.15rem; padding: .4rem .8rem; display: inline-flex; align-items: center; justify-content: center; }
-    .servicio-estado-iniciado { background-color: #198754 !important; color: #ffffff !important; }
-    .servicio-estado-finalizado { background-color: #dc3545 !important; color: #ffffff !important; }
-    .servicio-estado-asignado { background-color: #fff200 !important; color: #1f1f1f !important; }
+    .servicio-estado-ruta-obra { background-color: #198754 !important; color: #ffffff !important; }
+    .servicio-estado-ruta-planta { background-color: #f58220 !important; color: #ffffff !important; }
+    .servicio-estado-ruta-finalizada { background-color: #dc3545 !important; color: #ffffff !important; }
+    .servicio-estado-ruta-sin-iniciar { background-color: #fff200 !important; color: #1f1f1f !important; }
     .servicio-ruta { font-size: 1.15rem; padding: .4rem .8rem; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; min-height: 0; }
     .servicio-tablet-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
     .servicio-tablet-actions .btn { min-height: 44px; font-weight: 600; }
@@ -71,13 +73,13 @@
             {
                 <article class="servicio-tablet-card">
                     <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div><div class="small text-muted">Servicio #@servicio.IdSolicitud · @servicio.FechaTarea?.ToString("dd/MM/yyyy")</div><div class="servicio-hora">@(servicio.FechaHoraInicioPlanificada?.ToString("HH:mm") ?? "Sin hora")</div></div>
+                        <div><div class="small text-muted">Servicio #@servicio.IdSolicitud · @servicio.FechaTarea?.ToString("dd/MM/yyyy")</div><div class="servicio-hora">@(servicio.FechaHoraInicioPlanificada?.ToString("HH:mm") ?? "Sin hora") <span class="servicio-hora-fin"> - @(servicio.FechaHoraFinPlanificada?.ToString("HH:mm") ?? "--:--")</span></div></div>
                         <div class="d-flex align-items-stretch gap-2">
                             @if (ObtenerUrlRuta(servicio) is { } urlRuta)
                             {
                                 <a href="@urlRuta" target="_blank" rel="noopener noreferrer" class="btn btn-outline-info servicio-ruta" title="Cómo llegar desde el origen" aria-label="Cómo llegar desde el origen" @onclick:stopPropagation><i class="oi oi-map-marker"></i></a>
                             }
-                            <span class="badge servicio-estado-badge @(EsServicioIniciado(servicio) ? "servicio-estado-iniciado" : EsServicioFinalizado(servicio) ? "servicio-estado-finalizado" : EsServicioAsignado(servicio) ? "servicio-estado-asignado" : "text-bg-secondary")">@servicio.EstadoDescripcion</span>
+                            <span class="badge servicio-estado-badge @(EsRutaSinIniciar(servicio) ? "servicio-estado-ruta-sin-iniciar" : EsRutaObra(servicio) ? "servicio-estado-ruta-obra" : EsRutaPlanta(servicio) ? "servicio-estado-ruta-planta" : EsRutaFinalizada(servicio) ? "servicio-estado-ruta-finalizada" : "text-bg-secondary")">@(EsRutaSinIniciar(servicio) ? "Sin Iniciar" : EsRutaObra(servicio) ? "Ruta a Obra" : EsRutaPlanta(servicio) ? "Ruta a Planta" : EsRutaFinalizada(servicio) ? "Finalizado" : servicio.EstadoDescripcion)</span>
                         </div>
                     </div>
                     <div class="servicio-tarea">@servicio.TipoTareaDescripcion</div>
@@ -85,23 +87,21 @@
                     <div class="servicio-tablet-actions">
                         <button class="btn btn-primary" @onclick="() => OpenServicio(servicio.IdSolicitud)"><i class="oi oi-eye me-1"></i>Mostrar</button>
                         @{
-                            bool esIniciado = EsServicioIniciado(servicio);
-                            bool hayOtroIniciado = servicioIniciadoActualId.HasValue && servicioIniciadoActualId.Value != servicio.IdSolicitud;
-                            bool esFinalizado = EsServicioFinalizado(servicio);
+                            bool sinIniciar = EsRutaSinIniciar(servicio);
+                            bool rutaObra = EsRutaObra(servicio);
+                            bool rutaPlanta = EsRutaPlanta(servicio);
+                            bool hayOtraRutaObra = servicioIniciadoActualId.HasValue && servicioIniciadoActualId.Value != servicio.IdSolicitud;
                         }
-                        <button class="btn @(esIniciado ? "btn-outline-warning" : "btn-outline-success")"
-                                disabled="@(esFinalizado || iniciandoServicioId == servicio.IdSolicitud || (!esIniciado && hayOtroIniciado))"
-                                title="@(!esIniciado && hayOtroIniciado ? $"El servicio #{servicioIniciadoActualId} ya está iniciado y sin finalizar." : null)"
-                                @onclick="() => CambiarInicioServicioAsync(servicio)">
-                            <i class="@(esIniciado ? "oi oi-x me-1" : "oi oi-media-play me-1")"></i>
-                            @(iniciandoServicioId == servicio.IdSolicitud ? "Actualizando..." : esIniciado ? "Cancelar" : "Iniciar")
+                        <button class="btn @(sinIniciar ? "btn-outline-success" : "btn-outline-danger")"
+                                disabled="@(!sinIniciar && !rutaObra && !rutaPlanta || iniciandoServicioId == servicio.IdSolicitud || (sinIniciar && hayOtraRutaObra))"
+                                @onclick="() => CambiarRutaObraAsync(servicio)">
+                            <i class="@(sinIniciar ? "oi oi-media-play me-1" : "oi oi-x me-1")"></i>@(iniciandoServicioId == servicio.IdSolicitud ? "Actualizando..." : sinIniciar ? "Ruta a Obra" : "Cancelar")
                         </button>
-                        <button class="btn btn-outline-primary" disabled="@(!esIniciado)" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
-                        <button class="btn @(esFinalizado ? "btn-outline-warning" : "btn-outline-danger")"
-                                disabled="@(!esIniciado && !esFinalizado || finalizandoServicioId == servicio.IdSolicitud || (esFinalizado && hayOtroIniciado))"
-                                title="@(esFinalizado && hayOtroIniciado ? $"El servicio #{servicioIniciadoActualId} ya está iniciado y sin finalizar." : null)"
-                                @onclick="() => CambiarFinalizacionServicioAsync(servicio)">
-                            <i class="@(esFinalizado ? "oi oi-x me-1" : "oi oi-media-stop me-1")"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Actualizando..." : esFinalizado ? "Cancelar" : "Finalizar")
+                        <button class="btn btn-outline-primary" disabled="@(!rutaObra && !rutaPlanta)" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
+                        <button class="btn @(rutaPlanta ? "btn-outline-danger" : "btn-outline-warning")"
+                                disabled="@(!rutaObra && !rutaPlanta || finalizandoServicioId == servicio.IdSolicitud)"
+                                @onclick="() => CambiarRutaPlantaAsync(servicio)">
+                            <i class="@(rutaPlanta ? "oi oi-media-stop me-1" : rutaObra ? "oi oi-map-marker me-1" : "oi oi-map-marker me-1")"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Actualizando..." : rutaPlanta ? "Finalizar" : "Ruta a Planta")
                         </button>
                     </div>
                 </article>
@@ -137,6 +137,7 @@
     private string? errorMessage, userName;
     private List<Operario> conductoresConServiciosHoy = [];
     private List<Planta> plantas = [];
+    private List<EstadoSolicitud> estadosRuta = [];
     private int? conductorSeleccionadoId;
     private bool conductorDelLogin;
     private int? servicioIniciadoActualId;
@@ -167,6 +168,7 @@
             tareasQueCreanAlbaran = tareas.Where(t => t.CreaAlbaran).Select(t => t.IdTarea).ToHashSet();
             var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? [];
+            estadosRuta = estados;
             var tecnicoDelLogin = users.FirstOrDefault(u => string.Equals(u.Email, userName, StringComparison.OrdinalIgnoreCase))?.Tecnico;
             var operarioDelLogin = operarios.FirstOrDefault(o => string.Equals(o.Nombre, tecnicoDelLogin, StringComparison.OrdinalIgnoreCase));
             conductorDelLogin = string.Equals(operarioDelLogin?.Cargo?.Descripcion, "Conductor", StringComparison.OrdinalIgnoreCase);
@@ -175,7 +177,7 @@
                 .Where(o => solicitudes.Any(s =>
                     s.IdConductor == o.IdOperario
                     && (s.FechaTarea?.Date == DateTime.Today
-                        || (s.FechaTarea?.Date < DateTime.Today && !EsServicioFinalizado(s, estados)))))
+                        || (s.FechaTarea?.Date < DateTime.Today && !EsRutaFinalizada(s)))))
                 .OrderBy(o => o.Nombre)
                 .ToList();
 
@@ -193,7 +195,7 @@
             }
 
             servicioIniciadoActualId = solicitudes
-                .FirstOrDefault(s => s.IdConductor == conductorSeleccionadoId && EsServicioIniciado(s, estados))
+                .FirstOrDefault(s => s.IdConductor == conductorSeleccionadoId && EsRutaObra(s))
                 ?.IdSolicitud;
 
             servicios.Clear();
@@ -201,8 +203,8 @@
                     s.IdConductor == conductorSeleccionadoId
                     && (mostrarFinalizados
                         ? s.FechaTarea?.Date == DateTime.Today
-                            && EsServicioFinalizado(s, estados)
-                        : !EsServicioFinalizado(s, estados)
+                            && EsRutaFinalizada(s)
+                        : !EsRutaFinalizada(s)
                             && (s.FechaTarea?.Date == DateTime.Today
                                 || (mostrarPendientesAnteriores
                                     && s.FechaTarea?.Date < DateTime.Today))))
@@ -249,6 +251,29 @@
             ? $"/servicios/mis-servicios/{id}/firma?conductor={conductorSeleccionadoId.Value}"
             : $"/servicios/mis-servicios/{id}/firma");
 
+    // Compatibilidad temporal con solicitudes existentes hasta que el arranque de la API normalice EstadoServicio.
+    private EstadoServicio? ObtenerEstadoServicio(Solicitud servicio)
+    {
+        var estado = estadosRuta.FirstOrDefault(e => e.IdEstado == servicio.Estado);
+        if (estado?.EstadoServicio is { } estadoServicio)
+            return estadoServicio;
+
+        // La descripción se obtiene de EstadosSolicitud antes de que se complete la tarjeta.
+        var descripcion = estado?.Descripcion ?? servicio.EstadoDescripcion;
+        return descripcion?.Contains("finalizado", StringComparison.OrdinalIgnoreCase) == true
+            ? EstadoServicio.RutaFinalizada
+            : descripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true
+                ? EstadoServicio.RutaObra
+                : descripcion?.Contains("asignad", StringComparison.OrdinalIgnoreCase) == true
+                    || descripcion?.Contains("adjudicad", StringComparison.OrdinalIgnoreCase) == true
+                    ? EstadoServicio.RutaSinIniciar
+                    : null;
+    }
+
+    private bool EsRutaSinIniciar(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaSinIniciar;
+    private bool EsRutaObra(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaObra;
+    private bool EsRutaPlanta(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaPlanta;
+    private bool EsRutaFinalizada(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaFinalizada;
     private static bool EsServicioIniciado(Solicitud servicio) =>
         servicio.EstadoDescripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true;
 
@@ -303,6 +328,29 @@
         return string.IsNullOrWhiteSpace(direccion) ? null : direccion;
     }
 
+    private Task CambiarRutaObraAsync(Solicitud servicio) =>
+        EsRutaSinIniciar(servicio) ? CambiarRutaAsync(servicio.IdSolicitud, "iniciar") : EsRutaObra(servicio) ? CambiarRutaAsync(servicio.IdSolicitud, "cancelar-inicio") : CambiarRutaAsync(servicio.IdSolicitud, "cancelar-planta");
+
+    private Task CambiarRutaPlantaAsync(Solicitud servicio) =>
+        EsRutaPlanta(servicio) ? CambiarRutaAsync(servicio.IdSolicitud, "finalizar") : CambiarRutaAsync(servicio.IdSolicitud, "regresar-planta");
+
+    private async Task CambiarRutaAsync(int idSolicitud, string accion)
+    {
+        finalizandoServicioId = idSolicitud;
+        try
+        {
+            var response = await Http.PostAsync($"api/solicitudes/{idSolicitud}/{accion}", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                mensajePopupTitulo = "No se puede actualizar la ruta";
+                mensajePopup = await ObtenerMensajeErrorAsync(response, $"No se ha podido actualizar el estado de ruta (HTTP {(int)response.StatusCode} {response.ReasonPhrase}).");
+                mensajePopupVisible = true;
+                return;
+            }
+            await LoadDataAsync();
+        }
+        finally { finalizandoServicioId = null; }
+    }
     private Task CambiarInicioServicioAsync(Solicitud servicio) =>
         EsServicioIniciado(servicio)
             ? CancelarInicioServicioAsync(servicio.IdSolicitud)

@@ -49,8 +49,7 @@ public class Obra
     [MaxLength(30)]
     public string? Codigo { get; set; }
 
-    [NotMapped]
-    public string TextoBusqueda => $"{Codigo} - {Descripcion}";
+    [NotMapped]    public string TextoBusqueda => $"{Codigo} - {Descripcion}";
 
     [MaxLength(15)]
     public string? Nima { get; set; }

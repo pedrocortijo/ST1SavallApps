@@ -16,6 +16,7 @@ public class SageGestionDbContext : DbContext
     public DbSet<ContlfCliSage50> ContlfCli { get; set; } = null!;
     public DbSet<TipoIvaSage50> TipoIva { get; set; } = null!;
     public DbSet<ArticuloSage50> Articulos { get; set; } = null!;
+    public DbSet<TarifaSage50> Tarifas { get; set; } = null!;
     public DbSet<AlbaranVentaSage50> AlbaranesVenta { get; set; } = null!;
     public DbSet<LineaAlbaranVentaSage50> LineasAlbaranesVenta { get; set; } = null!;
     public DbSet<SerieSage50> Series { get; set; } = null!;
@@ -31,6 +32,14 @@ public class SageGestionDbContext : DbContext
         {
             entity.ToTable("c_albven");
             entity.HasKey(a => new { a.EMPRESA, a.NUMERO, a.LETRA });
+        });
+
+        modelBuilder.Entity<TarifaSage50>(entity =>
+        {
+            entity.ToTable("tarifas");
+            entity.HasKey(t => t.Codigo);
+            entity.Property(t => t.Codigo).HasColumnName("CODIGO").HasMaxLength(2).IsFixedLength();
+            entity.Property(t => t.Nombre).HasColumnName("NOMBRE").HasMaxLength(30).IsFixedLength();
         });
 
         modelBuilder.Entity<LineaAlbaranVentaSage50>(entity =>

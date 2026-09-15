@@ -203,6 +203,12 @@
                             <DxFormLayoutItem Caption="Total (horas)" ColSpanMd="4">
                                 <div class="form-control bg-body-secondary text-center">@CalcularHorasJornada(oper)</div>
                             </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Inicio comida" ColSpanMd="4" BeginRow="true">
+                                <DxTimeEdit @bind-Time="@oper.InicioComida" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Fin comida" ColSpanMd="4">
+                                <DxTimeEdit @bind-Time="@oper.FinComida" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" />
+                            </DxFormLayoutItem>
                             <DxFormLayoutItem Caption="Estado laboral" ColSpanMd="3" BeginRow="true" CssClass="@ClaseEstadoInactivo(oper)">
                                         <DxComboBox Data="@estadosLaborales" @bind-Value="@oper.EstadoLaboral" />
                                     </DxFormLayoutItem>
@@ -348,6 +354,8 @@
         newOperario.FinJornada = operarioToDuplicate.FinJornada;
         newOperario.InicioDescanso = operarioToDuplicate.InicioDescanso;
         newOperario.FinDescanso = operarioToDuplicate.FinDescanso;
+        newOperario.InicioComida = operarioToDuplicate.InicioComida;
+        newOperario.FinComida = operarioToDuplicate.FinComida;
         newOperario.Cargo = null;
         newOperario.Planta = null;
         operarioToDuplicate = null;
@@ -494,12 +502,16 @@
         var jornada = operario.FinJornada - operario.InicioJornada;
         if (jornada < TimeSpan.Zero) jornada += TimeSpan.FromDays(1);
 
-        if (operario.InicioDescanso is not { } inicioDescanso || operario.FinDescanso is not { } finDescanso)
-            return Math.Max(0, (int)jornada.TotalMinutes);
+        var descanso = CalcularDuracionDescanso(operario.InicioDescanso, operario.FinDescanso);
+        var comida = CalcularDuracionDescanso(operario.InicioComida, operario.FinComida);
+        return Math.Max(0, (int)(jornada - descanso - comida).TotalMinutes);
+    }
 
+    private static TimeSpan CalcularDuracionDescanso(TimeSpan? inicio, TimeSpan? fin)
+    {
+        if (inicio is not { } inicioDescanso || fin is not { } finDescanso) return TimeSpan.Zero;
         var descanso = finDescanso - inicioDescanso;
-        if (descanso < TimeSpan.Zero) descanso += TimeSpan.FromDays(1);
-        return Math.Max(0, (int)(jornada - descanso).TotalMinutes);
+        return descanso < TimeSpan.Zero ? descanso + TimeSpan.FromDays(1) : descanso;
     }
 
     private static string CalcularHorasJornada(Operario operario) =>

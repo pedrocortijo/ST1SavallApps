@@ -326,11 +326,30 @@
     private IEnumerable<EstadoSolicitud> GetFilterableEstados()
     {
         if (estadosList == null) return Enumerable.Empty<EstadoSolicitud>();
-        return estadosList.OrderBy(e => e.IdEstado);
+        return estadosList.OrderBy(ObtenerOrdenVisualEstado);
     }
 
-    private string GetCardLabel(EstadoSolicitud estado)
+    private static int ObtenerOrdenVisualEstado(EstadoSolicitud estado)
     {
+        var descripcion = estado.Descripcion ?? string.Empty;
+        if (descripcion.Contains("pendiente", StringComparison.OrdinalIgnoreCase)) return 10;
+        if (descripcion.Contains("asignado", StringComparison.OrdinalIgnoreCase)
+            || descripcion.Contains("adjudicado", StringComparison.OrdinalIgnoreCase)) return 20;
+        if (estado.EstadoServicio == EstadoServicio.RutaObra
+            || descripcion.Contains("iniciado", StringComparison.OrdinalIgnoreCase)) return 30;
+        if (estado.EstadoServicio == EstadoServicio.RutaPlanta
+            || descripcion.Contains("ruta a planta", StringComparison.OrdinalIgnoreCase)) return 40;
+        if (descripcion.Contains("finalizado", StringComparison.OrdinalIgnoreCase)) return 50;
+        if (descripcion.Contains("anulado", StringComparison.OrdinalIgnoreCase)) return 60;
+        return 100 + estado.IdEstado;
+    }
+
+    private static string GetCardLabel(EstadoSolicitud estado)
+    {
+        if (estado.EstadoServicio == EstadoServicio.RutaObra
+            || estado.Descripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true)
+            return "Ruta a Obra";
+
         return !string.IsNullOrWhiteSpace(estado.Descripcion) ? estado.Descripcion : $"Estado {estado.IdEstado}";
     }
 

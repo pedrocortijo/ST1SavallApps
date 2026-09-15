@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="DevExpress.Reporting.Core" Version="24.2.3" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="9.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.4" />
@@ -21,6 +22,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ST1Savall.Shared\ST1Savall.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\CabeceraAlbaran.png" />
+    <Content Include="Assets\CabeceraAlbaran.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\CabeceraPesaje.png" />
+    <Content Include="Assets\CabeceraPesaje.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\FirmaPesaje.png" />
+    <Content Include="Assets\FirmaPesaje.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

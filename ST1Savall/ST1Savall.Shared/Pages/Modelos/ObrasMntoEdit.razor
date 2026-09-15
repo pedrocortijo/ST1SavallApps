@@ -29,6 +29,23 @@
         </button>
     </div>
 
+    <DxPopup @bind-Visible="@clienteObligatorioPopupVisible"
+             HeaderText="Cliente obligatorio"
+             ShowFooter="true"
+             Width="420px"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <div class="d-flex align-items-center gap-3 py-2">
+                <i class="oi oi-warning text-warning fs-3"></i>
+                <span>Debe seleccionar un cliente antes de guardar la obra.</span>
+            </div>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <button type="button" class="btn btn-primary px-4" @onclick="() => clienteObligatorioPopupVisible = false">Aceptar</button>
+        </FooterContentTemplate>
+    </DxPopup>
+
     @if (errorMessage != null)
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -96,7 +113,13 @@
                         <DxFormLayoutItem Caption="NIMA (Gestor de residuos)" ColSpanMd="3">
                             <DxTextBox Text="@obra.Libre3" TextChanged="@((string valor) => obra.Libre3 = LimitarTexto(valor, 30))" TextExpression="@(() => obra.Libre3)" BindValueMode="BindValueMode.OnInput" MaxLength="30" />
                         </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Tarifa" ColSpanMd="6">
+                        <DxFormLayoutItem Caption="Hora inicio" ColSpanMd="3">
+                            <DxTimeEdit @bind-Time="horarioObra.HoraInicio" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Hora fin" ColSpanMd="3">
+                            <DxTimeEdit @bind-Time="horarioObra.HoraFin" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Tarifa" ColSpanMd="12">
                             <DxComboBox Data="@tarifasVigentes" TData="TarifaObraOpcion" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="obra.Tarifa" @bind-Value:after="ActualizarDatosTarifa" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" ClearButtonVisible="true" NullText="Seleccione una tarifa...">
                                 <Columns><DxListEditorColumn FieldName="Codigo" Caption="Código" Width="80px" /><DxListEditorColumn FieldName="Nombre" Caption="Nombre" /><DxListEditorColumn FieldName="Zona" Caption="Zona" Width="80px" /><DxListEditorColumn FieldName="NombreZona" Caption="Nombre de zona" /></Columns>
                             </DxComboBox>
@@ -420,6 +443,7 @@
     public string? ProvinciaSeleccionada { get; set; }
 
     private ObraComunSage50? obra;
+    private HorarioObra horarioObra = new() { HoraInicio = new TimeSpan(8, 0, 0), HoraFin = new TimeSpan(18, 0, 0) };
     private UnsavedChangesGuard? unsavedChangesGuard;
     private List<ClienteSage50>? clientesList;
     private List<ClienteSage50>? todosLosClientes;
@@ -430,6 +454,7 @@
     
     private bool isLoading = true;
     private string? errorMessage;
+    private bool clienteObligatorioPopupVisible;
     
     private bool IsNew => string.IsNullOrEmpty(Codigo) || Duplicate;
 
@@ -527,6 +552,7 @@
                 {
                     obra = loaded;
                     obra.Codigo = obra.Codigo?.Trim() ?? "";
+                    try { horarioObra = await Http.GetFromJsonAsync<HorarioObra>($"api/horariosobra/{Uri.EscapeDataString(obra.Codigo)}") ?? horarioObra; } catch (HttpRequestException) { }
                     obra.Nombre = obra.Nombre?.Trim() ?? "";
                     obra.Direccion = obra.Direccion?.Trim() ?? "";
                     obra.Cliente = obra.Cliente?.Trim() ?? "";
@@ -589,7 +615,7 @@
                 {
                     var hasLat = TryParseCoordinate(obra.Libre1, out var cLat) && cLat != 0;
                     var hasLon = TryParseCoordinate(obra.Libre2, out var cLon) && cLon != 0;
-                    if (!hasLat || !hasLon || string.IsNullOrWhiteSpace(obra.Libre1) || string.IsNullOrWhiteSpace(obra.Libre2))
+                    if (true)
                     {
                         obra.Libre1 = LimitarTexto(returnLat.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture), 10);
                         obra.Libre2 = LimitarTexto(returnLon.Value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture), 10);
@@ -1183,6 +1209,11 @@
     private async Task<bool> GuardarInternoAsync(bool navegarTrasGuardar, bool validarPoblacion = true)
     {
         if (obra == null) return false;
+        if (string.IsNullOrWhiteSpace(obra.Cliente))
+        {
+            clienteObligatorioPopupVisible = true;
+            return false;
+        }
         if (validarPoblacion && !await ValidarPoblacionAntesDeGuardarAsync()) return false;
         try
         {
@@ -1251,6 +1282,10 @@
                     return false;
                 }
             }
+
+            horarioObra.Codigo = obra.Codigo;
+            var horarioResponse = await Http.PutAsJsonAsync($"api/horariosobra/{Uri.EscapeDataString(obra.Codigo)}", horarioObra);
+            if (!horarioResponse.IsSuccessStatusCode) { errorMessage = $"Error al guardar horario de obra: {await ObtenerDetalleErrorAsync(horarioResponse)}"; return false; }
 
             obraInicial = SerializarObra();
             if (navegarTrasGuardar)
@@ -1671,7 +1706,7 @@
                 ? $"{backUrlBase}?returnUrl={Uri.EscapeDataString(ReturnUrl)}"
                 : backUrlBase;
 
-            var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(obra.Nombre ?? "Obra")}{latParam}{lonParam}&backUrl={Uri.EscapeDataString(backUrl)}";
+            var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(obra.Nombre ?? "Obra")}{latParam}{lonParam}&editable=true&backUrl={Uri.EscapeDataString(backUrl)}";
             NavigationManager.NavigateTo(mapsUrl);
         }
         else

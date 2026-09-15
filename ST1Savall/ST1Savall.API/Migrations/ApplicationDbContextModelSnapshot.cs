@@ -478,6 +478,10 @@ namespace ST1Savall.API.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("PathDocumentos")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("ReceiverEmail")
                         .IsRequired()
                         .HasMaxLength(256)

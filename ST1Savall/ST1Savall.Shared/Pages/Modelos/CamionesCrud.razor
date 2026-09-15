@@ -17,13 +17,15 @@
                     <DxGridDataColumn FieldName="Matricula" Caption="Matrícula" Width="130px" />
                     <DxGridDataColumn FieldName="Descripcion" Caption="Descripción" Width="250px" />
                     <DxGridDataColumn FieldName="UnidadWialonId" Caption="Unidad Wialon" Width="160px" />
+                    <DxGridDataColumn FieldName="TaraKg" Caption="Kg. Tara" DisplayFormat="N0" Width="120px" TextAlignment="GridTextAlignment.Right" />
                     <DxGridDataColumn FieldName="Activo" Caption="Activo" Width="90px" />
                 </Columns>
                 <EditFormTemplate Context="editContext">
                     @{ var camion = (Camion)editContext.EditModel; }
                     <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
                         <DxFormLayoutItem Caption="Matrícula" ColSpanMd="6" BeginRow="true"><DxTextBox @bind-Text="camion.Matricula" /></DxFormLayoutItem><DxFormLayoutItem Caption="Descripción" ColSpanMd="6"><DxTextBox @bind-Text="camion.Descripcion" /></DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="ID de unidad Wialon" ColSpanMd="12" BeginRow="true"><DxTextBox @bind-Text="camion.UnidadWialonId" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="ID de unidad Wialon" ColSpanMd="6" BeginRow="true"><DxTextBox @bind-Text="camion.UnidadWialonId" /></DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Kg. Tara" ColSpanMd="6"><DxSpinEdit @bind-Value="camion.TaraKg" MinValue="0" DisplayFormat="N0" ClearButtonVisible="true" /></DxFormLayoutItem>
                         <DxFormLayoutItem ColSpanMd="12" BeginRow="true"><DxCheckBox @bind-Checked="camion.Activo" LabelPosition="LabelPosition.Right">Camión activo</DxCheckBox></DxFormLayoutItem>
                     </DxFormLayout>
                 </EditFormTemplate>
@@ -50,6 +52,7 @@
         nuevo.Matricula = string.Empty;
         nuevo.Descripcion = camionToDuplicate.Descripcion;
         nuevo.Activo = camionToDuplicate.Activo;
+        nuevo.TaraKg = camionToDuplicate.TaraKg;
         nuevo.UnidadWialonId = null;
         camionToDuplicate = null;
     }

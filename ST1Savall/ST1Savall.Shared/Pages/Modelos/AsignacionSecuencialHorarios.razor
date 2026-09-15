@@ -212,6 +212,8 @@
                                 ValueChanged="@((int? val) => OnConductorSelectedChanged(val))"
                                 NullText="Seleccione conductor..." />
                 </div>
+            </div>
+            <div class="row g-3 mt-1">
                 <div class="col-md">
                     <label class="form-label fw-bold text-primary mb-1">Inicio jornada</label>
                     <DxTimeEdit Time="@horaInicioJornada"
@@ -239,6 +241,22 @@
                                 Format="HH:mm"
                                 DisplayFormat="HH:mm" />
                 </div>
+                <div class="col-md">
+                    <label class="form-label fw-bold text-primary mb-1">Inicio comida</label>
+                    <DxTimeEdit Time="@horaInicioComida"
+                                TimeChanged="@((TimeSpan? val) => OnHoraInicioComidaChanged(val))"
+                                Format="HH:mm"
+                                DisplayFormat="HH:mm" />
+                </div>
+                <div class="col-md">
+                    <label class="form-label fw-bold text-primary mb-1">Fin comida</label>
+                    <DxTimeEdit Time="@horaFinComida"
+                                TimeChanged="@((TimeSpan? val) => OnHoraFinComidaChanged(val))"
+                                Format="HH:mm"
+                                DisplayFormat="HH:mm" />
+                </div>
+            </div>
+            <div class="row g-3 mt-1">
                 <div class="col-12 d-flex align-items-center justify-content-between gap-2">
                     <DxRadioGroup Items="@opcionesVistaServicios"
                                   TValue="int"
@@ -319,6 +337,11 @@
                     <Columns>
                         <DxGridSelectionColumn Width="55px" />
                         <DxGridDataColumn FieldName="NombreObra" Caption="Obra" MinWidth="220" />
+                        <DxGridDataColumn Caption="Tipo de tarea" MinWidth="180">
+                            <CellDisplayTemplate Context="context">
+                                @GetNombreTarea(((Solicitud)context.DataItem).IdTipoTarea)
+                            </CellDisplayTemplate>
+                        </DxGridDataColumn>
                         <DxGridDataColumn FieldName="DireccionCliente" Caption="Dirección de la obra" MinWidth="280" />
                         <DxGridDataColumn Caption="Cód. Postal / Población" MinWidth="210">
                             <CellDisplayTemplate Context="context">
@@ -498,6 +521,8 @@
     private TimeSpan horaFinJornada = new TimeSpan(17, 0, 0);
     private TimeSpan? horaInicioDescanso;
     private TimeSpan? horaFinDescanso;
+    private TimeSpan? horaInicioComida;
+    private TimeSpan? horaFinComida;
 
     private bool loading = true;
     private bool calculando = false;
@@ -581,6 +606,8 @@
             : new TimeSpan(17, 0, 0);
         horaInicioDescanso = conductorObj?.InicioDescanso;
         horaFinDescanso = conductorObj?.FinDescanso;
+        horaInicioComida = conductorObj?.InicioComida;
+        horaFinComida = conductorObj?.FinComida;
 
         solicitudesSinAsignarSeleccionadas = [];
         if (modoVistaServicios == 2)
@@ -766,6 +793,18 @@
         RecalcularConHorarioJornada();
     }
 
+    private void OnHoraInicioComidaChanged(TimeSpan? valor)
+    {
+        horaInicioComida = valor;
+        RecalcularConHorarioJornada();
+    }
+
+    private void OnHoraFinComidaChanged(TimeSpan? valor)
+    {
+        horaFinComida = valor;
+        RecalcularConHorarioJornada();
+    }
+
     private void RecalcularConHorarioJornada()
     {
         if (horaFinJornada <= horaInicioJornada)
@@ -774,10 +813,9 @@
             return;
         }
 
-        if (TieneDescansoValido() &&
-            (horaInicioDescanso!.Value < horaInicioJornada || horaFinDescanso!.Value > horaFinJornada))
+        if (ObtenerPausasValidas().Any(p => p.Inicio < horaInicioJornada || p.Fin > horaFinJornada))
         {
-            errorMessage = "El intervalo de descanso debe estar dentro de la jornada laboral.";
+            errorMessage = "Los intervalos de almuerzo y comida deben estar dentro de la jornada laboral.";
             return;
         }
 
@@ -1147,17 +1185,29 @@
         }
     }
 
-    private bool TieneDescansoValido() =>
-        horaInicioDescanso.HasValue && horaFinDescanso.HasValue && horaFinDescanso > horaInicioDescanso;
+    private bool TieneDescansoValido() => TienePausaValida(horaInicioDescanso, horaFinDescanso);
+
+    private bool TieneComidaValida() => TienePausaValida(horaInicioComida, horaFinComida);
+
+    private static bool TienePausaValida(TimeSpan? inicio, TimeSpan? fin) =>
+        inicio.HasValue && fin.HasValue && fin > inicio;
+
+    private IEnumerable<(TimeSpan Inicio, TimeSpan Fin)> ObtenerPausasValidas() =>
+        new[]
+        {
+            (Inicio: horaInicioDescanso, Fin: horaFinDescanso),
+            (Inicio: horaInicioComida, Fin: horaFinComida)
+        }
+        .Where(p => TienePausaValida(p.Inicio, p.Fin))
+        .Select(p => (p.Inicio!.Value, p.Fin!.Value))
+        .OrderBy(p => p.Item1);
 
     private bool EsHoraDeDescanso(DateTime fechaHora) =>
-        TieneDescansoValido() &&
-        fechaHora.TimeOfDay >= horaInicioDescanso!.Value &&
-        fechaHora.TimeOfDay < horaFinDescanso!.Value;
+        ObtenerPausasValidas().Any(p => fechaHora.TimeOfDay >= p.Inicio && fechaHora.TimeOfDay < p.Fin);
 
     private bool CruzaDescanso(DateTime inicio, DateTime fin) =>
-        TieneDescansoValido() && inicio.Date == fin.Date &&
-        inicio.TimeOfDay < horaFinDescanso!.Value && fin.TimeOfDay > horaInicioDescanso!.Value;
+        inicio.Date == fin.Date && ObtenerPausasValidas().Any(p =>
+            inicio.TimeOfDay < p.Fin && fin.TimeOfDay > p.Inicio);
 
     private DateTime RedondearAIntervaloConfigurado(DateTime fechaHora)
     {
@@ -1168,36 +1218,38 @@
 
     private DateTime CalcularFinConsiderandoDescanso(DateTime inicio, int duracion)
     {
-        return inicio.AddMinutes(duracion);
+        var fin = inicio.AddMinutes(duracion);
+        foreach (var pausa in ObtenerPausasValidas())
+        {
+            var inicioPausa = inicio.Date + pausa.Inicio;
+            var finPausa = inicio.Date + pausa.Fin;
+            if (inicio < finPausa && fin > inicioPausa)
+                fin = fin.Add(finPausa - inicioPausa);
+        }
+        return fin;
     }
 
     private int CalcularMinutosOperacion(DateTime inicio, DateTime fin)
     {
         var minutos = (int)(fin - inicio).TotalMinutes;
-        if (minutos <= 0 || !TieneDescansoValido() || inicio.Date != fin.Date)
-        {
-            return minutos;
-        }
+        if (minutos <= 0 || inicio.Date != fin.Date) return minutos;
 
-        var inicioDescanso = inicio.Date + horaInicioDescanso!.Value;
-        var finDescanso = inicio.Date + horaFinDescanso!.Value;
-        var solapeInicio = inicio > inicioDescanso ? inicio : inicioDescanso;
-        var solapeFin = fin < finDescanso ? fin : finDescanso;
-        if (solapeFin > solapeInicio)
+        foreach (var pausa in ObtenerPausasValidas())
         {
-            minutos -= (int)(solapeFin - solapeInicio).TotalMinutes;
+            var inicioPausa = inicio.Date + pausa.Inicio;
+            var finPausa = inicio.Date + pausa.Fin;
+            var solapeInicio = inicio > inicioPausa ? inicio : inicioPausa;
+            var solapeFin = fin < finPausa ? fin : finPausa;
+            if (solapeFin > solapeInicio)
+                minutos -= (int)(solapeFin - solapeInicio).TotalMinutes;
         }
-
         return minutos;
     }
 
     private DateTime AjustarInicioAlHorarioLaboral(DateTime inicio, int duracion)
     {
-        var minutosDisponibles = (int)(horaFinJornada - horaInicioJornada).TotalMinutes;
-        if (TieneDescansoValido())
-        {
-            minutosDisponibles -= (int)(horaFinDescanso!.Value - horaInicioDescanso!.Value).TotalMinutes;
-        }
+        var minutosDisponibles = (int)(horaFinJornada - horaInicioJornada).TotalMinutes
+            - ObtenerPausasValidas().Sum(p => (int)(p.Fin - p.Inicio).TotalMinutes);
 
         if (duracion > minutosDisponibles)
         {
@@ -1206,37 +1258,32 @@
         }
 
         var candidato = inicio;
-
         while (true)
         {
             if (candidato.TimeOfDay < horaInicioJornada || candidato.TimeOfDay >= horaFinJornada)
-            {
                 candidato = candidato.Date.AddDays(candidato.TimeOfDay >= horaFinJornada ? 1 : 0) + horaInicioJornada;
-            }
 
-            if (TieneDescansoValido())
+            var ajustadoPorPausa = false;
+            foreach (var pausa in ObtenerPausasValidas())
             {
-                if (candidato.TimeOfDay >= horaInicioDescanso!.Value && candidato.TimeOfDay < horaFinDescanso!.Value)
+                var inicioPausa = candidato.Date + pausa.Inicio;
+                var finPausa = candidato.Date + pausa.Fin;
+                if (candidato >= inicioPausa && candidato < finPausa ||
+                    candidato < inicioPausa && candidato.AddMinutes(duracion) > inicioPausa)
                 {
-                    candidato = candidato.Date + horaFinDescanso.Value;
-                }
-                else if (candidato.TimeOfDay < horaInicioDescanso.Value)
-                {
-                    var finEstimado = candidato.AddMinutes(duracion);
-                    if (finEstimado.Date > candidato.Date || finEstimado.TimeOfDay > horaInicioDescanso.Value)
-                    {
-                        candidato = candidato.Date + horaFinDescanso.Value;
-                    }
+                    candidato = finPausa;
+                    ajustadoPorPausa = true;
+                    break;
                 }
             }
+            if (ajustadoPorPausa) continue;
 
-            var fin = RedondearAIntervaloConfigurado(candidato.AddMinutes(duracion));
+            var fin = RedondearAIntervaloConfigurado(CalcularFinConsiderandoDescanso(candidato, duracion));
             if (fin.Date > candidato.Date || fin.TimeOfDay > horaFinJornada)
             {
                 candidato = candidato.Date.AddDays(1) + horaInicioJornada;
                 continue;
             }
-
             return candidato;
         }
     }

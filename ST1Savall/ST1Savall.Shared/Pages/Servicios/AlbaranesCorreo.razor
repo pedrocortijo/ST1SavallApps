@@ -1,0 +1,156 @@
+@page "/servicios/albaranes-correo"
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Albaranes por correo</PageTitle>
+<NavigationLock ConfirmExternalNavigation="@ocupado" OnBeforeInternalNavigation="@((Microsoft.AspNetCore.Components.Routing.LocationChangingContext context) => { if (ocupado) context.PreventNavigation(); })" />
+<h2 class="fw-bold text-primary">Albaranes por correo</h2>
+<p>@(mostrarEnviados ? "Albaranes enviados (LIBRE_4 = 1)." : mostrarTodos ? "Todos los albaranes pendientes de envío (LIBRE_4 = 0)." : "Albaranes pendientes de envío del mes en curso (LIBRE_4 = 0). Se envía un correo por albarán a cada contacto del cliente marcado para envío de albaranes, con su PDF adjunto.")</p>
+@if (error is not null)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+<div class="d-flex gap-3 align-items-center mb-3">
+    <DxButton Text="Actualizar pendientes" Enabled="@(!ocupado)" Click="Cargar" />
+    <DxButton Text="@(mostrarEnviados ? $"Reenviar seleccionados ({seleccion.Count})" : $"Enviar seleccionados ({seleccion.Count})")" Enabled="@(!ocupado && seleccion.Count > 0)" Click="Enviar" RenderStyle="ButtonRenderStyle.Primary" />
+    <DxCheckBox CheckType="CheckType.Switch" Checked="@mostrarEnviados" CheckedChanged="@((bool valor) => CambiarVistaEnviados(valor))" LabelPosition="LabelPosition.Right" Enabled="@(!ocupado)">Visualizar enviados</DxCheckBox>
+    <DxCheckBox CheckType="CheckType.Switch" Checked="@mostrarTodos" CheckedChanged="@((bool valor) => CambiarVista(valor))" LabelPosition="LabelPosition.Right" Enabled="@(!ocupado)">Visualizar todos los albaranes sin enviar</DxCheckBox>
+    @if (ocupado) { <span role="status">@progreso</span> }
+</div>
+<div style="@(ocupado ? "pointer-events:none;opacity:.65" : "")" aria-busy="@ocupado">
+    <DxGrid Data="@pendientes" KeyFieldName="Clave" ShowFilterRow="true" ShowSearchBox="true" PageSize="20" SelectionMode="GridSelectionMode.Multiple"
+            SelectedDataItems="@seleccion" SelectedDataItemsChanged="@((IReadOnlyList<object> items) => seleccion = items)">
+        <Columns>
+            <DxGridSelectionColumn Width="55px" />
+            <DxGridDataColumn FieldName="Empresa" Caption="Empresa" Width="85px" />
+            <DxGridDataColumn FieldName="Serie" Caption="Serie" Width="70px" />
+            <DxGridDataColumn FieldName="Numero" Caption="Número" Width="130px" />
+            <DxGridDataColumn FieldName="Fecha" Caption="Fecha" DisplayFormat="dd/MM/yyyy" Width="120px" />
+            <DxGridDataColumn FieldName="Cliente" Caption="Cliente" />
+            <DxGridDataColumn FieldName="Email" Caption="Destinatario" />
+            <DxGridDataColumn FieldName="Obra" Caption="Obra" Width="100px" />
+            <DxGridDataColumn FieldName="Total" Caption="Total" DisplayFormat="n2" Width="110px" />
+        </Columns>
+    </DxGrid>
+</div>
+@if (resultados.Count > 0)
+{
+    <section class="mt-4" aria-live="polite">
+        <h3>Resumen del envío</h3>
+        <p>@resultados.Count(r => r.Enviado) enviados · @resultados.Count(r => !r.Enviado) no enviados o sin confirmar · @resultados.Count procesados.</p>
+        <p class="text-muted">Enviado significa aceptado por SMTP; no confirma la entrega en la bandeja del destinatario. Revise los avisos antes de repetir un envío.</p>
+        <DxGrid Data="@resultados" PageSize="20" ShowSearchBox="true">
+            <Columns>
+                <DxGridDataColumn FieldName="Albaran" Caption="Albarán" />
+                <DxGridDataColumn FieldName="Destinatario" Caption="Destinatario" />
+                <DxGridDataColumn FieldName="Enviado" Caption="Enviado" />
+                <DxGridDataColumn FieldName="Detalle" Caption="Resultado" />
+            </Columns>
+        </DxGrid>
+    </section>
+}
+
+@code {
+    private List<AlbaranCorreo> pendientes = [];
+    private IReadOnlyList<object> seleccion = [];
+    private List<ResultadoAlbaranCorreo> resultados = [];
+    private bool ocupado;
+    private bool mostrarTodos;
+    private bool mostrarEnviados;
+    private string? error;
+    private string progreso = "";
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Autenticar()
+    {
+        var usuario = (await AuthStateProvider.GetAuthenticationStateAsync()).User;
+        var token = usuario.FindFirst("token")?.Value;
+        if (!string.IsNullOrEmpty(token))
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private async Task Cargar()
+    {
+        ocupado = true;
+        progreso = "Cargando pendientes…";
+        error = null;
+        try
+        {
+            await Autenticar();
+            pendientes = await Http.GetFromJsonAsync<List<AlbaranCorreo>>($"api/albaranes-correo?enviados={mostrarEnviados.ToString().ToLowerInvariant()}&todos={mostrarTodos.ToString().ToLowerInvariant()}") ?? [];
+            seleccion = [];
+        }
+        catch { error = "No se pudieron cargar los pendientes. Compruebe la conexión y su sesión."; }
+        finally { ocupado = false; }
+    }
+
+    private async Task CambiarVistaEnviados(bool valor)
+
+    {
+
+        mostrarEnviados = valor;
+
+        seleccion = [];
+
+        await Cargar();
+
+    }
+
+
+
+    private async Task CambiarVista(bool valor)
+    {
+        mostrarTodos = valor;
+        seleccion = [];
+        await Cargar();
+    }
+
+    private async Task Enviar()
+    {
+        if (ocupado) return;
+        var lote = seleccion.Cast<AlbaranCorreo>().ToList();
+        ocupado = true;
+        resultados = [];
+        error = null;
+        try
+        {
+            await Autenticar();
+            foreach (var a in lote)
+            {
+                progreso = $"Enviando {resultados.Count + 1} de {lote.Count}…";
+                await InvokeAsync(StateHasChanged);
+                try
+                {
+                    using var response = await Http.PostAsJsonAsync("api/albaranes-correo/enviar", a.ObtenerClave());
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        resultados.Add(new($"{a.Empresa}/{a.Serie}/{a.Numero}", a.Email, false,
+                            $"No confirmado (HTTP {(int)response.StatusCode}). Revise su sesión y el estado antes de reenviar."));
+                        break;
+                    }
+                    var resultado = await response.Content.ReadFromJsonAsync<ResultadoAlbaranCorreo>();
+                    if (resultado is null) throw new InvalidOperationException();
+                    resultados.Add(resultado);
+                }
+                catch
+                {
+                    resultados.Add(new($"{a.Empresa}/{a.Serie}/{a.Numero}", a.Email, false,
+                        "Se perdió la respuesta. El servidor puede haber enviado el correo. Revise antes de reenviar."));
+                    break;
+                }
+            }
+            foreach (var a in lote.Skip(resultados.Count))
+                resultados.Add(new($"{a.Empresa}/{a.Serie}/{a.Numero}", a.Email, false, "No intentado: se interrumpió el lote."));
+        }
+        catch { error = "No se pudo iniciar el envío. Compruebe su sesión."; }
+        finally
+        {
+            var errorEnvio = error;
+            ocupado = false;
+            await Cargar();
+            error = errorEnvio ?? error;
+        }
+    }
+}

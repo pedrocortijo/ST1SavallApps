@@ -232,6 +232,16 @@ window.initializeMapLibreMap = async (elementId, locations, iconUrl, dotNetHelpe
             .setPopup(popup)
             .addTo(map);
 
+            if (loc.editable === true && dotNetHelper) {
+                // El listener se registra directamente sobre el canvas: así no depende
+                // de que MapLibre propague el evento click tras una interacción del mapa.
+                map.getCanvas().addEventListener('click', function (event) {
+                    var rect = map.getCanvas().getBoundingClientRect();
+                    var position = map.unproject([event.clientX - rect.left, event.clientY - rect.top]);
+                    dotNetHelper.invokeMethodAsync('OnLocationDragged', position.lat, position.lng).catch(function () { });
+                });
+            }
+
             if (container && container._markers) {
                 container._markers.push({ marker: marker, lat: markerLat, lng: markerLon });
             }
@@ -290,4 +300,11 @@ window.openLeafletMapInGoogleMaps = (elementId) => {
     }
 
     window.open(`https://www.google.com/maps/dir/?${parameters.toString()}`, '_blank', 'noopener,noreferrer');
+};
+
+
+window.setEditableMarker = (elementId, lat, lon) => {
+    var container = document.getElementById(elementId);
+    var entry = container && container._markers && container._markers[0];
+    if (entry && entry.marker) { entry.marker.setLngLat([lon, lat]); entry.lat = lat; entry.lng = lon; }
 };

@@ -37,6 +37,9 @@ public class Solicitud
     /// <summary>Kg del pesaje del contenedor en la planta de reciclaje.</summary>
     public int? KgAlbaran { get; set; }
 
+    /// <summary>Hora en la que se realiza el pesaje del contenedor en la planta.</summary>
+    public TimeSpan? HoraPesaje { get; set; }
+
     [MaxLength(2)]
     public string? AlbaranSerieSage { get; set; }
 

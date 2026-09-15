@@ -1,0 +1,20 @@
+@page "/modelos/obras/selector"
+@using ST1Savall.Shared.Data
+@using DevExpress.Blazor
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Seleccionar obra</PageTitle>
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-3"><div><h2 class="fw-bold text-primary mb-1">Seleccionar obra</h2><p class="text-muted mb-0">Busque por cualquier columna o mediante el buscador global.</p></div><button class="btn btn-outline-secondary btn-sm" @onclick="Volver">Volver</button></div>
+    @if (obras is null) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div></div> }
+    else { <DxGrid Data="@obras" KeyFieldName="IdObra" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" CssClass="obra-selector-grid"><Columns><DxGridCommandColumn Width="52px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false"><CellDisplayTemplate><button class="btn btn-sm btn-primary px-2" title="Seleccionar obra" aria-label="Seleccionar obra" @onclick="() => Seleccionar((Obra)context.DataItem)"><span class="oi oi-circle-check" aria-hidden="true"></span></button></CellDisplayTemplate></DxGridCommandColumn><DxGridDataColumn FieldName="Codigo" Caption="Código" Width="90px"/><DxGridDataColumn FieldName="Descripcion" Caption="Obra"/><DxGridDataColumn FieldName="NombreCliente" Caption="Cliente"/><DxGridDataColumn FieldName="Encargado" Caption="Encargado"/><DxGridDataColumn FieldName="Telefono" Caption="Teléfono"/><DxGridDataColumn FieldName="Movil" Caption="Móvil"/><DxGridDataColumn FieldName="Ubicacion" Caption="Dirección"/><DxGridDataColumn FieldName="Poblacion" Caption="Población"/></Columns></DxGrid> }
+</div>
+@code {
+[Parameter, SupplyParameterFromQuery(Name="returnUrl")] public string? ReturnUrl { get; set; }
+private List<Obra>? obras;
+protected override async Task OnInitializedAsync() { var state=await AuthStateProvider.GetAuthenticationStateAsync(); var token=state.User.FindFirst("token")?.Value; if (!string.IsNullOrEmpty(token)) Http.DefaultRequestHeaders.Authorization=new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",token); obras=await Http.GetFromJsonAsync<List<Obra>>("api/obras"); }
+private void Seleccionar(Obra obra) { if (string.IsNullOrWhiteSpace(ReturnUrl)||!ReturnUrl.StartsWith('/')) return; var sep=ReturnUrl.Contains('?')?"&":"?"; NavigationManager.NavigateTo($"{ReturnUrl}{sep}obraId={obra.IdObra}"); }
+private void Volver() { if (!string.IsNullOrWhiteSpace(ReturnUrl)&&ReturnUrl.StartsWith('/')) NavigationManager.NavigateTo(ReturnUrl); else NavigationManager.NavigateTo("/modelos/solicitudes"); }
+}

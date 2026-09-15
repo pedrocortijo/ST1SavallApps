@@ -33,6 +33,7 @@ public class ParametrosController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Parametro>> PostParametro(Parametro parametro)
     {
+        parametro.PathDocumentos = NormalizarRutaDocumentos(parametro.PathDocumentos);
         GuardarSecretosPlanos(parametro);
         _context.Parametros.Add(parametro);
         await _context.SaveChangesAsync();
@@ -64,6 +65,9 @@ public class ParametrosController : ControllerBase
         ConservarSecretosPlanos(parametro, existente);
 
         _context.Entry(existente).CurrentValues.SetValues(parametro);
+        // Se asigna expresamente porque la ruta se utiliza desde la API al generar
+        // documentos y debe persistirse incluso en instalaciones con esquema previo.
+        existente.PathDocumentos = NormalizarRutaDocumentos(parametro.PathDocumentos);
         await _context.SaveChangesAsync();
         return NoContent();
     }
@@ -175,6 +179,8 @@ public class ParametrosController : ControllerBase
     }
     private static string? ConservarRutaExcel(string? rutaFormulario, string? rutaExistente) =>
         string.IsNullOrWhiteSpace(rutaFormulario) ? rutaExistente : rutaFormulario;
+    private static string? NormalizarRutaDocumentos(string? ruta) =>
+        string.IsNullOrWhiteSpace(ruta) ? null : ruta.Trim();
     private bool ParametroExists(int id) => _context.Parametros.Any(p => p.Id == id);
 }
 

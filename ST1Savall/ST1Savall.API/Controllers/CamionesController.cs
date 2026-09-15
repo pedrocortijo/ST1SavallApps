@@ -58,6 +58,7 @@ public class CamionesController(ApplicationDbContext context) : ControllerBase
         camion.Descripcion = string.IsNullOrWhiteSpace(camion.Descripcion) ? null : camion.Descripcion.Trim();
         camion.UnidadWialonId = string.IsNullOrWhiteSpace(camion.UnidadWialonId) ? null : camion.UnidadWialonId.Trim();
         if (string.IsNullOrWhiteSpace(camion.Matricula)) return "Debe indicar la matrícula.";
+        if (camion.TaraKg < 0) return "La tara no puede ser negativa.";
         if (await context.Camiones.AnyAsync(c => c.IdCamion != camion.IdCamion && c.Matricula == camion.Matricula)) return "Ya existe un camión con esta matrícula.";
         if (camion.UnidadWialonId is not null && await context.Camiones.AnyAsync(c => c.IdCamion != camion.IdCamion && c.UnidadWialonId == camion.UnidadWialonId)) return "Esta unidad de Wialon ya está asignada a otro camión.";
         return null;

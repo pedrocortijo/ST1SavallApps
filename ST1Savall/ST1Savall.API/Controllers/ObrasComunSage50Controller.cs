@@ -88,6 +88,8 @@ public class ObrasComunSage50Controller : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ObraComunSage50>> PostObra(ObraComunSage50 obra)
     {
+        if (string.IsNullOrWhiteSpace(obra.Cliente))
+            return BadRequest(new { message = "Debe seleccionar un cliente antes de crear la obra." });
         if (ObraExists(obra.Codigo))
         {
             return Conflict(new { message = $"Ya existe una obra con el código '{obra.Codigo.Trim()}'." });
@@ -113,6 +115,8 @@ public class ObrasComunSage50Controller : ControllerBase
     public async Task<IActionResult> PutObra(string codigo, ObraComunSage50 obra, [FromQuery] bool forzarCliente = false)
     {
         if (codigo != obra.Codigo) return BadRequest();
+        if (string.IsNullOrWhiteSpace(obra.Cliente))
+            return BadRequest(new { message = "Debe seleccionar un cliente antes de guardar la obra." });
 
         var obraActual = await _context.Obras.AsNoTracking().FirstOrDefaultAsync(o => o.Codigo == codigo);
         if (obraActual == null) return NotFound();

@@ -15,7 +15,7 @@ public sealed class GeneracionAlbaranServicioService(
 {
     private const int TipoDocumentoAlbaranVenta = 4;
     private const int FicheroCamposAdicionalesAlbaranVenta = 1;
-    private const int LongitudNumeroAlbaranSage = 12;
+    private const int LongitudNumeroAlbaranSage = 10;
 
     public async Task<ResultadoGeneracionAlbaran> GenerarAsync(Solicitud solicitud)
     {
@@ -53,34 +53,54 @@ public sealed class GeneracionAlbaranServicioService(
 
 
 
+            var errorTarifa = await AsegurarTarifaSageAsync(obra.Tarifa);
+            if (errorTarifa is not null)
+                return ResultadoGeneracionAlbaran.Fallido(errorTarifa);
+
             var matricula = solicitud.IdConductor.HasValue
                 ? await aplicacion.Operarios.AsNoTracking()
                     .Where(o => o.IdOperario == solicitud.IdConductor.Value)
                     .Select(o => o.Camion == null ? null : o.Camion.Matricula)
                     .FirstOrDefaultAsync()
                 : null;
-            var idPlantaPesaje = solicitud.IdPlantaDescarga ?? solicitud.IdPlantaOrigen;
-            var plantaPesaje = idPlantaPesaje.HasValue
-                ? await aplicacion.Plantas.AsNoTracking().FirstOrDefaultAsync(p => p.IdPlanta == idPlantaPesaje.Value)
+            var fechaAlbaran = DateTime.Today;
+            DatosAlbaranPlanta? datosPlanta = solicitud.KgAlbaran.HasValue
+                ? new DatosAlbaranPlanta(solicitud.AlbaranPlanta?.Trim() ?? string.Empty, fechaAlbaran, solicitud.KgAlbaran.Value)
                 : null;
-            DatosAlbaranPlanta? datosPlanta = null;
-            try
+            if (datosPlanta is null)
             {
-                if (plantaPesaje is null)
-                    throw new InvalidOperationException("El servicio no tiene una planta de reciclaje configurada.");
+                try
+                {
+                    var idPlantaPesaje = solicitud.IdPlantaDescarga ?? solicitud.IdPlantaOrigen;
+                    var plantaPesaje = idPlantaPesaje.HasValue
+                        ? await aplicacion.Plantas.AsNoTracking().FirstOrDefaultAsync(p => p.IdPlanta == idPlantaPesaje.Value)
+                        : null;
+                    if (plantaPesaje is null)
+                        throw new InvalidOperationException("El servicio no tiene una planta de reciclaje configurada.");
 
-                datosPlanta = await datosAlbaranPlantaExcel.ObtenerAsync(parametros, plantaPesaje.Nombre, solicitud.AlbaranPlanta, DateTime.Today);
-                solicitud.KgAlbaran = decimal.ToInt32(decimal.Round(datosPlanta.NetoKg, 0, MidpointRounding.AwayFromZero));
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex,
-                    "No se pudieron obtener los datos opcionales del albarán de planta {AlbaranPlanta} para el servicio {Solicitud}",
-                    solicitud.AlbaranPlanta, solicitud.IdSolicitud);
+                    datosPlanta = await datosAlbaranPlantaExcel.ObtenerAsync(
+                        parametros, plantaPesaje.Nombre, solicitud.AlbaranPlanta, fechaAlbaran);
+                    solicitud.KgAlbaran = decimal.ToInt32(decimal.Round(datosPlanta.NetoKg, 0, MidpointRounding.AwayFromZero));
+                    if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+                    {
+                        solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex,
+                        "No se pudieron obtener los kg del albarán de planta {AlbaranPlanta} para el servicio {Solicitud}",
+                        solicitud.AlbaranPlanta, solicitud.IdSolicitud);
+                }
             }
 
             var empresa = parametros.EmpresaAlbaranes.Trim().ToUpperInvariant();
             var serie = parametros.SerieAlbaranes.Trim().ToUpperInvariant();
+            // El albarán Sage se identifica por el número interno de solicitud.
+            var numero = solicitud.IdSolicitud.ToString(CultureInfo.InvariantCulture);
+            if (numero.Length > LongitudNumeroAlbaranSage)
+                return ResultadoGeneracionAlbaran.Fallido($"El número de solicitud no puede superar {LongitudNumeroAlbaranSage} caracteres.");
+
             var datos = new AlbaranVentaEdicion
             {
                 Empresa = empresa,
@@ -92,15 +112,17 @@ public sealed class GeneracionAlbaranServicioService(
                 Articulo = articuloCodigo,
                 Unidades = 1m,
                 Precio = 0m,
-                Fecha = DateTime.Today
+                Fecha = fechaAlbaran,
+                Observaciones = CrearObservacionesAlbaran(solicitud, fechaAlbaran)
             };
 
             await AplicarPrecioObraAsync(datos, obra.Tarifa);
             var calculoFiscal = await CalcularFiscalAsync(datos, cliente);
             await using var transaccion = await sage.Database.BeginTransactionAsync();
-            var numero = await ReservarSiguienteNumeroDisponibleAsync(empresa, serie);
-            if (numero is null)
-                return ResultadoGeneracionAlbaran.Fallido($"No existe contador de Sage para empresa {empresa}, serie {serie} y albaranes de venta.");
+            var yaExiste = await sage.AlbaranesVenta.AsNoTracking().AnyAsync(a =>
+                a.EMPRESA.Trim() == empresa && a.LETRA.Trim() == serie && a.NUMERO.Trim() == numero);
+            if (yaExiste)
+                return ResultadoGeneracionAlbaran.Fallido($"Ya existe el albarán Sage {empresa}/{serie}/{numero}.");
 
             datos.Numero = numero;
             var cabecera = CrearCabecera(datos, cliente, calculoFiscal);
@@ -175,6 +197,10 @@ public sealed class GeneracionAlbaranServicioService(
 
             var kg = decimal.ToInt32(decimal.Round(datosPesaje.NetoKg, 0, MidpointRounding.AwayFromZero));
             solicitud.KgAlbaran = kg;
+            if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
+            {
+                solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
+            }
 
             var campoNetoKg = await sage.CamposAdicionalesDocumentosVenta.FirstOrDefaultAsync(c =>
                 c.EMPRESA.Trim() == albaran.EMPRESA.Trim()
@@ -344,6 +370,40 @@ public sealed class GeneracionAlbaranServicioService(
         if (precio.HasValue) datos.Precio = precio.Value;
     }
 
+    private async Task<string?> AsegurarTarifaSageAsync(string? codigoTarifa)
+    {
+        var codigo = codigoTarifa?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(codigo)) return null;
+
+        var tarifaApp = await aplicacion.TarifasCabeceras.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Codigo.Trim() == codigo);
+        if (tarifaApp is null)
+            return $"La tarifa {codigo} asignada a la obra no existe en la aplicación.";
+
+        var tarifaSage = await sage.Tarifas
+            .FirstOrDefaultAsync(t => t.Codigo.Trim() == codigo);
+        var nombreTarifa = tarifaApp.Nombre.Trim();
+        if (tarifaSage is null)
+        {
+            sage.Tarifas.Add(new TarifaSage50
+            {
+                Codigo = tarifaApp.Codigo.Trim().ToUpperInvariant(),
+                Nombre = nombreTarifa
+            });
+        }
+        else if (!string.Equals(tarifaSage.Nombre.Trim(), nombreTarifa, StringComparison.Ordinal))
+        {
+            tarifaSage.Nombre = nombreTarifa;
+        }
+        else
+        {
+            return null;
+        }
+
+        await sage.SaveChangesAsync();
+        return null;
+    }
+
     private async Task<CalculoFiscalAlbaran> CalcularFiscalAsync(AlbaranVentaEdicion datos, ClienteSage50 cliente)
     {
         var codigoIva = cliente.TipoIva.Trim();
@@ -359,9 +419,9 @@ public sealed class GeneracionAlbaranServicioService(
         {
             EMPRESA = d.Empresa, NUMERO = FormatearNumeroSage(d.Numero), LETRA = d.Serie, USUARIO = d.Usuario, FECHA = d.Fecha.Date,
             CLIENTE = d.Cliente, CLIENTEERP = cliente.Clienteerp.Trim(), ALMACEN = d.Almacen,
-            FPAG = cliente.Fpag.Trim(), VENDEDOR = "     ", OPERARIO = "01", ENV_CLI = 1,
+            FPAG = cliente.Fpag.Trim(), VENDEDOR = "00001", OPERARIO = "01", ENV_CLI = 1,
             DIVISA = "000", CAMBIO = 1m, STOCK_COEF = 1m, CANAL = "MATRICULA",
-            OBRA = d.Obra, RUTA = cliente.Ruta.Trim(), PRONTO = cliente.Pronto,
+            OBRA = d.Obra, RUTA = cliente.Ruta.Trim(), PRONTO = cliente.Pronto, OBSERVACIO = d.Observaciones,
             IMPORTE = calculoFiscal.BaseImponible, TOTALDOC = calculoFiscal.TotalDocumento,
             TOTALDIV = calculoFiscal.TotalDocumento, IMPDIVISA = calculoFiscal.TotalDocumento,
             PORCEN_RET = calculoFiscal.PorcentajeRetencion, MODO_RET = calculoFiscal.ModoRetencion,
@@ -423,6 +483,13 @@ public sealed class GeneracionAlbaranServicioService(
         ("004", datosPlanta?.NetoKgTexto ?? string.Empty)
     ];
 
+
+    private static string CrearObservacionesAlbaran(Solicitud solicitud, DateTime fechaAlbaran)
+    {
+        var kg = solicitud.KgAlbaran?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        var albaranPlanta = solicitud.AlbaranPlanta?.Trim() ?? string.Empty;
+        return $"{kg},{albaranPlanta},{fechaAlbaran:dd-MM-yy}";
+    }
 
     private sealed record ValoresObservacionAlbaran(string NetoKg, string AlbaranPlanta, string Fecha);
 

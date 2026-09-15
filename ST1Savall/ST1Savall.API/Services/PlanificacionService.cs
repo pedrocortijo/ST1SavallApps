@@ -47,6 +47,8 @@ public class PlanificacionService
         solicitud.DuracionPlanificadaMinutos = duracion;
         solicitud.FechaHoraFinPlanificada = RedondearAlIntervalo(solicitud.FechaHoraInicioPlanificada.Value.AddMinutes(duracion), redondeoHora);
         solicitud.HoraLlegada = solicitud.FechaHoraInicioPlanificada;
+        var errorHorarioObra = await ValidarHorarioObraAsync(solicitud, solicitud.FechaHoraInicioPlanificada.Value, solicitud.FechaHoraFinPlanificada.Value);
+        if (errorHorarioObra is not null) return errorHorarioObra;
 
         if (!solicitud.IdConductor.HasValue)
             return "Debe seleccionar un conductor para planificar el servicio.";
@@ -121,6 +123,8 @@ public class PlanificacionService
             return "Debe seleccionar un conductor para planificar el servicio.";
 
         solicitud.HoraLlegada = solicitud.FechaHoraInicioPlanificada;
+        var errorHorarioObra = await ValidarHorarioObraAsync(solicitud, solicitud.FechaHoraInicioPlanificada.Value, solicitud.FechaHoraFinPlanificada.Value);
+        if (errorHorarioObra is not null) return errorHorarioObra;
         return await ValidarDisponibilidadAsync(
             solicitud.IdConductor.Value,
             solicitud.FechaHoraInicioPlanificada.Value,
@@ -154,6 +158,10 @@ public class PlanificacionService
         {
             return $"El horario seleccionado ({inicio:HH:mm}–{fin:HH:mm}) está fuera de la jornada laboral del conductor ({inicioJornada:hh\\:mm}–{finJornada:hh\\:mm}).";
         }
+
+        var pausaSolapada = ObtenerPausas(operario).FirstOrDefault(pausa => inicio.TimeOfDay < pausa.Fin && fin.TimeOfDay > pausa.Inicio);
+        if (pausaSolapada.Nombre is not null)
+            return $"El horario seleccionado coincide con el intervalo de {pausaSolapada.Nombre} del conductor ({pausaSolapada.Inicio:hh\\:mm}–{pausaSolapada.Fin:hh\\:mm}).";
 
         if (EstaInactivo(operario, inicio, fin))
             return $"El conductor está inactivo{GetMotivo(operario)} durante el intervalo seleccionado.";
@@ -211,13 +219,11 @@ public class PlanificacionService
                 continue;
             }
 
-            if (operario.InicioDescanso.HasValue && operario.FinDescanso.HasValue)
+            var pausaSolapada = ObtenerPausas(operario).FirstOrDefault(pausa => candidato.TimeOfDay < pausa.Fin && fin.TimeOfDay > pausa.Inicio);
+            if (pausaSolapada.Nombre is not null)
             {
-                if (candidato.TimeOfDay < operario.FinDescanso.Value && fin.TimeOfDay > operario.InicioDescanso.Value)
-                {
-                    candidato = candidato.Date + operario.FinDescanso.Value;
-                    continue;
-                }
+                candidato = candidato.Date + pausaSolapada.Fin;
+                continue;
             }
 
             if (string.Equals(operario.EstadoLaboral, "Inactivo", StringComparison.OrdinalIgnoreCase) &&
@@ -247,6 +253,29 @@ public class PlanificacionService
         }
 
         return new PlanificacionHueco { Mensaje = "No se encontró un hueco disponible dentro de la jornada laboral en los próximos 90 días." };
+    }
+
+    private async Task<HorarioObra?> ObtenerHorarioObraAsync(int idObra)
+    {
+        if (idObra <= 0) return null;
+        return await _context.HorariosObra.AsNoTracking().FirstOrDefaultAsync(h => h.Codigo == idObra.ToString("D5"));
+    }
+
+    private async Task<string?> ValidarHorarioObraAsync(Solicitud solicitud, DateTime inicio, DateTime fin)
+    {
+        var horario = await ObtenerHorarioObraAsync(solicitud.IdCliente);
+        if (horario is null) return null;
+        if (inicio.TimeOfDay < horario.HoraInicio || fin.TimeOfDay > horario.HoraFin)
+            return $"El horario seleccionado ({inicio:HH:mm}–{fin:HH:mm}) está fuera del horario de la obra ({horario.HoraInicio:hh\\:mm}–{horario.HoraFin:hh\\:mm}).";
+        return null;
+    }
+
+    private static IEnumerable<(string? Nombre, TimeSpan Inicio, TimeSpan Fin)> ObtenerPausas(Operario operario)
+    {
+        if (operario.InicioDescanso is { } inicioAlmuerzo && operario.FinDescanso is { } finAlmuerzo)
+            yield return ("almuerzo", inicioAlmuerzo, finAlmuerzo);
+        if (operario.InicioComida is { } inicioComida && operario.FinComida is { } finComida)
+            yield return ("comida", inicioComida, finComida);
     }
 
     private static bool EstaInactivo(Operario operario, DateTime inicio, DateTime fin)

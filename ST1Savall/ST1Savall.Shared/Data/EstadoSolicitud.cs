@@ -21,4 +21,5 @@ public class EstadoSolicitud
     public string? TextColor { get; set; }
 
     public bool Filtrar { get; set; }
+    public EstadoServicio? EstadoServicio { get; set; }
 }

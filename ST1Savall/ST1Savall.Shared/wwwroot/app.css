@@ -49,3 +49,34 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+/* Los submenús de DxMenu se muestran en una capa emergente fuera del NavMenu.
+   Estas reglas son globales para que sus IconCssClass también se vean. */
+.dxbl-menu-item-list .icon {
+    width: 1rem;
+    height: 1rem;
+    min-width: 1rem;
+    display: inline-block;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    margin-right: .5rem;
+}
+.dxbl-menu-item-list .home-icon { background-image: url("/_content/ST1Savall.Shared/images/home.svg"); }
+.dxbl-menu-item-list .weather-icon,
+.dxbl-menu-item-list .status-icon,
+.dxbl-menu-item-list .chart-icon { background-image: url("/_content/ST1Savall.Shared/images/weather.svg"); }
+.dxbl-menu-item-list .counter-icon,
+.dxbl-menu-item-list .database-icon,
+.dxbl-menu-item-list .contenedores-icon,
+.dxbl-menu-item-list .tipos-icon { background-image: url("/_content/ST1Savall.Shared/images/counter.svg"); }
+.dxbl-menu-item-list .settings-icon,
+.dxbl-menu-item-list .cargos-icon { background-image: url("/_content/ST1Savall.Shared/images/account/settings.svg"); }
+.dxbl-menu-item-list .log-in-icon { background-image: url("/_content/ST1Savall.Shared/images/account/log-in.svg"); }
+.dxbl-menu-item-list .log-out-icon { background-image: url("/_content/ST1Savall.Shared/images/account/log-out.svg"); }
+.dxbl-menu-item-list .user-icon,
+.dxbl-menu-item-list .operarios-icon { background-image: url("/_content/ST1Savall.Shared/images/account/user.svg"); }
+.dxbl-menu-item-list .solicitudes-icon,
+.dxbl-menu-item-list .tareas-icon,
+.dxbl-menu-item-list .doc-icon { background-image: url("/_content/ST1Savall.Shared/images/doc.svg"); }
+.dxbl-menu-item-list .obras-icon { background-image: url("/_content/ST1Savall.Shared/images/home.svg"); }
+.dxbl-menu-item-list .mail-icon { background-image: url("/_content/ST1Savall.Shared/images/mail.svg"); }

@@ -31,6 +31,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SolicitudFoto> SolicitudFotos { get; set; } = null!;
     public DbSet<TarifaCabecera> TarifasCabeceras { get; set; } = null!;
     public DbSet<TarifaLinea> TarifasLineas { get; set; } = null!;
+    public DbSet<HorarioObra> HorariosObra { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

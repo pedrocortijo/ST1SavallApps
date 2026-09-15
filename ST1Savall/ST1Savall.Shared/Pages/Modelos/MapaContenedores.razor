@@ -21,6 +21,16 @@
         </div>
     </div>
 
+    <DxPopup @bind-Visible="@confirmarCambioUbicacionVisible" HeaderText="Confirmar nueva ubicación" ShowFooter="true" Width="460px" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <div class="py-2"><p>¿Desea usar las nuevas coordenadas del marcador?</p><div class="text-muted small">Latitud: @pendienteLatitud?.ToString("F6", CultureInfo.InvariantCulture)<br />Longitud: @pendienteLongitud?.ToString("F6", CultureInfo.InvariantCulture)</div></div>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <button type="button" class="btn btn-outline-secondary me-2" @onclick="CancelarCambioUbicacionAsync">Cancelar</button>
+            <button type="button" class="btn btn-primary" @onclick="ConfirmarCambioUbicacionAsync">Usar ubicación</button>
+        </FooterContentTemplate>
+    </DxPopup>
+
     @if (errorMessage != null)
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -89,6 +99,10 @@
     public string? QueryObra { get; set; }
 
     [Parameter]
+    [SupplyParameterFromQuery(Name = "editable")]
+    public bool Editable { get; set; }
+
+    [Parameter]
     [SupplyParameterFromQuery(Name = "backUrl")]
     public string? QueryBackUrl { get; set; }
 
@@ -102,6 +116,9 @@
 
     private double? resolvedLat;
     private double? resolvedLon;
+    private double? pendienteLatitud;
+    private double? pendienteLongitud;
+    private bool confirmarCambioUbicacionVisible;
     private DotNetObjectReference<MapaContenedores>? dotNetRef;
 
     [JSInvokable]
@@ -110,6 +127,32 @@
         resolvedLat = lat;
         resolvedLon = lon;
         StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnLocationDragged(double lat, double lon)
+    {
+        pendienteLatitud = lat;
+        pendienteLongitud = lon;
+        confirmarCambioUbicacionVisible = true;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarCambioUbicacionAsync()
+    {
+        resolvedLat = pendienteLatitud;
+        resolvedLon = pendienteLongitud;
+        confirmarCambioUbicacionVisible = false;
+        if (resolvedLat.HasValue && resolvedLon.HasValue)
+            await JSRuntime.InvokeVoidAsync("setEditableMarker", "map-container", resolvedLat.Value, resolvedLon.Value);
+    }
+
+    private async Task CancelarCambioUbicacionAsync()
+    {
+        confirmarCambioUbicacionVisible = false;
+        var lat = resolvedLat ?? QueryLat;
+        var lon = resolvedLon ?? QueryLon;
+        if (lat.HasValue && lon.HasValue) await JSRuntime.InvokeVoidAsync("setEditableMarker", "map-container", lat.Value, lon.Value);
     }
 
     private string BackUrl
@@ -249,7 +292,8 @@
                     Lon = QueryLon ?? 0,
                     Address = QueryAddress,
                     Info = infoText,
-                    LabelText = labelText
+                    LabelText = labelText,
+                    Editable = Editable
                 });
                 errorMessage = null;
                 return;
@@ -388,5 +432,8 @@
 
         [System.Text.Json.Serialization.JsonPropertyName("labelText")]
         public string? LabelText { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("editable")]
+        public bool Editable { get; set; }
     }
 }

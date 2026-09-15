@@ -56,4 +56,10 @@ public class Operario
     [Column("fin_descanso")]
     public TimeSpan? FinDescanso { get; set; }
 
+    [Column("inicio_comida")]
+    public TimeSpan? InicioComida { get; set; }
+
+    [Column("fin_comida")]
+    public TimeSpan? FinComida { get; set; }
+
 }

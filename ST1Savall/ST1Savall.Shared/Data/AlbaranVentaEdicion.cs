@@ -31,6 +31,7 @@ public class AlbaranVentaEdicion
     public decimal PorcentajeIva { get; set; }
     public decimal ImporteIva { get; set; }
     public decimal TotalDocumento { get; set; }
+    public string Observaciones { get; set; } = string.Empty;
     public string Clave => $"{Empresa}|{Numero}|{Serie}";
     public string ClienteCif { get; set; } = string.Empty;
     public string ClienteNombre { get; set; } = string.Empty;

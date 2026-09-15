@@ -121,7 +121,8 @@
                                 <DxComboBox Data="@articulosSage" TData="ArticuloSage50" TValue="string" TextFieldName="Codigo" ValueFieldName="Codigo" @bind-Value="albaran.Articulo" @bind-Value:after="@(() => ActualizarDefinicionArticulo(albaran))" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" ClearButtonVisible="true" NullText="Seleccione..."><ItemTemplate Context="articulo"><strong>@articulo.Codigo</strong> - @articulo.Nombre</ItemTemplate></DxComboBox></div><div class="col-md-5"><label class="form-label">Definición</label><DxTextBox @bind-Text="albaran.Definicion" MaxLength="100" /></div><div class="col-md-1"><label class="form-label">Unidades</label><DxSpinEdit @bind-Value="albaran.Unidades" MinValue="0.000001m" DecimalPlaces="2" DisplayFormat="n2" /></div><div class="col-md-1"><label class="form-label">Precio</label><DxSpinEdit @bind-Value="albaran.Precio" MinValue="0m" DecimalPlaces="2" DisplayFormat="n2" /></div><div class="col-md-1"><label class="form-label">Dto. 1</label><DxSpinEdit @bind-Value="albaran.Descuento1" MinValue="0m" MaxValue="100m" /></div><div class="col-md-1"><label class="form-label">Dto. 2</label><DxSpinEdit @bind-Value="albaran.Descuento2" MinValue="0m" MaxValue="100m" /></div><div class="col-md-1"><label class="form-label">Importe</label><input class="form-control text-center fw-bold" value="@FormatearImporte(albaran)" readonly tabindex="-1" /></div>
                         </div>                        <div class="row align-items-start mt-3">
                             <div class="col-md-4"><h6 class="albaran-detalle-titulo mb-2">Campos adicionales</h6></div>
-                            <div class="col-md-8 d-flex flex-column align-items-md-end"><div class="albaran-totales-contenedor"><h6 class="albaran-detalle-titulo mb-2">Totales</h6></div></div>
+                            <div class="col-md-5"><h6 class="albaran-detalle-titulo mb-2">Observaciones</h6></div>
+                            <div class="col-md-3 d-flex flex-column align-items-md-end"><div class="albaran-totales-contenedor"><h6 class="albaran-detalle-titulo mb-2">Totales</h6></div></div>
                         </div>
                         <div class="row align-items-start mt-1">
                             <div class="col-md-4 mb-3 mb-md-0">
@@ -134,12 +135,15 @@
                                         </div>
                                 </div>
                             </div>
-                            <div class="col-md-8 d-flex flex-column align-items-md-end">
+                            <div class="col-md-5 mb-3 mb-md-0">
+                                <DxMemo @bind-Text="albaran.Observaciones" Rows="2" />
+                            </div>
+                            <div class="col-md-3 d-flex flex-column align-items-md-end">
                                 <div class="albaran-totales-contenedor">
                                     <div class="border rounded px-3 py-2 albaran-totales">
                                 <div class="d-flex justify-content-between gap-4"><span>Base imponible</span><strong>@FormatearBase(albaran) €</strong></div>
                                 <div class="d-flex justify-content-between gap-4 mt-1"><span>IVA (@albaran.PorcentajeIva.ToString("N2")%)</span><strong>@albaran.ImporteIva.ToString("N2") €</strong></div>
-                                <div class="d-flex justify-content-between gap-4 mt-1 border-top pt-1"><span>Total albarán</span><strong class="text-primary">@FormatearTotal(albaran) €</strong></div>
+                                <div class="d-flex justify-content-between gap-4 mt-1 border-top pt-1"><span>Total albarán</span><strong class="text-white">@FormatearTotal(albaran) €</strong></div>
                                     </div>
                                 </div>
                             </div>

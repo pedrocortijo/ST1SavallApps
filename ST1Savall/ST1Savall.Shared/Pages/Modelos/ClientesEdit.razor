@@ -217,10 +217,15 @@
                                                     }
                                                 </CellDisplayTemplate>
                                             </DxGridDataColumn>
-                                            <DxGridDataColumn FieldName="Persona" Caption="Persona" />
-                                            <DxGridDataColumn FieldName="Cargo" Caption="Cargo" />
+                                            <DxGridDataColumn FieldName="Vista" Caption="Envío Alb." Width="105px" TextAlignment="GridTextAlignment.Center">
+                                                <CellDisplayTemplate Context="context">
+                                                    <DxCheckBox Checked="@((bool)(context.DataItem as ContlfCliSage50)?.Vista)" ReadOnly="true" />
+                                                </CellDisplayTemplate>
+                                            </DxGridDataColumn>
+                                            <DxGridDataColumn FieldName="Persona" Caption="Persona" Width="100px"/>
+                                            <DxGridDataColumn FieldName="Cargo" Caption="Cargo" Width="100px" />
                                             <DxGridDataColumn FieldName="Telefono" Caption="Teléfono" Width="120px" />
-                                            <DxGridDataColumn FieldName="Observa" Caption="Observ." />
+                                            <DxGridDataColumn FieldName="Observa" Caption="Observ." Visible="false"/>
                                             <DxGridDataColumn FieldName="Email" Caption="Email" />
                                         </Columns>
                                         <EditFormTemplate Context="EditFormContext">
@@ -234,8 +239,11 @@
                                                                 ValueFieldName="Value"
                                                                 @bind-Value="@contact.Tipo" />
                                                 </DxFormLayoutItem>
-                                                <DxFormLayoutItem Caption="Predeterminado" ColSpanMd="6" CssClass="d-flex align-items-center mt-4">
+                                                <DxFormLayoutItem Caption="" ColSpanMd="3" CssClass="d-flex align-items-center mt-4">
                                                     <DxCheckBox @bind-Checked="@contact.Predet">Predeterminado</DxCheckBox>
+                                                </DxFormLayoutItem>
+                                                <DxFormLayoutItem Caption="" ColSpanMd="3" CssClass="d-flex align-items-center mt-4">
+                                                    <DxCheckBox @bind-Checked="@contact.Vista">Envío de albaranes</DxCheckBox>
                                                 </DxFormLayoutItem>
                                                 <DxFormLayoutItem Caption="Persona" ColSpanMd="6" BeginRow="true">
                                                     <DxTextBox @bind-Text="@contact.Persona" MaxLength="30" />

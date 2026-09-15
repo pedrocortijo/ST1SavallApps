@@ -143,6 +143,9 @@
                                     <DxFormLayoutItem Caption="Ruta de firmas" ColSpanMd="12">
                                         <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas..." />
                                     </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta de documentos" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.PathDocumentos" NullText="Carpeta donde se guardan los PDF de albaranes..." />
+                                    </DxFormLayoutItem>
                                     <DxFormLayoutGroup Caption="Estados" ColSpanMd="12">
                                         <DxFormLayoutItem Caption="Estado iniciado" ColSpanMd="6">
                                             <DxComboBox Data="@estadosList"
