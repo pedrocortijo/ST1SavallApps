@@ -62,7 +62,11 @@
     {
         <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Cargando servicios...</p></div>
     }
-    else if (conductorSeleccionadoId.HasValue && servicios.Count == 0)
+    else if (!conductorSeleccionadoId.HasValue)
+    {
+        <div class="alert alert-secondary">Seleccione un conductor para ver sus servicios asignados.</div>
+    }
+    else if (servicios.Count == 0)
     {
         <div class="alert alert-info">No hay servicios asignados al conductor seleccionado.</div>
     }
@@ -194,22 +198,27 @@
                 conductorSeleccionadoId = null;
             }
 
-            servicioIniciadoActualId = solicitudes
-                .FirstOrDefault(s => s.IdConductor == conductorSeleccionadoId && EsRutaObra(s))
-                ?.IdSolicitud;
+            servicioIniciadoActualId = conductorSeleccionadoId.HasValue
+                ? solicitudes
+                    .FirstOrDefault(s => s.IdConductor == conductorSeleccionadoId.Value && EsRutaObra(s))
+                    ?.IdSolicitud
+                : null;
 
             servicios.Clear();
-            servicios.AddRange(solicitudes.Where(s =>
-                    s.IdConductor == conductorSeleccionadoId
-                    && (mostrarFinalizados
-                        ? s.FechaTarea?.Date == DateTime.Today
-                            && EsRutaFinalizada(s)
-                        : !EsRutaFinalizada(s)
-                            && (s.FechaTarea?.Date == DateTime.Today
-                                || (mostrarPendientesAnteriores
-                                    && s.FechaTarea?.Date < DateTime.Today))))
-                .OrderBy(s => s.FechaHoraInicioPlanificada ?? DateTime.MaxValue)
-                .ThenBy(s => s.IdSolicitud));
+            if (conductorSeleccionadoId.HasValue)
+            {
+                servicios.AddRange(solicitudes.Where(s =>
+                        s.IdConductor == conductorSeleccionadoId.Value
+                        && (mostrarFinalizados
+                            ? s.FechaTarea?.Date == DateTime.Today
+                                && EsRutaFinalizada(s)
+                            : !EsRutaFinalizada(s)
+                                && (s.FechaTarea?.Date == DateTime.Today
+                                    || (mostrarPendientesAnteriores
+                                        && s.FechaTarea?.Date < DateTime.Today))))
+                    .OrderBy(s => s.FechaHoraInicioPlanificada ?? DateTime.MaxValue)
+                    .ThenBy(s => s.IdSolicitud));
+            }
             foreach (var s in servicios)
             {
                 s.ConductorNombre = operarios.FirstOrDefault(o => o.IdOperario == s.IdConductor)?.Nombre ?? "-";

@@ -23,6 +23,7 @@ public class Solicitud
     public int? IdHoraDisponible { get; set; }
     public int IdUsuario { get; set; }
     public int IdCliente { get; set; }
+    public int? IdPeriodicidadObraEjecucion { get; set; }
     public int? Prioridad { get; set; } = 3;
 
     [MaxLength(20)]

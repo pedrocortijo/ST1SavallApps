@@ -32,6 +32,8 @@ var connectionString = builder.Configuration.GetConnectionString("SavallAppsConn
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<PlanificacionService>();
+builder.Services.AddScoped<PeriodicidadObraService>();
+builder.Services.AddHostedService<PeriodicidadObraHostedService>();
 builder.Services.AddScoped<EstadoOperariosAusenciasService>();
 builder.Services.AddScoped<ParametrosIntegracionesService>();
 builder.Services.AddHttpClient<MapboxDirectionsService>(client => client.Timeout = TimeSpan.FromSeconds(20));
@@ -87,6 +89,10 @@ using (var scope = app.Services.CreateScope())
         await context.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('Parametros', 'PathDocumentos') IS NULL
                 ALTER TABLE Parametros ADD PathDocumentos VARCHAR(255) NULL;");
+        // Esta columna la utiliza el modelo de Solicitud; debe existir antes de que DbInitializer consulte solicitudes.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF COL_LENGTH('Solicitudes', 'IdPeriodicidadObraEjecucion') IS NULL
+                ALTER TABLE Solicitudes ADD IdPeriodicidadObraEjecucion INT NULL;");
         await DbInitializer.InitializeAsync(context, sageGestionContext, userManager, roleManager);
         await services.GetRequiredService<ParametrosIntegracionesService>().MigrarDesdeConfiguracionAsync();
     }

@@ -1114,6 +1114,58 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
             await context.SaveChangesAsync();
         }
 
+        // Esquema de periodicidad de obras. La API no ejecuta migraciones EF en producción.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'PeriodicidadesObra', N'U') IS NULL
+            BEGIN
+                CREATE TABLE PeriodicidadesObra (
+                    IdPeriodicidadObra INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PeriodicidadesObra PRIMARY KEY,
+                    ObraCodigo VARCHAR(5) NOT NULL,
+                    Activa BIT NOT NULL CONSTRAINT DF_PeriodicidadesObra_Activa DEFAULT 0,
+                    PendienteConfirmacion BIT NOT NULL CONSTRAINT DF_PeriodicidadesObra_PendienteConfirmacion DEFAULT 0,
+                    Unidad INT NOT NULL,
+                    Cantidad INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_Cantidad DEFAULT 1,
+                    L INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_L DEFAULT 0, M INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_M DEFAULT 0, X INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_X DEFAULT 0, J INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_J DEFAULT 0, V INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_V DEFAULT 0, S INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_S DEFAULT 0, D INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_D DEFAULT 0,
+                    HoraPrevista TIME NOT NULL,
+                    TipoInicio INT NOT NULL,
+                    FechaInicioManual DATE NULL,
+                    FechaUltimaRealizada DATE NULL,
+                    ProximaFecha DATE NULL,
+                    IdTipoTarea INT NOT NULL,
+                    FechaCreacion DATETIME2 NOT NULL CONSTRAINT DF_PeriodicidadesObra_FechaCreacion DEFAULT SYSUTCDATETIME(),
+                    FechaActualizacion DATETIME2 NULL
+                );
+                CREATE UNIQUE INDEX IX_PeriodicidadesObra_ObraCodigo ON PeriodicidadesObra(ObraCodigo);
+            END
+            IF OBJECT_ID(N'PeriodicidadesObraEjecuciones', N'U') IS NULL
+            BEGIN
+                CREATE TABLE PeriodicidadesObraEjecuciones (
+                    IdPeriodicidadObraEjecucion INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_PeriodicidadesObraEjecuciones PRIMARY KEY,
+                    IdPeriodicidadObra INT NOT NULL,
+                    FechaPrevista DATE NOT NULL,
+                    HoraPrevista TIME NOT NULL,
+                    IdSolicitud INT NULL,
+                    Estado INT NOT NULL CONSTRAINT DF_PeriodicidadesObraEjecuciones_Estado DEFAULT 1,
+                    FechaRealizacion DATETIME2 NULL,
+                    FechaCreacion DATETIME2 NOT NULL CONSTRAINT DF_PeriodicidadesObraEjecuciones_FechaCreacion DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT FK_PeriodicidadesObraEjecuciones_PeriodicidadesObra FOREIGN KEY (IdPeriodicidadObra) REFERENCES PeriodicidadesObra(IdPeriodicidadObra) ON DELETE CASCADE
+                );
+                CREATE UNIQUE INDEX IX_PeriodicidadesObraEjecuciones_IdPeriodicidadObra_FechaPrevista ON PeriodicidadesObraEjecuciones(IdPeriodicidadObra, FechaPrevista);
+            END
+            IF COL_LENGTH(N'PeriodicidadesObra', N'PendienteConfirmacion') IS NULL
+                ALTER TABLE PeriodicidadesObra ADD PendienteConfirmacion BIT NOT NULL CONSTRAINT DF_PeriodicidadesObra_PendienteConfirmacion DEFAULT 0;
+            IF COL_LENGTH(N'PeriodicidadesObra', N'L') IS NULL
+            BEGIN
+                ALTER TABLE PeriodicidadesObra ADD L INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_L DEFAULT 0, M INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_M DEFAULT 0, X INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_X DEFAULT 0, J INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_J DEFAULT 0, V INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_V DEFAULT 0, S INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_S DEFAULT 0, D INT NOT NULL CONSTRAINT DF_PeriodicidadesObra_D DEFAULT 0;
+                EXEC(N'UPDATE PeriodicidadesObra SET L = CASE WHEN DiaSemana = 1 THEN 1 ELSE 0 END, M = CASE WHEN DiaSemana = 2 THEN 1 ELSE 0 END, X = CASE WHEN DiaSemana = 3 THEN 1 ELSE 0 END, J = CASE WHEN DiaSemana = 4 THEN 1 ELSE 0 END, V = CASE WHEN DiaSemana = 5 THEN 1 ELSE 0 END, S = CASE WHEN DiaSemana = 6 THEN 1 ELSE 0 END, D = CASE WHEN DiaSemana = 7 THEN 1 ELSE 0 END;')
+            END
+            IF COL_LENGTH(N'Solicitudes', N'IdPeriodicidadObraEjecucion') IS NULL
+                ALTER TABLE Solicitudes ADD IdPeriodicidadObraEjecucion INT NULL;
+            SET ANSI_NULLS ON;
+            SET QUOTED_IDENTIFIER ON;
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Solicitudes_IdPeriodicidadObraEjecucion' AND object_id = OBJECT_ID(N'Solicitudes'))
+                EXEC(N'CREATE UNIQUE INDEX IX_Solicitudes_IdPeriodicidadObraEjecucion ON Solicitudes(IdPeriodicidadObraEjecucion) WHERE IdPeriodicidadObraEjecucion IS NOT NULL');
+        ");
         // Initialize SageGestion DB with tipo_iva table if it does not exist
         try
         {

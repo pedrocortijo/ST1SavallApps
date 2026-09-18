@@ -23,6 +23,7 @@ public class SolicitudesController : ControllerBase
     private readonly CalculoRutaSolicitudService _calculoRutaService;
     private readonly ArticulosSage50Service _articulosSage50Service;
     private readonly GeneracionAlbaranServicioService _generacionAlbaranServicioService;
+    private readonly PeriodicidadObraService _periodicidadObraService;
     private static readonly SemaphoreSlim GeneracionAlbaranesPendientesLock = new(1, 1);
 
     public SolicitudesController(
@@ -32,7 +33,8 @@ public class SolicitudesController : ControllerBase
         PlanificacionService planificacionService,
         CalculoRutaSolicitudService calculoRutaService,
         ArticulosSage50Service articulosSage50Service,
-        GeneracionAlbaranServicioService generacionAlbaranServicioService)
+        GeneracionAlbaranServicioService generacionAlbaranServicioService,
+        PeriodicidadObraService periodicidadObraService)
     {
         _context = context;
         _comunContext = comunContext;
@@ -41,6 +43,7 @@ public class SolicitudesController : ControllerBase
         _calculoRutaService = calculoRutaService;
         _articulosSage50Service = articulosSage50Service;
         _generacionAlbaranServicioService = generacionAlbaranServicioService;
+        _periodicidadObraService = periodicidadObraService;
     }
 
     [HttpPost("calcular-ruta")]
@@ -637,6 +640,7 @@ public class SolicitudesController : ControllerBase
 
         solicitud.Estado = estadoFinalizado.Value;
         await _context.SaveChangesAsync();
+        await _periodicidadObraService.RegistrarServicioRealizadoAsync(solicitud);
         return Ok(new ResultadoFinalizacionServicio
         {
             AlbaranGenerado = string.IsNullOrWhiteSpace(solicitud.AlbaranSerieSage) == false

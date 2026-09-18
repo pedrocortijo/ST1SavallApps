@@ -32,6 +32,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TarifaCabecera> TarifasCabeceras { get; set; } = null!;
     public DbSet<TarifaLinea> TarifasLineas { get; set; } = null!;
     public DbSet<HorarioObra> HorariosObra { get; set; } = null!;
+    public DbSet<PeriodicidadObra> PeriodicidadesObra { get; set; } = null!;
+    public DbSet<PeriodicidadObraEjecucion> PeriodicidadesObraEjecuciones { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -92,6 +94,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasMany(p => p.Detalles).WithOne().HasForeignKey(p => p.IdPrecioEspecialCabecera).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<PrecioEspecialDetalle>()
             .HasIndex(p => new { p.IdPrecioEspecialCabecera, p.ArticuloSage }).IsUnique();
+        builder.Entity<PeriodicidadObra>().HasIndex(p => p.ObraCodigo).IsUnique();
+        builder.Entity<PeriodicidadObra>().Property(p => p.ObraCodigo).HasMaxLength(5).IsUnicode(false);
+        builder.Entity<PeriodicidadObra>().Property(p => p.FechaInicioManual).HasColumnType("date");
+        builder.Entity<PeriodicidadObra>().Property(p => p.FechaUltimaRealizada).HasColumnType("date");
+        builder.Entity<PeriodicidadObra>().Property(p => p.ProximaFecha).HasColumnType("date");
+        builder.Entity<PeriodicidadObraEjecucion>().Property(e => e.FechaPrevista).HasColumnType("date");
+        builder.Entity<PeriodicidadObraEjecucion>().HasIndex(e => new { e.IdPeriodicidadObra, e.FechaPrevista }).IsUnique();
+        builder.Entity<PeriodicidadObraEjecucion>().HasOne(e => e.Periodicidad).WithMany(p => p.Ejecuciones).HasForeignKey(e => e.IdPeriodicidadObra).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<Solicitud>().HasIndex(s => s.IdPeriodicidadObraEjecucion).IsUnique().HasFilter("[IdPeriodicidadObraEjecucion] IS NOT NULL");
+
 
         builder.Entity<Solicitud>()
             .Property(s => s.Latitud)

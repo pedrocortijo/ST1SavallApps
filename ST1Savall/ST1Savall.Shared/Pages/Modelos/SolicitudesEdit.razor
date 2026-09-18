@@ -1,4 +1,4 @@
-@page "/modelos/solicitudes/edit"
+﻿@page "/modelos/solicitudes/edit"
 @page "/modelos/solicitudes/edit/{Id:int}"
 @using Microsoft.AspNetCore.Components.Forms
 @using ST1Savall.Shared.Data
@@ -364,6 +364,7 @@
                     </DxFormLayoutItem>
                     
                     <DxFormLayoutItem Caption="Obra" ColSpanMd="6">
+
                         <DxComboBox Data="@obras"
                                     TextFieldName="TextoBusqueda"
                                     ValueFieldName="IdObra"
@@ -380,9 +381,11 @@
                                                 Enabled="@TieneObraSeleccionada"
                                                 Visible="true" />
                             </Buttons>
+
                             <ItemTemplate Context="obra">
                                 <span><strong>@obra.Codigo</strong> - @obra.Descripcion</span>
                             </ItemTemplate>
+
                         </DxComboBox>
                     </DxFormLayoutItem>
                     <DxFormLayoutItem Caption="Servicio sin obra" ColSpanMd="2">
@@ -521,8 +524,6 @@
                     <DxFormLayoutItem Caption="Hora" ColSpanMd="3" Visible="false">
                         <DxTextBox @bind-Value="@solicitud.HoraLlegada" />
                     </DxFormLayoutItem>
-
-
 
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
                         Planificación del servicio
@@ -3094,7 +3095,8 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         .Where(c => !EstaSeleccionadoParaEntrega(c)
             && (EsContenedorActual(c, solicitud?.CodigoRecogida)
             || EsContenedorActual(c, solicitud?.CodigoAmbosRecogida)
-            || EstaEntregadoEnObraSeleccionada(c)))
+            || EstaEntregadoEnObraSeleccionada(c)
+            || EstaEntregadoDePlantaSinObra(c)))
         .OrderBy(c => c.NumSerie)
         .ToList() ?? new List<Contenedor>();
 
@@ -3110,8 +3112,42 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         EsContenedorActual(contenedor, solicitud?.CodigoRecogida)
         || EsContenedorActual(contenedor, solicitud?.CodigoAmbosRecogida);
 
-    private bool EstaEntregadoEnObraSeleccionada(Contenedor contenedor) =>
-        UltimaEntregaVigente(contenedor.NumSerie)?.IdCliente == solicitud?.IdCliente;
+    private bool EstaEntregadoEnObraSeleccionada(Contenedor contenedor)
+    {
+        var entrega = UltimaEntregaVigente(contenedor.NumSerie);
+        if (entrega == null) return false;
+
+        if (solicitud?.IdCliente > 0 && entrega.IdCliente == solicitud.IdCliente)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(solicitud?.NombreObra) &&
+            string.Equals(entrega.NombreObra?.Trim(), solicitud.NombreObra.Trim(), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private bool EstaEntregadoDePlantaSinObra(Contenedor c)
+    {
+        var idPlanta = IdPlantaOrigen 
+            ?? solicitud?.IdPlantaDescarga 
+            ?? operarios?.FirstOrDefault(o => o.IdOperario == solicitud?.IdConductor)?.IdPlanta
+            ?? (plantas?.Count == 1 ? plantas[0].IdPlanta : (int?)null);
+
+        if (!idPlanta.HasValue || c.IdPlanta != idPlanta.Value)
+            return false;
+
+        bool estaEntregado = string.Equals(c.EstadoFisico, "Entregado", StringComparison.OrdinalIgnoreCase)
+                             || EstaEntregadoActualmente(c.NumSerie);
+
+        if (!estaEntregado)
+            return false;
+
+        var entrega = UltimaEntregaVigente(c.NumSerie);
+        bool tieneObra = entrega != null && (entrega.IdCliente > 0 || !string.IsNullOrWhiteSpace(entrega.NombreObra));
+
+        return !tieneObra;
+    }
 
     private bool EstaEntregadoActualmente(string numeroSerie) => UltimaEntregaVigente(numeroSerie) is not null;
 
@@ -3144,10 +3180,14 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         ?? Enumerable.Empty<Tarea>();
 
     private bool TieneContenedoresEnObra => solicitud?.IdCliente > 0
-        && solicitudesConContenedores?.Any(s => s.IdCliente == solicitud.IdCliente) == true;
+        && (solicitudesConContenedores?.Any(s => s.IdCliente == solicitud.IdCliente) == true
+            || contenedoresList?.Any(EstaEntregadoEnObraSeleccionada) == true);
+
+    private bool TieneContenedoresDisponiblesParaRecogida =>
+        TieneContenedoresEnObra || (contenedoresList?.Any(EstaEntregadoDePlantaSinObra) == true);
 
     private bool PuedeSeleccionarTarea(Tarea tarea) =>
-        !RequiereContenedorExistente(tarea) || TieneContenedoresEnObra;
+        !RequiereContenedorExistente(tarea) || TieneContenedoresDisponiblesParaRecogida;
 
     private static bool RequiereContenedorExistente(Tarea tarea) =>
         tarea.Recoger1 || tarea.Recoger2;
@@ -3169,6 +3209,7 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
             errorMessage = "No se puede seleccionar esta tarea porque incluye una retirada y la obra no tiene contenedores asignados.";
             return;
         }
+
         var seAfectaEntrega1 = !string.IsNullOrWhiteSpace(solicitud.CodigoEntrega) && nuevaTarea?.Entrega1 != true;
         var seAfectaEntrega2 = !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega) && nuevaTarea?.Entrega2 != true;
         var seAfectaRecogida1 = !string.IsNullOrWhiteSpace(solicitud.CodigoRecogida) && nuevaTarea?.Recoger1 != true;
@@ -3193,7 +3234,6 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
 
         AplicarCambioTarea(val);
     }
-
     private void ConfirmarCambioTarea()
     {
         if (tipoTareaPendiente.HasValue)

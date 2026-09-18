@@ -63,16 +63,15 @@
         <div class="badge bg-dark text-white p-2 px-3 rounded-pill" style="font-size: 0.9rem;">
             <i class="oi oi-calendar me-1"></i> @DateTime.Today.ToString("dd 'de' MMMM, yyyy", new System.Globalization.CultureInfo("es-ES"))
         </div>
-    </div>
+    </div>    <DxMessageBox @bind-Visible="errorPopupVisible" Text="@errorMessage" Title="Error" Type="MessageBoxType.Alert" />
 
-    @if (errorMessage != null)
-    {
-        <div class="alert alert-danger mb-4 alert-dismissible fade show" role="alert">
-            @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
-        </div>
-    }
-
+    <DxPopup @bind-Visible="confirmacionesPeriodicidadVisibles" HeaderText="Servicios recurrentes pendientes de confirmación" ShowFooter="true" Width="min(900px, 95vw)" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <p>Se han detectado servicios recurrentes listos para crear. No se generará ninguna solicitud hasta confirmar.</p>
+            <DxGrid Data="@periodicidadesPendientesConfirmacion" KeyFieldName="IdPeriodicidadObra" PageSize="10"><Columns><DxGridDataColumn FieldName="ObraCodigo" Caption="Obra" /><DxGridDataColumn FieldName="ProximaFecha" Caption="Fecha prevista" DisplayFormat="d" /><DxGridDataColumn FieldName="HoraPrevista" Caption="Hora" DisplayFormat="t" /></Columns></DxGrid>
+        </BodyContentTemplate>
+        <FooterContentTemplate><div class="d-flex justify-content-end gap-2 w-100"><DxButton Text="Confirmar y crear servicios" RenderStyle="ButtonRenderStyle.Primary" Click="ConfirmarPeriodicidadesAsync" /><DxButton Text="Ahora no" RenderStyle="ButtonRenderStyle.Secondary" Click="() => confirmacionesPeriodicidadVisibles = false" /></div></FooterContentTemplate>
+    </DxPopup>
     <DxPopup @bind-Visible="notificacionesServiciosVisibles"
              HeaderText="Control de inicio de servicios"
              ShowFooter="true"
@@ -660,8 +659,12 @@
     private List<Obra>? obras;
     private List<Parametro>? parametros;
     private bool loading = true;
-    private string? errorMessage;
+    private string? _errorMessage;
+    private bool errorPopupVisible;
+    private string? errorMessage { get => _errorMessage; set { _errorMessage = value; errorPopupVisible = !string.IsNullOrWhiteSpace(value); } }
     private bool notificacionesServiciosVisibles;
+    private bool confirmacionesPeriodicidadVisibles;
+    private List<PeriodicidadObra> periodicidadesPendientesConfirmacion = [];
     private bool observacionesConductorVisibles;
     private bool albaranesPendientesVisibles;
     private List<Solicitud> notificacionesServiciosParaMostrar = [];
@@ -1041,6 +1044,27 @@
         }
     }
 
+    private async Task CargarConfirmacionesPeriodicidadAsync()
+    {
+        try
+        {
+            periodicidadesPendientesConfirmacion = await Http.GetFromJsonAsync<List<PeriodicidadObra>>("api/periodicidades-obra/pendientes-confirmacion") ?? [];
+            confirmacionesPeriodicidadVisibles = periodicidadesPendientesConfirmacion.Count > 0;
+        }
+        catch (System.Text.Json.JsonException) { periodicidadesPendientesConfirmacion = []; confirmacionesPeriodicidadVisibles = false; }
+        catch (HttpRequestException) { periodicidadesPendientesConfirmacion = []; confirmacionesPeriodicidadVisibles = false; }
+    }
+    private async Task ConfirmarPeriodicidadesAsync()
+    {
+        foreach (var periodicidad in periodicidadesPendientesConfirmacion.ToList())
+        {
+            var respuesta = await Http.PostAsync($"api/periodicidades-obra/{periodicidad.IdPeriodicidadObra}/confirmar", null);
+            if (!respuesta.IsSuccessStatusCode) { errorMessage = "No se pudo crear uno de los servicios recurrentes confirmados."; return; }
+        }
+        confirmacionesPeriodicidadVisibles = false;
+        periodicidadesPendientesConfirmacion = [];
+        await LoadDataAsync();
+    }
     private async Task LoadDataAsync()
     {
         try
@@ -1055,7 +1079,6 @@
             var parametrosTask = Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
             var estadosTask = Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud");
             var tareasTask = Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
-
             await Task.WhenAll(operariosTask, solicitudesTask, clientesTask, obrasTask, parametrosTask, estadosTask, tareasTask);
             operarios = await operariosTask;
             solicitudes = await solicitudesTask;
@@ -1064,6 +1087,7 @@
             parametros = await parametrosTask;
             estadosList = await estadosTask;
             tareasList = await tareasTask;
+            await CargarConfirmacionesPeriodicidadAsync();
 
             comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
             if (operarios != null)

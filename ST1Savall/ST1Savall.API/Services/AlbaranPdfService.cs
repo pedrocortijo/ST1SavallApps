@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Security.Cryptography;
 using DevExpress.Drawing;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Drawing;
@@ -17,7 +18,7 @@ public sealed class AlbaranPdfService
     {
         var bytes = CacheAssets.GetOrAdd(nombre, n =>
         {
-            var resName = "ST1Savall.API.Assets." + n;
+            var resName = "ST1Savall.API.Assets." + n.Replace("\\", ".").Replace("/", ".");
             using var s = typeof(AlbaranPdfService).Assembly.GetManifestResourceStream(resName);
             if (s != null)
             {
@@ -51,10 +52,23 @@ public sealed class AlbaranPdfService
     {
         using var report = CrearReport(empresa, a, c, obra, lineas, iva, firmante, dniFirmante, rutaFirma, fotos, contenedorEntregado, contenedorRetirado, solicitudPlanta, camion, plantaReciclaje);
         using var stream = new MemoryStream();
-        report.ExportToPdf(stream);
+        report.ExportToPdf(stream, CrearOpcionesPdfSoloLectura());
         return stream.ToArray();
     }
 
+    private static PdfExportOptions CrearOpcionesPdfSoloLectura()
+    {
+        var opciones = new PdfExportOptions();
+        opciones.PasswordSecurityOptions.EncryptionLevel = PdfEncryptionLevel.AES256;
+        // Contraseña interna, diferente para cada documento: el PDF se abre sin clave,
+        // pero no permite cambiar permisos ni editar el contenido.
+        opciones.PasswordSecurityOptions.PermissionsPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        opciones.PasswordSecurityOptions.PermissionsOptions.ChangingPermissions = ChangingPermissions.None;
+        opciones.PasswordSecurityOptions.PermissionsOptions.EnableCopying = false;
+        opciones.PasswordSecurityOptions.PermissionsOptions.EnableScreenReaders = true;
+        opciones.PasswordSecurityOptions.PermissionsOptions.PrintingPermissions = PrintingPermissions.HighResolution;
+        return opciones;
+    }
     public static XtraReport CrearReport(string empresa, AlbaranVentaSage50 a, ClienteSage50 c, ObraComunSage50? obra,
         IReadOnlyList<LineaAlbaranVentaSage50> ls, TipoIvaSage50? iva, string? firmante, string? dniFirmante, string? firma, IReadOnlyList<string> fotos, string? contenedorEntregado, string? contenedorRetirado, Solicitud? solicitudPlanta, Camion? camion, Planta? plantaReciclaje)
     {
@@ -108,8 +122,48 @@ public sealed class AlbaranPdfService
         var nombreArticulo = lineaArticulo?.DEFINICION?.Trim() ?? string.Empty;
         var fecha = solicitud?.FechaTarea ?? a.FECHA;
         var hora = solicitud?.HoraPesaje?.ToString(@"hh\:mm") ?? string.Empty;
-        var nombreObra = !string.IsNullOrWhiteSpace(obra?.Nombre) ? obra!.Nombre.Trim() : a.OBRA.Trim();
 
+        // Las plantillas entregadas por el cliente son el fondo completo de la página de pesaje.
+        // Se han convertido directamente desde sus PDF a 600 ppp: conserva la nitidez al imprimir,
+        // mientras los valores se dibujan como texto vectorial sobre los huecos correspondientes.
+        var plantilla = ObtenerPlantillaPesaje(plantaReciclaje);
+        if (plantilla != null)
+        {
+            // XtraReports pinta el primer control agregado por encima de los siguientes.
+            // Por eso el fondo se agrega al final: queda detrás de los datos y de la firma.
+            var fondoPlantilla = new XRPictureBox
+            {
+                ImageSource = plantilla,
+                Sizing = ImageSizeMode.StretchImage,
+                LocationFloat = new DevExpress.Utils.PointFloat(0, 0),
+                SizeF = new System.Drawing.SizeF(747, 526)
+            };
+
+            L(b, solicitud?.AlbaranPlanta?.Trim() ?? string.Empty, 145, 164, 145, 18, 9.5f);
+            L(b, fecha.ToString("dd/MM/yyyy"), 90, 201, 90, 18, 9.5f);
+            L(b, hora, 250, 200, 70, 18, 9.5f);
+            L(b, camion?.Matricula?.Trim() ?? string.Empty, 410, 200, 150, 18, 9.5f);
+            L(b, "Savall Contenedores S.L.", 95, 231, 360, 18, 9.5f);
+            L(b, "B54099023", 545, 231, 150, 18, 9.5f);
+            L(b, "Alicante", 100, 269, 255, 18, 9.5f);
+
+            var concepto = string.IsNullOrWhiteSpace(nombreArticulo) ? codigoArticulo
+                : string.IsNullOrWhiteSpace(codigoArticulo) || codigoArticulo.Equals(nombreArticulo, StringComparison.OrdinalIgnoreCase)
+                    ? nombreArticulo : $"{codigoArticulo} - {nombreArticulo}";
+            L(b, concepto, 48, 327, 270, 30, 8.5f, false, TextAlignment.MiddleLeft, BorderSide.None, true);
+            // La cuadrícula ya está en la plantilla. Estos valores se imprimen sin bordes propios.
+            L(b, K(bruto), 320, 313, 80, 58, 10, false, TextAlignment.MiddleCenter);
+            L(b, K(tara), 400, 313, 80, 58, 10, false, TextAlignment.MiddleCenter);
+            L(b, K(neto), 480, 313, 80, 58, 10, false, TextAlignment.MiddleCenter);
+
+            var imgFirmaPesaje = ObtenerImagenAsset("FirmaPesaje.png");
+            if (imgFirmaPesaje != null)
+                b.Controls.Add(new XRPictureBox { ImageSource = imgFirmaPesaje, Sizing = ImageSizeMode.ZoomImage, LocationFloat = new DevExpress.Utils.PointFloat(110, 405), SizeF = new System.Drawing.SizeF(100, 70) });
+            b.Controls.Add(fondoPlantilla);
+            return;
+        }
+
+        // Compatibilidad segura mientras se despliega un paquete sin las nuevas plantillas.
         var imgCabeceraPesaje = ObtenerCabeceraPesaje(plantaReciclaje);
         if (imgCabeceraPesaje != null)
             b.Controls.Add(new XRPictureBox { ImageSource = imgCabeceraPesaje, Sizing = ImageSizeMode.StretchImage, LocationFloat = new DevExpress.Utils.PointFloat(0, 0), SizeF = new System.Drawing.SizeF(747, 150) });
@@ -117,36 +171,32 @@ public sealed class AlbaranPdfService
         L(b,"Fecha:",0,188,60,20,10,true); L(b,fecha.ToString("dd/MM/yyyy"),65,188,115,20,10);
         L(b,"Hora:",190,188,50,20,10,true); L(b,hora,240,188,70,20,10);
         L(b,"Vehículo:",320,188,75,20,10,true); L(b,camion?.Matricula?.Trim() ?? string.Empty,395,188,145,20,10);
-        L(b,"Cliente:",0,224,70,20,10,true); L(b,"SABOSPA S.L.",75,224,385,20,10);
-        L(b,"C.I.F.:",470,224,60,20,10,true); L(b,"B-03969920",530,224,210,20,10);
-        L(b,"Obra:",0,247,55,20,10,true);
-        L(b,"Población:",470,247,85,20,10,true);
+        L(b,"Cliente:",0,224,70,20,10,true); L(b,"Savall Contenedores S.L.",75,224,385,20,10);
+        L(b,"C.I.F.:",470,224,60,20,10,true); L(b,"B54099023",530,224,210,20,10);
+        L(b,"Obra:",0,247,55,20,10,true); L(b,"Población:",470,247,85,20,10,true);
         L(b,"Provincia:",0,270,80,20,10,true); L(b,"Alicante",80,270,380,20,10);
         L(b,"Teléfono:",470,270,75,20,10,true);
         C(b,"Concepto",0,310,320,26,9,true,TextAlignment.MiddleLeft); C(b,"Kg. Bruto",320,310,80,26,9,true,TextAlignment.MiddleCenter);
         C(b,"Kg. Tara",400,310,80,26,9,true,TextAlignment.MiddleCenter); C(b,"Kg. Neto",480,310,80,26,9,true,TextAlignment.MiddleCenter);
         C(b,"Precio",560,310,90,26,9,true,TextAlignment.MiddleCenter); C(b,"Importe",650,310,97,26,9,true,TextAlignment.MiddleCenter);
         C(b,"",0,336,320,58,9);
-        if (!string.IsNullOrWhiteSpace(codigoArticulo) && !string.IsNullOrWhiteSpace(nombreArticulo) && !codigoArticulo.Equals(nombreArticulo, StringComparison.OrdinalIgnoreCase))
-        {
-            L(b,codigoArticulo,4,340,312,18,9,true);
-            L(b,nombreArticulo,4,360,312,30,8.5f,false,TextAlignment.MiddleLeft,BorderSide.None,true);
-        }
-        else
-        {
-            var textoUnico = !string.IsNullOrWhiteSpace(codigoArticulo) ? codigoArticulo : nombreArticulo;
-            L(b,textoUnico,4,350,312,30,9,false,TextAlignment.MiddleLeft,BorderSide.None,true);
-        }
-        C(b,K(bruto),320,336,80,58,10,false,TextAlignment.MiddleCenter);
-        C(b,K(tara),400,336,80,58,10,false,TextAlignment.MiddleCenter); C(b,K(neto),480,336,80,58,10,false,TextAlignment.MiddleCenter);
-        C(b,"",560,336,90,58,10); C(b,"",650,336,97,58,10);
+        L(b, string.IsNullOrWhiteSpace(nombreArticulo) ? codigoArticulo : $"{codigoArticulo} - {nombreArticulo}", 4, 350, 312, 30, 9, false, TextAlignment.MiddleLeft, BorderSide.None, true);
+        C(b,K(bruto),320,336,80,58,10,false,TextAlignment.MiddleCenter); C(b,K(tara),400,336,80,58,10,false,TextAlignment.MiddleCenter); C(b,K(neto),480,336,80,58,10,false,TextAlignment.MiddleCenter);
         L(b,"Conforme cliente:",100,405,160,20,10,true);
-        var imgFirmaPesaje = ObtenerImagenAsset("FirmaPesaje.png");
-        if (imgFirmaPesaje != null)
-            b.Controls.Add(new XRPictureBox { ImageSource = imgFirmaPesaje, Sizing = ImageSizeMode.ZoomImage, LocationFloat = new DevExpress.Utils.PointFloat(110, 430), SizeF = new System.Drawing.SizeF(100, 80) });
-        L(b,"I.V.A.",560,405,90,20,10,true,TextAlignment.MiddleCenter); C(b,"",650,405,97,20,10);
-        L(b,"TOTAL",560,430,90,20,10,true,TextAlignment.MiddleCenter); C(b,"",650,430,97,20,10);
         L(b,"SABOSPA S.L. CIF B-03969920 Inscrita en el Registro Mercantil de Alicante, Tomo 1736, Folio 197, Hoja A-26776, Inscripción 1ª",0,700,747,18,7.5f,false,TextAlignment.MiddleCenter);
+    }
+
+    static ImageSource? ObtenerPlantillaPesaje(Planta? planta)
+    {
+        var nombre = planta?.Nombre ?? string.Empty;
+        var recurso = nombre.Contains("Finestrat", StringComparison.OrdinalIgnoreCase)
+            ? "PlantillasPesaje/FINESTRAT.png"
+            : nombre.Contains("Monforte", StringComparison.OrdinalIgnoreCase)
+                ? "PlantillasPesaje/MONFORTE.png"
+                : nombre.Contains("Alicante", StringComparison.OrdinalIgnoreCase)
+                    ? "PlantillasPesaje/ALICANTE.png"
+                    : null;
+        return recurso is null ? null : ObtenerImagenAsset(recurso);
     }
     static ImageSource? ObtenerCabeceraPesaje(Planta? planta)
     {

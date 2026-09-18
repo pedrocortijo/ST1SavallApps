@@ -48,7 +48,7 @@
                             @{ var item = (UbicacionCamionWialon)context.DataItem; }
                             @if (item.DistanciaRutaMetros.HasValue && item.MinutosViajeRuta.HasValue)
                             {
-                                <span class="@(item.FaseRuta == "Regreso" ? "text-success fw-bold" : null)">@((item.DistanciaRutaMetros.Value / 1000d).ToString("N1")) km - @item.MinutosViajeRuta min</span>
+                                <span class="@(item.FaseRuta == "Regreso" ? "ruta-regreso" : null)">@((item.DistanciaRutaMetros.Value / 1000d).ToString("N1")) km - @item.MinutosViajeRuta min</span>
                             }
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
@@ -57,7 +57,7 @@
                             @{ var item = (UbicacionCamionWialon)context.DataItem; }
                             @if (item.DistanciaRestanteMetros.HasValue && item.MinutosViajeRestantes.HasValue)
                             {
-                                <span class="@(item.FaseRuta == "Regreso" ? "text-success fw-bold" : null)">@((item.DistanciaRestanteMetros.Value / 1000d).ToString("N1")) km - @item.MinutosViajeRestantes min</span>
+                                <span class="@(item.FaseRuta == "Regreso" ? "ruta-regreso" : null)">@((item.DistanciaRestanteMetros.Value / 1000d).ToString("N1")) km - @item.MinutosViajeRestantes min</span>
                             }
                             else if (!string.IsNullOrWhiteSpace(item.ErrorRutaRestante))
                             {

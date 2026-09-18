@@ -25,7 +25,7 @@
             <p class="text-muted mb-0">Complete los datos de la obra</p>
         </div>
         <button class="btn btn-outline-secondary btn-sm" @onclick="Volver">
-            <i class="oi oi-arrow-left me-1"></i> @(string.IsNullOrWhiteSpace(ReturnUrl) ? "Volver a Obras" : "Volver a Solicitud")
+            <i class="oi oi-arrow-left me-1"></i> @(string.IsNullOrWhiteSpace(ReturnUrl) ? "Volver a Obras" : ReturnUrl.Contains("servicios-recurrentes", StringComparison.OrdinalIgnoreCase) ? "Volver a servicios recurrentes" : "Volver a Solicitud")
         </button>
     </div>
 
@@ -45,16 +45,7 @@
             <button type="button" class="btn btn-primary px-4" @onclick="() => clienteObligatorioPopupVisible = false">Aceptar</button>
         </FooterContentTemplate>
     </DxPopup>
-
-    @if (errorMessage != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
-        </div>
-    }
-
-    @if (isLoading)
+@if (isLoading)
     {
         <div class="p-5 text-center">
             <div class="spinner-border text-primary" role="status">
@@ -81,11 +72,11 @@
                                 <div class="flex-grow-1">
                                     <DxTextBox Text="@obra.Codigo" TextChanged="@((string valor) => obra.Codigo = LimitarTexto(valor, 5))" TextExpression="@(() => obra.Codigo)" BindValueMode="BindValueMode.OnInput" MaxLength="5" ReadOnly="@(!IsNew)" />
                                 </div>
-                                <button 
-                                    type="button" 
-                                    class="btn btn-outline-success btn-sm" 
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-success btn-sm"
                                     style="height: 30px; padding-top: 0; padding-bottom: 0;"
-                                    title="Generar código" 
+                                    title="Generar código"
                                     disabled="@(!string.IsNullOrWhiteSpace(obra.Codigo))" @onclick="GenerarCodigoObraAsync" @onclick:stopPropagation="true">
                                     <i class="oi oi-random"></i>
                                 </button>
@@ -154,17 +145,17 @@
 
                         <DxFormLayoutItem ColSpanMd="6" CssClass="align-bottom-to-input pb-1">
                             <div class="d-flex gap-4 w-100 mt-4">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-outline-primary btn-sm flex-fill d-flex align-items-center justify-content-center text-nowrap" 
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-primary btn-sm flex-fill d-flex align-items-center justify-content-center text-nowrap"
                                     @onclick="ObtenerUbicacionConGuardadoAsync"
                                     style="height: 32px;">
                                     <i class="oi oi-map-marker me-1"></i> Obtener coordenadas del dispositivo
                                 </button>
-                                <button 
-                                    type="button" 
-                                    class="btn btn-outline-success btn-sm flex-fill d-flex align-items-center justify-content-center text-nowrap" @onclick="AbrirMapaConGuardadoAsync" 
-                                    style="height: 32px;" 
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-success btn-sm flex-fill d-flex align-items-center justify-content-center text-nowrap" @onclick="AbrirMapaConGuardadoAsync"
+                                    style="height: 32px;"
                                     title="Ver en Google Maps">
                                     <i class="oi oi-eye me-1"></i> Ver en Maps
                                 </button>
@@ -286,14 +277,85 @@
                             }
                         </div>
                     </DxTabPage>
+                    <DxTabPage Text="Servicios recurrentes" Enabled="@(!IsNew)">
+                        <div class="p-3">
+                            @if (IsNew)
+                            { <div class="alert alert-info mb-0">Guarde primero la obra para configurar su periodicidad.</div> }
+                            else
+                            {
+                                <div class="alert alert-info">Se mantiene una única solicitud futura. Cuando corresponde crear el siguiente servicio, se solicitará confirmación antes de generarlo.</div>
+                                <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+
+                                    <DxFormLayoutItem Caption="Activar" ColSpanMd="2">
+                                        <DxCheckBox @bind-Checked="periodicidadObra.Activa" />
+                                    </DxFormLayoutItem>
+
+                                    <DxFormLayoutItem Caption="Cada" ColSpanMd="2">
+                                        <DxComboBox Data="@unidadesPeriodicidad"
+                                        TextFieldName="Texto"
+                                        ValueFieldName="Valor" @bind-Value="periodicidadObra.Unidad" />
+                                    </DxFormLayoutItem>
+
+                                    <DxFormLayoutItem Caption="Cant. Servicios" ColSpanMd="2">
+                                        <DxSpinEdit @bind-Value="periodicidadObra.Cantidad" MinValue="1" />
+                                    </DxFormLayoutItem>
+
+                                    <DxFormLayoutItem Caption="Servicio a realizar *" ColSpanMd="6">
+                                        <DxComboBox Data="@tareasPeriodicidad"
+                                        TextFieldName="NombreTarea"
+                                        ValueFieldName="IdTarea" @bind-Value="periodicidadObra.IdTipoTarea"
+                                        SearchMode="ListSearchMode.AutoSearch" />
+                                    </DxFormLayoutItem>
+
+                                    <DxFormLayoutItem Caption="Se inicia" ColSpanMd="6">
+                                        <DxComboBox Data="@iniciosPeriodicidad"
+                                        TextFieldName="Texto"
+                                        ValueFieldName="Valor" @bind-Value="periodicidadObra.TipoInicio" />
+                                    </DxFormLayoutItem>
+
+                                    <DxFormLayoutItem Caption="Hora prevista" ColSpanMd="4">
+                                        <DxTimeEdit @bind-Time="periodicidadObra.HoraPrevista" DisplayFormat="HH:mm" Format="HH:mm" />
+                                    </DxFormLayoutItem>
+
+                                    <DxFormLayoutItem Caption="Día de servicio" ColSpanMd="12">
+                                        <div class="d-flex justify-content-center align-items-center gap-3 pt-2">
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('L'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('L', marcado))">L</DxCheckBox>
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('M'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('M', marcado))">M</DxCheckBox>
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('X'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('X', marcado))">X</DxCheckBox>
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('J'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('J', marcado))">J</DxCheckBox>
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('V'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('V', marcado))">V</DxCheckBox>
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('S'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('S', marcado))">S</DxCheckBox>
+                                            <DxCheckBox Checked="@(ObtenerDiaSemana('D'))" CheckedChanged="@((bool marcado) => EstablecerDiaSemana('D', marcado))">D</DxCheckBox>
+                                        </div>
+                                    </DxFormLayoutItem>
+
+                                    @if (periodicidadObra.TipoInicio == InicioPeriodicidad.FechaManual)
+                                    { <DxFormLayoutItem Caption="Fecha de inicio *" ColSpanMd="4"><DxDateEdit @bind-Date="periodicidadObra.FechaInicioManual" /></DxFormLayoutItem> }
+                                    <DxFormLayoutItem Caption="Último servicio realizado" ColSpanMd="4"><DxDateEdit Date="periodicidadObra.FechaUltimaRealizada" ReadOnly="true" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Próxima fecha" ColSpanMd="4"><DxDateEdit Date="periodicidadObra.ProximaFecha" ReadOnly="true" /></DxFormLayoutItem>
+                                </DxFormLayout>
+                                <div class="d-flex justify-content-end mt-3 pt-3 border-top"><button type="button" class="btn btn-primary" @onclick="GuardarPeriodicidadAsync"><i class="oi oi-check me-1"></i>Guardar periodicidad</button></div>
+                                @if (ejecucionesPeriodicidad.Count > 0)
+                                {
+                                    <h6 class="text-primary border-bottom pb-2 mt-4">Historial de ejecuciones</h6>
+                                    <DxGrid Data="@ejecucionesPeriodicidad" KeyFieldName="IdPeriodicidadObraEjecucion" PageSize="8"><Columns><DxGridDataColumn FieldName="FechaPrevista" Caption="Fecha prevista" DisplayFormat="d" /><DxGridDataColumn FieldName="HoraPrevista" Caption="Hora" DisplayFormat="t" /><DxGridDataColumn FieldName="Estado" Caption="Estado" /><DxGridDataColumn FieldName="FechaRealizacion" Caption="Realizado" DisplayFormat="d" /></Columns></DxGrid>
+                                }
+                            }
+                        </div>
+                    </DxTabPage>
                 </DxTabs>
             </div>
-        </div>
+        </div>        <DxMessageBox @bind-Visible="errorPopupVisible"
+                      Text="@errorMessage"
+                      Title="Error"
+                      Type="MessageBoxType.Alert" />
 
-        <DxMessageBox @bind-Visible="showConfirmPopup" 
-                      Text="¿Confirma actualizar la ubicación, población y código postal?" 
-                      Title="Confirmación" 
-                      Type="MessageBoxType.Confirmation" 
+
+
+        <DxMessageBox @bind-Visible="showConfirmPopup"
+                      Text="¿Confirma actualizar la ubicación, población y código postal?"
+                      Title="Confirmación"
+                      Type="MessageBoxType.Confirmation"
                       Closed="OnConfirmClosed" />
 
         <DxPopup @bind-Visible="@showClienteWarningPopup"
@@ -451,11 +513,20 @@
     private List<CodPosSage50>? codigosPostales;
     private bool poblacionValida = true;
     private bool omitirValidacionPoblacion;
-    
-    private bool isLoading = true;
-    private string? errorMessage;
+
+    private bool isLoading = true;    private string? _errorMessage;
+    private bool errorPopupVisible;
+    private string? errorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            _errorMessage = value;
+            errorPopupVisible = !string.IsNullOrWhiteSpace(value);
+        }
+    }
     private bool clienteObligatorioPopupVisible;
-    
+
     private bool IsNew => string.IsNullOrEmpty(Codigo) || Duplicate;
 
     // Geolocalización
@@ -486,10 +557,15 @@
     private bool confirmarCambioTarifaVisible;
     private TarifaObraOpcion? tarifaPropuestaPoblacion;
     private int activeTabIndex;
+    private PeriodicidadObra periodicidadObra = new();
+    private List<PeriodicidadObraEjecucion> ejecucionesPeriodicidad = [];
+    private List<Tarea> tareasPeriodicidad = [];
+    private readonly List<OpcionPeriodicidad<UnidadPeriodicidad>> unidadesPeriodicidad = [new(UnidadPeriodicidad.Dias, "Día(s)"), new(UnidadPeriodicidad.Semanas, "Semana(s)"), new(UnidadPeriodicidad.Meses, "Mes(es)")];
+    private readonly List<OpcionPeriodicidad<InicioPeriodicidad>> iniciosPeriodicidad = [new(InicioPeriodicidad.PrimerServicioRealizado, "Tras el primer servicio realizado"), new(InicioPeriodicidad.FechaManual, "Fecha introducida manualmente")];
 
     protected override async Task OnInitializedAsync()
     {
-        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : string.Equals(Tab, "periodicidad", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
         await SetupHeadersAsync();
         await Task.WhenAll(LoadAuxiliaryDataAsync(), LoadObraAsync());
     }
@@ -637,6 +713,8 @@
             {
                 await CargarPrecioObraAsync();
             }
+            if (!IsNew && obra != null && activeTabIndex == 2)
+                await CargarPeriodicidadAsync();
 
             if (AplicarPoblacionSeleccionada())
             {
@@ -694,7 +772,42 @@
         {
             await CargarPrecioObraAsync();
         }
+        if (tabIndex == 2 && !IsNew)
+            await CargarPeriodicidadAsync();
     }
+
+    private async Task CargarPeriodicidadAsync()
+    {
+        if (obra == null || string.IsNullOrWhiteSpace(obra.Codigo)) return;
+        try
+        {
+            periodicidadObra = await Http.GetFromJsonAsync<PeriodicidadObra>($"api/periodicidades-obra/{Uri.EscapeDataString(obra.Codigo)}") ?? new PeriodicidadObra { ObraCodigo = obra.Codigo };
+            tareasPeriodicidad = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
+            ejecucionesPeriodicidad = await Http.GetFromJsonAsync<List<PeriodicidadObraEjecucion>>($"api/periodicidades-obra/{Uri.EscapeDataString(obra.Codigo)}/ejecuciones") ?? [];
+        }
+        catch (Exception ex) { errorMessage = $"Error al cargar la periodicidad: {ex.Message}"; }
+    }
+    private bool ObtenerDiaSemana(char dia) => dia switch { 'L' => periodicidadObra.L == 1, 'M' => periodicidadObra.M == 1, 'X' => periodicidadObra.X == 1, 'J' => periodicidadObra.J == 1, 'V' => periodicidadObra.V == 1, 'S' => periodicidadObra.S == 1, 'D' => periodicidadObra.D == 1, _ => false };
+    private void EstablecerDiaSemana(char dia, bool marcado)
+    {
+        var valor = marcado ? 1 : 0;
+        switch (dia) { case 'L': periodicidadObra.L = valor; break; case 'M': periodicidadObra.M = valor; break; case 'X': periodicidadObra.X = valor; break; case 'J': periodicidadObra.J = valor; break; case 'V': periodicidadObra.V = valor; break; case 'S': periodicidadObra.S = valor; break; case 'D': periodicidadObra.D = valor; break; }
+    }
+
+    private async Task GuardarPeriodicidadAsync()
+    {
+        if (obra == null || string.IsNullOrWhiteSpace(obra.Codigo)) return;
+        var respuesta = await Http.PutAsJsonAsync($"api/periodicidades-obra/{Uri.EscapeDataString(obra.Codigo)}", periodicidadObra);
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            errorMessage = $"Error al guardar la periodicidad: {await ObtenerDetalleErrorAsync(respuesta)}";
+            return;
+        }
+        periodicidadObra = await respuesta.Content.ReadFromJsonAsync<PeriodicidadObra>() ?? periodicidadObra;
+        await CargarPeriodicidadAsync();
+    }
+
+    private sealed record OpcionPeriodicidad<T>(T Valor, string Texto);
 
     private async Task CargarPrecioObraAsync()
     {
@@ -1218,7 +1331,7 @@
         try
         {
             await SetupHeadersAsync();
-            
+
             // Trim fields
             obra.Codigo = obra.Codigo?.Trim() ?? "";
             obra.Nombre = obra.Nombre?.Trim() ?? "";
@@ -1622,7 +1735,7 @@
             {
                 obra.Codpost = pendingLocationUpdate.Postcode;
             }
-            
+
             // Trigger postal code refresh logic to load province
             if (!string.IsNullOrWhiteSpace(obra.Codpost))
             {

@@ -86,10 +86,10 @@
             <section class="border-top pt-3 mb-3">
                 <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Núm. de serie de contenedores</h3>
                 <div class="row g-2">
-                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega1 != true)" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoEntrega))" @onclick="() => solicitud.CodigoEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoEntrega" Enabled="@(tarea?.Entrega1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
-                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega2 != true)" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega2 != true || string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega))" @onclick="() => solicitud.CodigoAmbosEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoAmbosEntrega" Enabled="@(tarea?.Entrega2 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
-                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Retirada [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="true">Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Recoger1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoRecogida))" @onclick="() => solicitud.CodigoRecogida = null">Borrar</button></span></div><DxComboBox Data="@contenedoresRetirada" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoRecogida" Enabled="@(tarea?.Recoger1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
-                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Retirada [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="true">Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Recoger2 != true || string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida))" @onclick="() => solicitud.CodigoAmbosRecogida = null">Borrar</button></span></div><DxComboBox Data="@contenedoresRetirada" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoAmbosRecogida" Enabled="@(tarea?.Recoger2 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega1 != true)" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoEntrega))" @onclick="() => solicitud.CodigoEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoEntrega" Enabled="@(tarea?.Entrega1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /><DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega2 != true)" @onclick='() => AbrirNuevoContenedor("CodigoAmbosEntrega", "Entrega [2]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega2 != true || string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega))" @onclick="() => solicitud.CodigoAmbosEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoAmbosEntrega" Enabled="@(tarea?.Entrega2 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /><DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Retirada [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="true">Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Recoger1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoRecogida))" @onclick="() => solicitud.CodigoRecogida = null">Borrar</button></span></div><DxComboBox Data="@contenedoresRetirada" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoRecogida" Enabled="@(tarea?.Recoger1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /><DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" /></Columns></DxComboBox></div>
+                    <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Retirada [2] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="true">Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Recoger2 != true || string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida))" @onclick="() => solicitud.CodigoAmbosRecogida = null">Borrar</button></span></div><DxComboBox Data="@contenedoresRetirada" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoAmbosRecogida" Enabled="@(tarea?.Recoger2 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /><DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" /></Columns></DxComboBox></div>
                 </div>
             </section>
 
@@ -462,11 +462,16 @@
         }
     }
 
+    private int? IdPlantaOrigen => solicitud?.IdPlantaOrigen 
+        ?? solicitud?.IdPlantaDescarga 
+        ?? (plantas?.Count == 1 ? plantas[0].IdPlanta : (int?)null);
+
     private List<Contenedor> contenedoresEntrega => contenedores
         .Where(c => !EstaSeleccionadoParaRetirada(c)
             && (EsContenedorActual(c, solicitud?.CodigoEntrega)
                 || EsContenedorActual(c, solicitud?.CodigoAmbosEntrega)
-                || (solicitud?.IdPlantaOrigen == c.IdPlanta
+                || (IdPlantaOrigen.HasValue
+                    && c.IdPlanta == IdPlantaOrigen.Value
                     && string.Equals(c.EstadoFisico, "Disponible", StringComparison.OrdinalIgnoreCase)
                     && !EstaEntregadoActualmente(c.NumSerie))))
         .OrderBy(c => c.NumSerie)
@@ -476,7 +481,8 @@
         .Where(c => !EstaSeleccionadoParaEntrega(c)
             && (EsContenedorActual(c, solicitud?.CodigoRecogida)
             || EsContenedorActual(c, solicitud?.CodigoAmbosRecogida)
-            || EstaEntregadoEnObraActual(c)))
+            || EstaEntregadoEnObraActual(c)
+            || EstaEntregadoDePlantaSinObra(c)))
         .OrderBy(c => c.NumSerie)
         .ToList();
 
@@ -492,8 +498,38 @@
         EsContenedorActual(contenedor, solicitud?.CodigoRecogida)
         || EsContenedorActual(contenedor, solicitud?.CodigoAmbosRecogida);
 
-    private bool EstaEntregadoEnObraActual(Contenedor contenedor) =>
-        UltimaEntregaVigente(contenedor.NumSerie)?.IdCliente == solicitud?.IdCliente;
+    private bool EstaEntregadoEnObraActual(Contenedor contenedor)
+    {
+        var entrega = UltimaEntregaVigente(contenedor.NumSerie);
+        if (entrega == null) return false;
+
+        if (solicitud?.IdCliente > 0 && entrega.IdCliente == solicitud.IdCliente)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(solicitud?.NombreObra) &&
+            string.Equals(entrega.NombreObra?.Trim(), solicitud.NombreObra.Trim(), StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private bool EstaEntregadoDePlantaSinObra(Contenedor c)
+    {
+        var idPlanta = IdPlantaOrigen;
+        if (!idPlanta.HasValue || c.IdPlanta != idPlanta.Value)
+            return false;
+
+        bool estaEntregado = string.Equals(c.EstadoFisico, "Entregado", StringComparison.OrdinalIgnoreCase)
+                             || EstaEntregadoActualmente(c.NumSerie);
+
+        if (!estaEntregado)
+            return false;
+
+        var entrega = UltimaEntregaVigente(c.NumSerie);
+        bool tieneObra = entrega != null && (entrega.IdCliente > 0 || !string.IsNullOrWhiteSpace(entrega.NombreObra));
+
+        return !tieneObra;
+    }
 
     private bool EstaEntregadoActualmente(string numeroSerie) => UltimaEntregaVigente(numeroSerie) is not null;
 

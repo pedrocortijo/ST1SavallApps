@@ -589,3 +589,14 @@ html.theme-fluent-dark .obra-resumen {
     margin-top: auto !important;
 }
 
+
+/* Distancias de regreso: contraste adaptado al tema visual. */
+.ruta-regreso {
+    color: #198754 !important;
+    font-weight: 700;
+}
+
+html.theme-blazing-dark .ruta-regreso,
+html.theme-fluent-dark .ruta-regreso {
+    color: #fd7e14 !important;
+}

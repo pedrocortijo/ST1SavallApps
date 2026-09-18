@@ -1,0 +1,353 @@
+@page "/modelos/servicios-recurrentes"
+@using System.Net.Http.Json
+@using DevExpress.Blazor
+@using ST1Savall.Shared.Data
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Comprobar servicios recurrentes</PageTitle>
+
+<div class="container-fluid py-0">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Comprobar servicios recurrentes</h2>
+            <p class="text-muted mb-0">Ejecuta ahora la misma comprobación automática programada cada 15 minutos.</p>
+        </div>
+        <DxButton Text="Ejecutar comprobación" IconCssClass="oi oi-reload" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!procesando)" Click="EjecutarComprobacionAsync" />
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            @if (procesando)
+            {
+                <div class="d-flex align-items-center gap-2 text-muted"><span class="spinner-border spinner-border-sm" role="status"></span> Comprobando servicios recurrentes...</div>
+            }
+            else if (comprobacionRealizada)
+            {
+                <p class="mb-4">@mensajeResultado</p>
+
+                <h5 class="fw-bold text-primary border-bottom pb-2">Obras con servicios recurrentes activos (@periodicidadesActivas.Count)</h5>
+                <DxGrid Data="@periodicidadesActivas" KeyFieldName="IdPeriodicidadObra" PageSize="15" ShowSearchBox="true" CssClass="mb-4">
+                    <Columns>
+                        <DxGridCommandColumn Width="54px">
+                            <CellDisplayTemplate>
+                                @{ var periodicidad = (PeriodicidadObra)context.DataItem; }
+                                <button type="button" class="btn btn-sm btn-outline-primary" title="Editar obra" aria-label="Editar obra" @onclick="() => EditarObra(periodicidad.ObraCodigo)" @onclick:stopPropagation>
+                                    <i class="oi oi-pencil"></i>
+                                </button>
+                            </CellDisplayTemplate>
+                        </DxGridCommandColumn>
+                        
+                        <DxGridDataColumn Caption="Obra">
+                            <CellDisplayTemplate>@NombreObra((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="Unidad" Caption="Periodo" />
+                        <DxGridDataColumn FieldName="Cantidad" Caption="Cantidad" />
+                        <DxGridDataColumn Caption="Días de la semana">
+                            <CellDisplayTemplate>@DiasSemana((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="HoraPrevista" Caption="Hora prevista" DisplayFormat="t" />
+<DxGridDataColumn Caption="Próxima fecha">
+                            <CellDisplayTemplate>@TextoProximaFecha((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn Caption="Tarea">
+                            <CellDisplayTemplate>@NombreTarea((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                        </DxGridDataColumn>
+                        <DxGridDataColumn FieldName="PendienteConfirmacion" Caption="Pendiente de confirmar" />
+                    </Columns>
+                </DxGrid>
+
+                @if (!string.IsNullOrEmpty(mensajeExito))
+                {
+                    <div class="alert alert-success alert-dismissible fade show my-3 py-2 d-flex align-items-center justify-content-between" role="alert">
+                        <div>
+                            <i class="oi oi-circle-check me-2"></i>
+                            <span>@mensajeExito</span>
+                            @if (ultimoIdSolicitudGenerada.HasValue)
+                            {
+                                <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-success fw-bold text-decoration-underline" @onclick="() => EditarSolicitud(ultimoIdSolicitudGenerada.Value)">
+                                    Ver solicitud #@ultimoIdSolicitudGenerada.Value
+                                </button>
+                            }
+                        </div>
+                        <button type="button" class="btn-close" @onclick="() => mensajeExito = null" aria-label="Close"></button>
+                    </div>
+                }
+
+                @if (pendientes.Count > 0)
+                {
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                        <h5 class="fw-bold text-primary mb-0">Servicios detectados en esta comprobación (@pendientes.Count)</h5>
+                        @if (pendientes.Count > 1)
+                        {
+                            <DxButton Text="Generar todas las solicitudes"
+                                      IconCssClass="oi oi-check"
+                                      RenderStyle="ButtonRenderStyle.Success"
+                                      Size="ButtonSize.Small"
+                                      Enabled="@(!procesando && !procesandoId.HasValue)"
+                                      Click="GenerarTodasSolicitudesAsync" />
+                        }
+                    </div>
+                    <DxGrid Data="@pendientes" KeyFieldName="IdPeriodicidadObra" PageSize="15">
+                        <Columns>
+                            <DxGridDataColumn Caption="Acción" Width="170px" AllowSort="false">
+                                <CellDisplayTemplate>
+                                    @{ var periodicidad = (PeriodicidadObra)context.DataItem; }
+                                    <button type="button"
+                                            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1"
+                                            title="Generar solicitud"
+                                            disabled="@(procesando || procesandoId.HasValue)"
+                                            @onclick="() => GenerarSolicitudAsync(periodicidad)"
+                                            @onclick:stopPropagation>
+                                        @if (procesandoId == periodicidad.IdPeriodicidadObra)
+                                        {
+                                            <span class="spinner-border spinner-border-sm" role="status"></span>
+                                            <span>Generando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="oi oi-plus"></i>
+                                            <span>Generar solicitud</span>
+                                        }
+                                    </button>
+                                </CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn Caption="Obra">
+                                <CellDisplayTemplate>@NombreObra((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn Caption="Días de la semana">
+                                <CellDisplayTemplate>@DiasSemana((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                            </DxGridDataColumn>
+                            <DxGridDataColumn FieldName="ProximaFecha" Caption="Fecha prevista" DisplayFormat="d" />
+                            <DxGridDataColumn FieldName="HoraPrevista" Caption="Hora prevista" DisplayFormat="t" />
+                            <DxGridDataColumn Caption="Tarea">
+                                <CellDisplayTemplate>@NombreTarea((PeriodicidadObra)context.DataItem)</CellDisplayTemplate>
+                            </DxGridDataColumn>
+                        </Columns>
+                    </DxGrid>
+                    <p class="text-muted small mt-3 mb-0">Puede generar la solicitud directamente desde esta tabla con el botón "Generar solicitud", o confirmarla posteriormente desde la pantalla de Inicio.</p>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<DxMessageBox @bind-Visible="errorPopupVisible" Text="@errorMessage" Title="Error" Type="MessageBoxType.Alert" />
+
+@code {
+    private readonly List<PeriodicidadObra> pendientes = [];
+    private readonly List<PeriodicidadObra> periodicidadesActivas = [];
+    private List<Obra> obras = [];
+    private List<Tarea> tareas = [];
+    private bool procesando;
+    private int? procesandoId;
+    private bool comprobacionRealizada;
+    private bool errorPopupVisible;
+    private string? errorMessage;
+    private string? mensajeExito;
+    private int? ultimoIdSolicitudGenerada;
+    private string mensajeResultado = string.Empty;
+
+    private class ConfirmarResultadoDto
+    {
+        public int? IdSolicitud { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ConfigurarAutorizacionAsync();
+        await EjecutarComprobacionAsync();
+    }
+
+    private void EditarObra(string codigoObra)
+    {
+        if (string.IsNullOrWhiteSpace(codigoObra)) return;
+        const string returnUrl = "/modelos/servicios-recurrentes";
+        NavigationManager.NavigateTo($"/modelos/obrasmnto/edit/{Uri.EscapeDataString(codigoObra)}?tab=periodicidad&returnUrl={Uri.EscapeDataString(returnUrl)}");
+    }
+
+    private void EditarSolicitud(int idSolicitud)
+    {
+        NavigationManager.NavigateTo($"/modelos/solicitudes/edit/{idSolicitud}");
+    }
+
+    private async Task ConfigurarAutorizacionAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var token = authState.User.FindFirst("token")?.Value;
+        if (!string.IsNullOrWhiteSpace(token))
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private async Task CargarPeriodicidadesActivasAsync()
+    {
+        var periodicidadesTask = Http.GetFromJsonAsync<List<PeriodicidadObra>>("api/periodicidades-obra/activas");
+        var obrasTask = Http.GetFromJsonAsync<List<Obra>>("api/obras");
+        var tareasTask = Http.GetFromJsonAsync<List<Tarea>>("api/tareas");
+        await Task.WhenAll(periodicidadesTask, obrasTask, tareasTask);
+        var resultado = await periodicidadesTask ?? [];
+        obras = await obrasTask ?? [];
+        tareas = await tareasTask ?? [];
+        periodicidadesActivas.Clear();
+        periodicidadesActivas.AddRange(resultado);
+    }
+
+    private string NombreObra(PeriodicidadObra periodicidad)
+    {
+        var obra = obras.FirstOrDefault(o => string.Equals(o.Codigo?.Trim(), periodicidad.ObraCodigo?.Trim(), StringComparison.OrdinalIgnoreCase));
+        return obra is null ? periodicidad.ObraCodigo : $"{periodicidad.ObraCodigo} - {obra.Descripcion}";
+    }
+
+    private string NombreTarea(PeriodicidadObra periodicidad) =>
+        tareas.FirstOrDefault(t => t.IdTarea == periodicidad.IdTipoTarea)?.NombreTarea ?? $"Tarea {periodicidad.IdTipoTarea}";
+
+    private static string TextoProximaFecha(PeriodicidadObra periodicidad)
+    {
+        if (periodicidad.ProximaFecha.HasValue)
+            return periodicidad.ProximaFecha.Value.ToString("dd/MM/yyyy");
+        return periodicidad.TipoInicio == InicioPeriodicidad.PrimerServicioRealizado
+            ? "Pendiente del primer servicio realizado"
+            : "Sin fecha de inicio";
+    }
+    private static string DiasSemana(PeriodicidadObra periodicidad)
+    {
+        var dias = new List<string>();
+        if (periodicidad.L == 1) dias.Add("L");
+        if (periodicidad.M == 1) dias.Add("M");
+        if (periodicidad.X == 1) dias.Add("X");
+        if (periodicidad.J == 1) dias.Add("J");
+        if (periodicidad.V == 1) dias.Add("V");
+        if (periodicidad.S == 1) dias.Add("S");
+        if (periodicidad.D == 1) dias.Add("D");
+        return dias.Count == 0 ? "-" : string.Join(" · ", dias);
+    }
+    private async Task EjecutarComprobacionAsync()
+    {
+        try
+        {
+            procesando = true;
+            errorMessage = null;
+            var response = await Http.PostAsync("api/periodicidades-obra/sincronizar", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se ha podido ejecutar la comprobación de servicios recurrentes.";
+                errorPopupVisible = true;
+                return;
+            }
+
+            var resultado = await response.Content.ReadFromJsonAsync<List<PeriodicidadObra>>() ?? [];
+            await CargarPeriodicidadesActivasAsync();
+            pendientes.Clear();
+            pendientes.AddRange(resultado);
+            comprobacionRealizada = true;
+            var sinInicio = periodicidadesActivas.Count(p => !p.ProximaFecha.HasValue && p.TipoInicio == InicioPeriodicidad.PrimerServicioRealizado);
+            mensajeResultado = pendientes.Count == 0
+                ? "Comprobación finalizada. No hay servicios recurrentes pendientes de confirmación."
+                : $"Comprobación finalizada. Hay {pendientes.Count} servicio(s) pendiente(s) de confirmación.";
+            if (sinInicio > 0)
+                mensajeResultado += $" {sinInicio} servicio(s) espera(n) al primer servicio realizado para calcular la próxima fecha.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "No se ha podido conectar con el proceso de servicios recurrentes.";
+            errorPopupVisible = true;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private async Task GenerarSolicitudAsync(PeriodicidadObra periodicidad)
+    {
+        try
+        {
+            procesandoId = periodicidad.IdPeriodicidadObra;
+            errorMessage = null;
+            mensajeExito = null;
+
+            var response = await Http.PostAsync($"api/periodicidades-obra/{periodicidad.IdPeriodicidadObra}/confirmar", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "No se ha podido generar la solicitud para este servicio recurrente.";
+                errorPopupVisible = true;
+                return;
+            }
+
+            ConfirmarResultadoDto? resultado = null;
+            try
+            {
+                resultado = await response.Content.ReadFromJsonAsync<ConfirmarResultadoDto>();
+            }
+            catch { }
+
+            ultimoIdSolicitudGenerada = resultado?.IdSolicitud;
+            var nombreObra = NombreObra(periodicidad);
+            if (ultimoIdSolicitudGenerada.HasValue)
+            {
+                mensajeExito = $"Solicitud #{ultimoIdSolicitudGenerada.Value} generada correctamente para la obra '{nombreObra}'.";
+            }
+            else
+            {
+                mensajeExito = $"Solicitud generada correctamente para la obra '{nombreObra}'.";
+            }
+
+            pendientes.RemoveAll(p => p.IdPeriodicidadObra == periodicidad.IdPeriodicidadObra);
+            await CargarPeriodicidadesActivasAsync();
+
+            mensajeResultado = pendientes.Count == 0
+                ? "Comprobación finalizada. No hay servicios recurrentes pendientes de confirmación."
+                : $"Comprobación finalizada. Quedan {pendientes.Count} servicio(s) pendiente(s) de confirmación.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "No se ha podido conectar con el servicio para generar la solicitud.";
+            errorPopupVisible = true;
+        }
+        finally
+        {
+            procesandoId = null;
+        }
+    }
+
+    private async Task GenerarTodasSolicitudesAsync()
+    {
+        try
+        {
+            procesando = true;
+            errorMessage = null;
+            mensajeExito = null;
+            ultimoIdSolicitudGenerada = null;
+
+            var lista = pendientes.ToList();
+            int totalGeneradas = 0;
+
+            foreach (var periodicidad in lista)
+            {
+                var response = await Http.PostAsync($"api/periodicidades-obra/{periodicidad.IdPeriodicidadObra}/confirmar", null);
+                if (response.IsSuccessStatusCode)
+                {
+                    totalGeneradas++;
+                    pendientes.RemoveAll(p => p.IdPeriodicidadObra == periodicidad.IdPeriodicidadObra);
+                }
+            }
+
+            await CargarPeriodicidadesActivasAsync();
+
+            mensajeExito = $"Se han generado {totalGeneradas} solicitud(es) correctamente.";
+            mensajeResultado = pendientes.Count == 0
+                ? "Comprobación finalizada. No hay servicios recurrentes pendientes de confirmación."
+                : $"Comprobación finalizada. Quedan {pendientes.Count} servicio(s) pendiente(s) de confirmación.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Ocurrió un error al generar las solicitudes.";
+            errorPopupVisible = true;
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+}
