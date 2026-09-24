@@ -254,7 +254,6 @@
     {
         await JSRuntime.InvokeVoidAsync("clearSignaturePad", "firmaSolicitudCanvas");
         firmaImagenBase64 = null; firmaModificada = false; firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
-        if (solicitud is not null) { solicitud.FirmaNombre = null; solicitud.FirmaDni = null; }
     }
 
     private async Task<string> ObtenerMensajeErrorAsync(HttpResponseMessage response, string mensajePorDefecto)

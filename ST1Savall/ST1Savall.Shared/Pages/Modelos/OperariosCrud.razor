@@ -5,6 +5,13 @@
 
 <PageTitle>Operarios</PageTitle>
 
+<style>
+    .ausencias-popup {
+        width: 640px !important;
+        max-width: calc(100vw - 2rem) !important;
+    }
+</style>
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -230,7 +237,7 @@
                             {
                                     <DxGrid @key="oper.IdOperario" @ref="ausenciasGrid" Data="@GetAusencias(oper.IdOperario)" KeyFieldName="IdAusencia"
                                             EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnAusenciaSaving"
-                                            DataItemDeleting="OnAusenciaDeleting" PageSize="5" ShowPager="true">
+                                            DataItemDeleting="OnAusenciaDeleting" PopupEditFormCssClass="ausencias-popup" PageSize="5" ShowPager="true">
                                         <Columns>
                                             <DxGridCommandColumn Width="96px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                                                 <HeaderTemplate Context="ausenciasHeader">

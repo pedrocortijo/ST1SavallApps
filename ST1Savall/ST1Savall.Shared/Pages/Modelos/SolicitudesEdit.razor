@@ -1110,11 +1110,6 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         firmaModificada = false;
         firmaPendienteDeMostrar = false;
         firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
-        if (solicitud is not null)
-        {
-            solicitud.FirmaNombre = null;
-            solicitud.FirmaDni = null;
-        }
     }
 
     private IEnumerable<string> ContenedoresPendientesFirma
