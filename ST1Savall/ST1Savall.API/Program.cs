@@ -40,6 +40,8 @@ builder.Services.AddHttpClient<MapboxDirectionsService>(client => client.Timeout
 builder.Logging.AddFilter("System.Net.Http.HttpClient.MapboxDirectionsService", LogLevel.Warning);
 builder.Services.AddScoped<CalculoRutaSolicitudService>();
 builder.Services.AddHttpClient<WialonTrackingService>(client => client.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<TiquePesajeParser>();
+builder.Services.AddHttpClient<AzureDocumentIntelligenceService>(client => client.Timeout = TimeSpan.FromSeconds(30));
 
 // Add SageGestion DbContext
 var sageGestionConnectionString = builder.Configuration.GetConnectionString("SageGestionConnection") 

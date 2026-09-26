@@ -813,6 +813,7 @@ public class SolicitudesController : ControllerBase
 
         solicitud.AlbaranPlanta = datos.AlbaranPlanta?.Trim();
         solicitud.KgAlbaran = datos.KgAlbaran;
+        solicitud.FechaPesaje = datos.FechaPesaje?.Date;
         if (datos.HoraPesaje.HasValue)
         {
             solicitud.HoraPesaje = datos.HoraPesaje;
@@ -1094,6 +1095,7 @@ public class SolicitudesController : ControllerBase
     {
         public string? AlbaranPlanta { get; init; }
         public int? KgAlbaran { get; init; }
+        public DateTime? FechaPesaje { get; init; }
         public TimeSpan? HoraPesaje { get; init; }
         public string? TipoResiduo { get; init; }
         public string? FirmaNombre { get; init; }

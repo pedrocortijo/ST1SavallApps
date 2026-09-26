@@ -7,7 +7,7 @@ public class ClienteSage50
 {
     [MaxLength(3)] public string Agencia { get; set; } = string.Empty;
     public bool Albafra { get; set; } = false;
-    [MaxLength(8)] public string BancoPrev { get; set; } = string.Empty;
+    [MaxLength(8)] public string BancoPrev { get; set; } = "57200004";
     public bool BloqCli { get; set; } = false;
     public bool BloqVen { get; set; } = false;
     public bool Bloqalbvta { get; set; } = false;
@@ -25,7 +25,7 @@ public class ClienteSage50
     [MaxLength(10)] public string Codpost { get; set; } = string.Empty;
     public int Comunitari { get; set; } = 0;
     public bool Contado { get; set; } = false;
-    [MaxLength(8)] public string Contrapar { get; set; } = string.Empty;
+    [MaxLength(8)] public string Contrapar { get; set; } = "70500001";
     public int CopiaFra { get; set; } = 0;
     public DateTime Created { get; set; } = DateTime.Now;
     public decimal Credito { get; set; } = 0.0m;

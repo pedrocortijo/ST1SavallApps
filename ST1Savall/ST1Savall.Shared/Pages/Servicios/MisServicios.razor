@@ -101,7 +101,7 @@
                                 @onclick="() => CambiarRutaObraAsync(servicio)">
                             <i class="@(sinIniciar ? "oi oi-media-play me-1" : "oi oi-x me-1")"></i>@(iniciandoServicioId == servicio.IdSolicitud ? "Actualizando..." : sinIniciar ? "Ruta a Obra" : "Cancelar")
                         </button>
-                        <button class="btn btn-outline-primary" disabled="@(!rutaObra && !rutaPlanta)" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>Firma</button>
+                        <button class="btn btn-outline-primary" disabled="@(!rutaObra && !rutaPlanta)" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>@(rutaPlanta ? "Tique Báscula" : "Firma")</button>
                         <button class="btn @(rutaPlanta ? "btn-outline-danger" : "btn-outline-warning")"
                                 disabled="@(!rutaObra && !rutaPlanta || finalizandoServicioId == servicio.IdSolicitud)"
                                 @onclick="() => CambiarRutaPlantaAsync(servicio)">
@@ -341,7 +341,7 @@
         EsRutaSinIniciar(servicio) ? CambiarRutaAsync(servicio.IdSolicitud, "iniciar") : EsRutaObra(servicio) ? CambiarRutaAsync(servicio.IdSolicitud, "cancelar-inicio") : CambiarRutaAsync(servicio.IdSolicitud, "cancelar-planta");
 
     private Task CambiarRutaPlantaAsync(Solicitud servicio) =>
-        EsRutaPlanta(servicio) ? CambiarRutaAsync(servicio.IdSolicitud, "finalizar") : CambiarRutaAsync(servicio.IdSolicitud, "regresar-planta");
+        EsRutaPlanta(servicio) ? CambiarFinalizacionServicioAsync(servicio) : CambiarRutaAsync(servicio.IdSolicitud, "regresar-planta");
 
     private async Task CambiarRutaAsync(int idSolicitud, string accion)
     {
@@ -370,10 +370,12 @@
         if (EsServicioFinalizado(servicio))
             return CancelarFinalizacionServicioAsync(servicio.IdSolicitud);
 
-        if (RequiereAlbaranPlanta(servicio) && string.IsNullOrWhiteSpace(servicio.AlbaranPlanta))
+        var camposPendientes = ObtenerCamposBasculaPendientes(servicio);
+        
+        if (camposPendientes.Count > 0)
         {
             mensajePopupTitulo = "No se puede finalizar el servicio";
-            mensajePopup = "Antes de finalizar, introduzca el número de albarán de la planta en la pantalla Firma.";
+            mensajePopup = $"Antes de finalizar, complete en el grupo Báscula los campos: {Environment.NewLine}{Environment.NewLine}{string.Join("  ", camposPendientes)}";
             mensajePopupVisible = true;
             return Task.CompletedTask;
         }
@@ -381,7 +383,16 @@
         return FinalizarServicioAsync(servicio.IdSolicitud);
     }
 
-    private bool RequiereAlbaranPlanta(Solicitud servicio) => tareasQueCreanAlbaran.Contains(servicio.IdTipoTarea);
+    private static List<string> ObtenerCamposBasculaPendientes(Solicitud servicio)
+    {
+        var campos = new List<string>();
+        if (string.IsNullOrWhiteSpace(servicio.TipoResiduo)) campos.Add(" • Tipo de residuo." + Environment.NewLine);
+        if (string.IsNullOrWhiteSpace(servicio.AlbaranPlanta)) campos.Add(" • Albarán planta" + Environment.NewLine);
+        if (!servicio.FechaPesaje.HasValue) campos.Add(" • Fecha pesaje." + Environment.NewLine);
+        if (!servicio.KgAlbaran.HasValue || servicio.KgAlbaran.Value <= 0) campos.Add(" • Kg Neto." + Environment.NewLine);
+        if (!servicio.HoraPesaje.HasValue) campos.Add(" • Hora pesaje." + Environment.NewLine);
+        return campos;
+    }
 
     private async Task IniciarServicioAsync(int idSolicitud)
     {

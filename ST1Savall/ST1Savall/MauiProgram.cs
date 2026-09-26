@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ST1Savall.Services;
 using ST1Savall.Shared.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Plugin.Maui.OCR;
 
 namespace ST1Savall
 {
@@ -12,6 +13,7 @@ namespace ST1Savall
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseOcr()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -30,16 +32,13 @@ namespace ST1Savall
             builder.Services.AddSingleton<IUserDisplayService, DesktopUserDisplayService>();
             builder.Services.AddAuthorizationCore();
             builder.Services.AddScoped<AuthenticationStateProvider, DesktopAuthenticationStateProvider>();
-#if ANDROID
-            // Dirección IPv4 del equipo que ejecuta ST1Savall.API en la red local.
-            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:4040/") });
-#else
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://192.168.1.230:4040/") });
-            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:4040/") });
-            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7284/") });
-
-#endif
+            builder.Services.AddSingleton<ApiEndpointConfiguration>();
+            builder.Services.AddSingleton<ST1Savall.Shared.Services.IApiEndpointConfiguration>(sp => sp.GetRequiredService<ApiEndpointConfiguration>());
+            builder.Services.AddTransient<ApiEndpointHandler>();
+            builder.Services.AddScoped(sp => new HttpClient(sp.GetRequiredService<ApiEndpointHandler>())
+            {
+                BaseAddress = ApiEndpointHandler.PlaceholderUri
+            });
             builder.Services.AddScoped<IAuthService, DesktopAuthService>();
             builder.Services.AddScoped<ST1Savall.Shared.Services.ObrasMntoGridState>();
             builder.Services.AddScoped<ST1Savall.Shared.Services.SolicitudesGridState>();

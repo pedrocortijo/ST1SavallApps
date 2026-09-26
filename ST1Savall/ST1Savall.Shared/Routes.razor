@@ -1,4 +1,15 @@
+@inject ST1Savall.Shared.Services.IApiEndpointConfiguration ApiEndpoint
+@using ST1Savall.Shared.Pages
+
 <CascadingAuthenticationState>
+    @if (!ApiEndpoint.IsConfigured)
+    {
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <ConfiguracionApi />
+        </LayoutView>
+    }
+    else
+    {
     <Router AppAssembly="typeof(Layout.MainLayout).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
@@ -14,4 +25,5 @@
             </LayoutView>
         </NotFound>
     </Router>
+    }
 </CascadingAuthenticationState>

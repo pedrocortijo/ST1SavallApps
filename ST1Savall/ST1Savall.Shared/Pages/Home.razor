@@ -63,7 +63,23 @@
         <div class="badge bg-dark text-white p-2 px-3 rounded-pill" style="font-size: 0.9rem;">
             <i class="oi oi-calendar me-1"></i> @DateTime.Today.ToString("dd 'de' MMMM, yyyy", new System.Globalization.CultureInfo("es-ES"))
         </div>
-    </div>    <DxMessageBox @bind-Visible="errorPopupVisible" Text="@errorMessage" Title="Error" Type="MessageBoxType.Alert" />
+    </div>
+    <DxPopup @bind-Visible="errorPopupVisible"
+             HeaderText="Error"
+             ShowFooter="true"
+             Width="min(420px, 92vw)"
+             HorizontalAlignment="HorizontalAlignment.Center"
+             VerticalAlignment="VerticalAlignment.Center">
+        <BodyContentTemplate>
+            <div class="d-flex align-items-start gap-2 py-1">
+                <i class="oi oi-warning text-danger mt-1"></i>
+                <div class="small text-break">@errorMessage</div>
+            </div>
+        </BodyContentTemplate>
+        <FooterContentTemplate>
+            <div class="d-flex justify-content-end w-100"><DxButton Text="OK" RenderStyle="ButtonRenderStyle.Primary" Click="() => errorPopupVisible = false" /></div>
+        </FooterContentTemplate>
+    </DxPopup>
 
     <DxPopup @bind-Visible="confirmacionesPeriodicidadVisibles" HeaderText="Servicios recurrentes pendientes de confirmación" ShowFooter="true" Width="min(900px, 95vw)" HorizontalAlignment="HorizontalAlignment.Center" VerticalAlignment="VerticalAlignment.Center">
         <BodyContentTemplate>

@@ -9,6 +9,14 @@
 @inject ST1Savall.Shared.Services.SolicitudesGridState SolicitudesGridState
 @inject ST1Savall.Shared.Services.HomeGridState HomeGridState
 @inject HttpClient Http
+@inject ST1Savall.Shared.Services.IApiEndpointConfiguration ApiEndpoint
+
+<style>
+    .api-server-label.api-conectada { color: var(--bs-success-text-emphasis); }
+    .api-server-label.api-desconectada { color: var(--bs-danger-text-emphasis); }
+    html.theme-blazing-dark .api-server-label.api-conectada, html.theme-fluent-dark .api-server-label.api-conectada { color: #75e6a0 !important; }
+    html.theme-blazing-dark .api-server-label.api-desconectada, html.theme-fluent-dark .api-server-label.api-desconectada { color: #ff9aa2 !important; }
+</style>
 
 <div class="page">
     <Drawer @ref="drawer" DrawerHeader="drawerHeader">
@@ -27,7 +35,10 @@
                           style="font-size: 1.25rem;" />
                 <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" 
                 style="font-size: 1.1rem; letter-spacing: 0.5px;">@companyName</span>
-                <span class="flex-grow-1 text-center text-muted display-desktop api-server-label" title="Servidor de la API">API: @ServidorApi</span>
+                <span 
+                    class="flex-grow-1 text-center display-desktop api-server-label @(apiConectada ? "api-conectada" : "api-desconectada")" 
+                    title="Estado de conexión con la API">API: @(apiConectada ? "Conectado" : "Desconectado")
+                </span>
                 
                 @if (new Uri(NavigationManager.Uri).LocalPath != "/") 
                 {
@@ -74,7 +85,7 @@
 </div>
 
 @code {
-    private string ServidorApi => Http.BaseAddress?.GetLeftPart(UriPartial.Authority) ?? "No configurado";
+    private bool apiConectada;
     private string LoginUrl => "login";
     private string ManageUrl => FormFactor.GetPlatform() == "Web" ? "Account/Manage" : "settings";
 
@@ -112,6 +123,7 @@
             }
 
             var parametros = await Http.GetFromJsonAsync<List<ST1Savall.Shared.Data.Parametro>>("api/parametros");
+            apiConectada = true;
             var empresa = parametros?.FirstOrDefault()?.Empresa;
             if (!string.IsNullOrWhiteSpace(empresa)) {
                 companyName = empresa;

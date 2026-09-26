@@ -9,6 +9,8 @@ namespace ST1Savall.Shared.Services
         public Task OpenUrlAsync(string url);
         public Task<DeviceLocation?> GetCurrentLocationAsync();
         public Task<CapturedPhoto?> CapturePhotoAsync();
+        public Task<CapturedPhoto?> PickPhotoAsync();
+        public Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData);
     }
 
     public sealed record DeviceLocation(double Latitude, double Longitude);

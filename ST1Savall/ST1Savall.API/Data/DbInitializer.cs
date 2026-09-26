@@ -498,6 +498,33 @@ public static class DbInitializer
                     ALTER TABLE Solicitudes ADD KgAlbaran INT NULL;
                 IF COL_LENGTH('Solicitudes', 'HoraPesaje') IS NULL
                     ALTER TABLE Solicitudes ADD HoraPesaje TIME NULL;
+                IF COL_LENGTH('Solicitudes', 'FechaPesaje') IS NULL
+                    ALTER TABLE Solicitudes ADD FechaPesaje DATE NULL;
+                IF OBJECT_ID('SolicitudTiquesPesaje', 'U') IS NULL
+                BEGIN
+                    CREATE TABLE SolicitudTiquesPesaje (
+                        Id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SolicitudTiquesPesaje PRIMARY KEY,
+                        IdSolicitud INT NOT NULL,
+                        IdPlanta INT NULL,
+                        RutaArchivo VARCHAR(500) NOT NULL,
+                        NombreArchivo VARCHAR(150) NULL,
+                        TextoOcr NVARCHAR(MAX) NULL,
+                        NumeroAlbaran VARCHAR(20) NULL,
+                        Matricula VARCHAR(20) NULL,
+                        Fecha DATE NULL,
+                        Hora TIME NULL,
+                        PesoNetoKg INT NULL,
+                        Confianza DECIMAL(5,4) NULL,
+                        Confirmado BIT NOT NULL CONSTRAINT DF_SolicitudTiquesPesaje_Confirmado DEFAULT (0),
+                        FechaCreacion DATETIME2 NOT NULL,
+                        FechaConfirmacion DATETIME2 NULL,
+                        UsuarioConfirmacion NVARCHAR(256) NULL
+                    );
+                    CREATE INDEX IX_SolicitudTiquesPesaje_IdSolicitud_FechaCreacion
+                        ON SolicitudTiquesPesaje (IdSolicitud, FechaCreacion);
+                    CREATE INDEX IX_SolicitudTiquesPesaje_IdPlanta_NumeroAlbaran
+                        ON SolicitudTiquesPesaje (IdPlanta, NumeroAlbaran);
+                END;
                 IF COL_LENGTH('Solicitudes', 'AlbaranSerieSage') IS NULL
                     ALTER TABLE Solicitudes ADD AlbaranSerieSage VARCHAR(2) NULL;
                 IF COL_LENGTH('Solicitudes', 'AlbaranNumeroSage') IS NULL

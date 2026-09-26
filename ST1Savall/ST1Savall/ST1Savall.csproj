@@ -68,6 +68,12 @@
     <PackageReference Include="DevExpress.Blazor" Version="24.2.3" />
     <PackageReference Include="DevExpress.Blazor.RichEdit" Version="24.2.3" />
     <PackageReference Include="DevExpress.Blazor.PivotTable" Version="24.2.3" />
+    <PackageReference Include="Plugin.Maui.OCR" Version="1.1.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <PackageReference Include="OpenCvSharp4" Version="4.13.0.20260627" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.13.0.20260627" />
   </ItemGroup>
 
   <ItemGroup>

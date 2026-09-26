@@ -1,0 +1,81 @@
+@page "/configuracion/api"
+@inject ST1Savall.Shared.Services.IApiEndpointConfiguration ApiEndpoint
+@inject NavigationManager Navigation
+
+<PageTitle>Conexión con la API</PageTitle>
+
+<div class="container py-4" style="max-width: 620px;">
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h2 class="h4 text-primary fw-bold">Conexión con la API</h2>
+            <p class="text-muted">Indique la dirección del servidor de ST1Savall. Esta configuración queda guardada en este dispositivo.</p>
+            <label class="form-label fw-semibold" for="api-url">Dirección de la API</label>
+            <input id="api-url" class="form-control" @bind="apiUrl" placeholder="http://192.168.18.222:4040/" inputmode="url" />
+            <div class="form-text">Use HTTP o HTTPS e incluya el puerto cuando sea necesario.</div>
+
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <div class="alert @(success ? "alert-success" : "alert-danger") mt-3 mb-0">@message</div>
+            }
+
+            <div class="d-flex gap-2 justify-content-end mt-4">
+                <button class="btn btn-outline-secondary" @onclick="ProbarAsync" disabled="@testing">@(testing ? "Probando..." : "Probar conexión")</button>
+                <button class="btn btn-primary" @onclick="GuardarAsync" disabled="@testing">Guardar y continuar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? apiUrl;
+    private string? message;
+    private bool success;
+    private bool testing;
+
+    protected override void OnInitialized() => apiUrl = ApiEndpoint.BaseUrl;
+
+    private async Task ProbarAsync()
+    {
+        if (!TryGetUri(out var uri)) return;
+        testing = true;
+        try
+        {
+            using var client = new HttpClient { BaseAddress = uri, Timeout = TimeSpan.FromSeconds(8) };
+            using var response = await client.GetAsync("/");
+            success = true;
+            message = $"Servidor localizado (HTTP {(int)response.StatusCode}).";
+        }
+        catch (Exception ex)
+        {
+            success = false;
+            message = $"No se ha podido conectar: {ex.Message}";
+        }
+        finally { testing = false; }
+    }
+
+    private void GuardarAsync()
+    {
+        if (!TryGetUri(out _)) return;
+        ApiEndpoint.SetBaseUrl(apiUrl!);
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    private bool TryGetUri(out Uri? uri)
+    {
+        try
+        {
+            ApiEndpoint.SetBaseUrl(apiUrl ?? string.Empty);
+            uri = new Uri(ApiEndpoint.BaseUrl!);
+            success = false;
+            message = null;
+            return true;
+        }
+        catch (ArgumentException ex)
+        {
+            uri = null;
+            success = false;
+            message = ex.Message;
+            return false;
+        }
+    }
+}

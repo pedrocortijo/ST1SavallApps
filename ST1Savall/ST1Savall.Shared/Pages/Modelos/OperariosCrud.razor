@@ -70,6 +70,7 @@
                         PopupEditFormHeaderCssClass="bg-primary text-white"
                         PopupEditFormHeaderText="Formulario - Operario"
                         PopupEditFormCssClass="crud-popup operarios-popup"
+                        PopupEditForm
                         PagerPosition="GridPagerPosition.Bottom"
                         PageSize="20"
                         AllowSort="true"
@@ -235,9 +236,15 @@
                                 <div class="p-3">
                             @if (EsOperarioExistente(oper.IdOperario))
                             {
-                                    <DxGrid @key="oper.IdOperario" @ref="ausenciasGrid" Data="@GetAusencias(oper.IdOperario)" KeyFieldName="IdAusencia"
-                                            EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnAusenciaSaving"
-                                            DataItemDeleting="OnAusenciaDeleting" PopupEditFormCssClass="ausencias-popup" PageSize="5" ShowPager="true">
+                                    <DxGrid @key="oper.IdOperario" @ref="ausenciasGrid" 
+                                        Data="@GetAusencias(oper.IdOperario)" 
+                                        KeyFieldName="IdAusencia"
+                                        EditMode="GridEditMode.PopupEditForm" 
+                                        EditModelSaving="OnAusenciaSaving"
+                                        DataItemDeleting="OnAusenciaDeleting"
+                                        PopupEditFormHeaderText="Formulario - Ausencia"
+                                        PopupEditFormCssClass="ausencias-popup"
+                                        PageSize="5" ShowPager="true">
                                         <Columns>
                                             <DxGridCommandColumn Width="96px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
                                                 <HeaderTemplate Context="ausenciasHeader">
@@ -251,6 +258,7 @@
                                                     </div>
                                                 </CellDisplayTemplate>
                                             </DxGridCommandColumn>
+
                                             <DxGridDataColumn FieldName="FechaInicio" Caption="Desde" DisplayFormat="d" SortIndex="0" SortOrder="GridColumnSortOrder.Descending" />
                                             <DxGridDataColumn FieldName="FechaFin" Caption="Hasta" DisplayFormat="d" />
                                             <DxGridDataColumn FieldName="Tipo" Caption="Tipo" />

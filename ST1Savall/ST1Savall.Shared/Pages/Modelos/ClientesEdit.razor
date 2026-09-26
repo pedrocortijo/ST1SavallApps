@@ -102,6 +102,23 @@
                         </div>
                     </DxFormLayoutItem>
 
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Configuración comercial
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Forma de pago" ColSpanMd="3" BeginRow="true">
+                        <DxComboBox Data="@formasPago" TData="FpagSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" @bind-Value="cliente.Fpag" AllowCustomValue="true" NullText="Seleccione..." SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains">
+                            <ItemTemplate Context="formaPago"><strong>@formaPago.Codigo</strong> - @formaPago.Nombre</ItemTemplate>
+                        </DxComboBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Banco previsto" ColSpanMd="3">
+                        <DxComboBox Data="@bancosPrevistos" TData="string" TValue="string" @bind-Value="cliente.BancoPrev" AllowCustomValue="true" NullText="Seleccione o introduzca..." SearchMode="ListSearchMode.AutoSearch" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Idioma" ColSpanMd="3">
+                        <DxTextBox @bind-Text="cliente.Idioma" MaxLength="3" />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Contrapartida" ColSpanMd="3">
+                        <DxTextBox @bind-Text="cliente.Contrapar" MaxLength="8" />
+                    </DxFormLayoutItem>
                     @*
                     <!-- Grupo 3: Configuración Sage50 -->
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
@@ -380,6 +397,7 @@
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
     private List<FpagSage50>? formasPago;
+    private List<string> bancosPrevistos = ["57200004"];
     private List<TipoIvaSage50>? tiposIvaList;
     private bool showConflictPopup = false;
     private string? conflictMessage;
@@ -483,6 +501,8 @@
                 if (cliente != null)
                 {
                     TrimClientFields(cliente);
+                    if (!string.IsNullOrWhiteSpace(cliente.BancoPrev) && !bancosPrevistos.Contains(cliente.BancoPrev.Trim(), StringComparer.OrdinalIgnoreCase))
+                        bancosPrevistos.Add(cliente.BancoPrev.Trim());
                 }
             }
             else
@@ -745,6 +765,9 @@
         c.Cif = c.Cif?.Trim() ?? "";
         c.Provinerp = c.Provinerp?.Trim() ?? "";
         c.Fpag = c.Fpag?.Trim() ?? "";
+        c.BancoPrev = c.BancoPrev?.Trim() ?? "";
+        c.Idioma = c.Idioma?.Trim() ?? "";
+        c.Contrapar = c.Contrapar?.Trim() ?? "";
         c.Tarifa = c.Tarifa?.Trim() ?? "";
         c.Vendedor = c.Vendedor?.Trim() ?? "";
         c.Ruta = c.Ruta?.Trim() ?? "";

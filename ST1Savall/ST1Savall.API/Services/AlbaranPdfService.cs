@@ -120,7 +120,7 @@ public sealed class AlbaranPdfService
             ? solicitud!.TipoResiduo!.Trim()
             : (lineaArticulo?.ARTICULO?.Trim() ?? string.Empty);
         var nombreArticulo = lineaArticulo?.DEFINICION?.Trim() ?? string.Empty;
-        var fecha = solicitud?.FechaTarea ?? a.FECHA;
+        var fecha = solicitud?.FechaPesaje ?? solicitud?.FechaTarea ?? a.FECHA;
         var hora = solicitud?.HoraPesaje?.ToString(@"hh\:mm") ?? string.Empty;
 
         // Las plantillas entregadas por el cliente son el fondo completo de la página de pesaje.

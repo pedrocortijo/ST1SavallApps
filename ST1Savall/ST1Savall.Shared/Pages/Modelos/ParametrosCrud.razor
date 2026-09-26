@@ -2,10 +2,38 @@
 @using ST1Savall.Shared.Data
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 
 <PageTitle>Gestión de Parámetros</PageTitle>
 
-<div class="container-fluid py-0">
+<DxPopup Visible="@passwordModalVisible"
+         HeaderText="Acceso a Parámetros"
+         ShowCloseButton="false"
+         CloseOnOutsideClick="false"
+         ShowFooter="true"
+         Width="420px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2">
+            <p class="mb-3">Introduzca la contraseña de administración para acceder a Parámetros.</p>
+            <DxTextBox @bind-Text="@inputPassword" Password="true" NullText="Contraseña" CssClass="w-100" Attributes="@(new Dictionary<string, object> { { "autocomplete", "new-password" } })" />
+            @if (!string.IsNullOrWhiteSpace(passwordError))
+            {
+                <div class="text-danger small mt-2">@passwordError</div>
+            }
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarPasswordPrompt" />
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="ValidarPasswordAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
+@if (isAuthorized)
+{<div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">Parámetros</h2>
@@ -269,6 +297,7 @@
         </div>
     </div>
 </div>
+}
 
 @code {
     private readonly List<string> tiposSslSmtp = new() { "Ninguno", "SSL/TLS", "STARTTLS" };
@@ -276,11 +305,65 @@
     private List<Parametro>? parametros;
     private List<EstadoSolicitud>? estadosList;
     private string? errorMessage;
+    private bool isAuthorized;
+    private bool passwordModalVisible;
+    private string inputPassword = string.Empty;
+    private string? passwordError;
+    private string configuredAdminPassword = "Admin123!";
 
     protected override async Task OnInitializedAsync()
     {
         await SetupHeadersAsync();
+        await CheckAdminPasswordAsync();
+    }
+
+    private async Task CheckAdminPasswordAsync()
+    {
+        inputPassword = string.Empty;
+        passwordError = null;
+        try
+        {
+            var configuracion = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros");
+            configuredAdminPassword = string.IsNullOrWhiteSpace(configuracion?.FirstOrDefault()?.AdminPassword)
+                ? "Admin123!"
+                : configuracion.First().AdminPassword!;
+        }
+        catch
+        {
+            configuredAdminPassword = "Admin123!";
+        }
+
+        isAuthorized = false;
+        passwordModalVisible = true;
+    }
+
+    private async Task ValidarPasswordAsync()
+    {
+        passwordError = null;
+        if (string.IsNullOrWhiteSpace(inputPassword))
+        {
+            passwordError = "Introduzca la contraseña.";
+            return;
+        }
+
+        if (!string.Equals(inputPassword, configuredAdminPassword, StringComparison.Ordinal))
+        {
+            passwordError = "La contraseña introducida no es correcta.";
+            return;
+        }
+
+        isAuthorized = true;
+        passwordModalVisible = false;
+        inputPassword = string.Empty;
         await LoadDataAsync();
+    }
+
+    private void CancelarPasswordPrompt()
+    {
+        inputPassword = string.Empty;
+        passwordError = null;
+        passwordModalVisible = false;
+        NavigationManager.NavigateTo("/");
     }
 
     private async Task SetupHeadersAsync()

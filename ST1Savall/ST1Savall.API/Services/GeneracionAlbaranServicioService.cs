@@ -63,7 +63,7 @@ public sealed class GeneracionAlbaranServicioService(
                     .Select(o => o.Camion == null ? null : o.Camion.Matricula)
                     .FirstOrDefaultAsync()
                 : null;
-            var fechaAlbaran = DateTime.Today;
+            var fechaAlbaran = solicitud.FechaPesaje ?? DateTime.Today;
             DatosAlbaranPlanta? datosPlanta = solicitud.KgAlbaran.HasValue
                 ? new DatosAlbaranPlanta(solicitud.AlbaranPlanta?.Trim() ?? string.Empty, fechaAlbaran, solicitud.KgAlbaran.Value)
                 : null;
@@ -81,6 +81,7 @@ public sealed class GeneracionAlbaranServicioService(
                     datosPlanta = await datosAlbaranPlantaExcel.ObtenerAsync(
                         parametros, plantaPesaje.Nombre, solicitud.AlbaranPlanta, fechaAlbaran);
                     solicitud.KgAlbaran = decimal.ToInt32(decimal.Round(datosPlanta.NetoKg, 0, MidpointRounding.AwayFromZero));
+                    solicitud.FechaPesaje = datosPlanta.Fecha.Date;
                     if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
                     {
                         solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);
@@ -197,6 +198,7 @@ public sealed class GeneracionAlbaranServicioService(
 
             var kg = decimal.ToInt32(decimal.Round(datosPesaje.NetoKg, 0, MidpointRounding.AwayFromZero));
             solicitud.KgAlbaran = kg;
+            solicitud.FechaPesaje = datosPesaje.Fecha.Date;
             if (solicitud.KgAlbaran.HasValue && !solicitud.HoraPesaje.HasValue)
             {
                 solicitud.HoraPesaje = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute, 0);

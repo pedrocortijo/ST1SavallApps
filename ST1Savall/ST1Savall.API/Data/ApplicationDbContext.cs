@@ -29,6 +29,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Ausencia> Ausencias { get; set; } = null!;
     public DbSet<Motivo> Motivos { get; set; } = null!;
     public DbSet<SolicitudFoto> SolicitudFotos { get; set; } = null!;
+    public DbSet<SolicitudTiquePesaje> SolicitudTiquesPesaje { get; set; } = null!;
     public DbSet<TarifaCabecera> TarifasCabeceras { get; set; } = null!;
     public DbSet<TarifaLinea> TarifasLineas { get; set; } = null!;
     public DbSet<HorarioObra> HorariosObra { get; set; } = null!;
@@ -123,6 +124,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<SolicitudFoto>()
             .HasIndex(f => new { f.IdSolicitud, f.FechaCreacion });
+
+        builder.Entity<Solicitud>().Property(s => s.FechaPesaje).HasColumnType("date");
+        builder.Entity<SolicitudTiquePesaje>().Property(t => t.Fecha).HasColumnType("date");
+        builder.Entity<SolicitudTiquePesaje>().Property(t => t.Confianza).HasPrecision(5, 4);
+        builder.Entity<SolicitudTiquePesaje>().HasIndex(t => new { t.IdSolicitud, t.FechaCreacion });
+        builder.Entity<SolicitudTiquePesaje>().HasIndex(t => new { t.IdPlanta, t.NumeroAlbaran });
 
         foreach (var propertyName in new[]
         {

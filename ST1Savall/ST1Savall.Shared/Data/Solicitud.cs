@@ -38,6 +38,9 @@ public class Solicitud
     /// <summary>Kg del pesaje del contenedor en la planta de reciclaje.</summary>
     public int? KgAlbaran { get; set; }
 
+    /// <summary>Fecha que figura en el tique de pesaje de la planta.</summary>
+    public DateTime? FechaPesaje { get; set; }
+
     /// <summary>Hora en la que se realiza el pesaje del contenedor en la planta.</summary>
     public TimeSpan? HoraPesaje { get; set; }
 

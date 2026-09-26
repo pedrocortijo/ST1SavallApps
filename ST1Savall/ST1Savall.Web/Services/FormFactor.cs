@@ -28,5 +28,10 @@ namespace ST1Savall.Web.Services
         }
 
         public Task<CapturedPhoto?> CapturePhotoAsync() => Task.FromResult<CapturedPhoto?>(null);
+
+        public Task<CapturedPhoto?> PickPhotoAsync() => Task.FromResult<CapturedPhoto?>(null);
+
+        public Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData) =>
+            Task.FromException<(string Text, decimal? Confidence)>(new InvalidOperationException("El OCR local solo está disponible en la aplicación Windows o Android."));
     }
 }

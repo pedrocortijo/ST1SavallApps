@@ -21,6 +21,7 @@
     .firma-miniatura { width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; }
     .firma-miniatura img { width: 100%; height: 100%; object-fit: cover; }
     .firma-foto button { position: absolute; right: 6px; top: 6px; min-width: 36px; min-height: 36px; }
+    .firma-foto-fase { position: absolute; left: 6px; bottom: 6px; z-index: 1; padding: .2rem .45rem; border-radius: .25rem; background: rgba(0, 0, 0, .72); color: #fff; font-size: .7rem; font-weight: 700; pointer-events: none; }
     .visor-foto { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .78); }
     .visor-foto-contenido { position: relative; max-width: min(100%, 1100px); max-height: 100%; }
     .visor-foto img { display: block; max-width: 100%; max-height: calc(100vh - 40px); border-radius: 8px; }
@@ -55,6 +56,55 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="revisionTiqueVisible"
+         HeaderText="Revisar tique de báscula"
+         ShowFooter="true"
+         Width="620px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        @if (tiqueAnalisis is not null)
+        {
+            <div class="py-2">
+                <div class="alert alert-info py-2 small">
+                    Revise los datos leídos antes de aplicarlos. El OCR nunca modifica la solicitud sin esta confirmación.
+                    @if (tiqueAnalisis.Confianza.HasValue)
+                    {
+                        <span class="ms-1">Confianza media: <strong>@tiqueAnalisis.Confianza.Value.ToString("P0")</strong>.</span>
+                    }
+                </div>
+                @if (tiqueAnalisis.Advertencias.Count > 0)
+                {
+                    <div class="alert alert-warning py-2 small">
+                        <strong>Revise especialmente:</strong>
+                        <ul class="mb-0 mt-1">@foreach (var aviso in tiqueAnalisis.Advertencias) { <li>@aviso</li> }</ul>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(tiqueAnalisis.TextoOcr))
+                {
+                    <details class="mb-3 small">
+                        <summary>Ver texto detectado por el OCR</summary>
+                        <pre class="border rounded p-2 mt-2 mb-0 bg-light text-dark text-wrap">@tiqueAnalisis.TextoOcr</pre>
+                    </details>
+                }
+                <div class="row g-3">
+                    <div class="col-md-8"><label class="form-label">Nº albarán planta *</label><DxTextBox @bind-Text="tiqueAnalisis.NumeroAlbaran" MaxLength="20" /></div>
+                    <div class="col-md-6"><label class="form-label">Matrícula</label><DxTextBox @bind-Text="tiqueAnalisis.Matricula" MaxLength="20" /></div>
+                    <div class="col-md-4"><label class="form-label">Fecha *</label><DxDateEdit @bind-Date="tiqueAnalisis.Fecha" /></div>
+                    <div class="col-md-4"><label class="form-label">Hora *</label><DxTimeEdit @bind-Time="tiqueAnalisis.Hora" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" /></div>
+                    <div class="col-md-4"><label class="form-label">Peso neto (kg) *</label><input type="number" class="form-control" @bind="tiqueAnalisis.PesoNetoKg" min="1" max="100000" step="1" /></div>
+                </div>
+            </div>
+        }
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarRevisionTique" />
+            <DxButton Text="Confirmar y aplicar" RenderStyle="ButtonRenderStyle.Primary" Click="ConfirmarTiquePesajeAsync" Enabled="@(!procesandoTique)" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 <div class="container-fluid py-0 firma-pagina">
     <div class="d-flex justify-content-between align-items-center firma-cabecera mb-3">
         <h2 class="fw-bold text-primary mb-0" style="font-size:1.2rem">Firma de solicitud</h2>
@@ -83,7 +133,7 @@
                 <div class="col-12"><label class="form-label small fw-bold">Dirección de la obra</label><DxTextBox Text="@($"{solicitud.DireccionCliente}, {solicitud.PoblacionCliente}")" ReadOnly="true" CssClass="w-100" /></div>
             </div>
 
-            <section class="border-top pt-3 mb-3">
+            <section>
                 <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Núm. de serie de contenedores</h3>
                 <div class="row g-2">
                     <div class="col-6"><div class="d-flex justify-content-between mb-1"><label class="form-label small fw-bold mb-0">Entrega [1] </label><span><button type="button" class="btn btn-link btn-sm p-0 me-2" disabled="@(tarea?.Entrega1 != true)" @onclick='() => AbrirNuevoContenedor("CodigoEntrega", "Entrega [1]")'>Nuevo</button><button type="button" class="btn btn-link btn-sm p-0" disabled="@(tarea?.Entrega1 != true || string.IsNullOrWhiteSpace(solicitud.CodigoEntrega))" @onclick="() => solicitud.CodigoEntrega = null">Borrar</button></span></div><DxComboBox Data="@contenedoresEntrega" TData="Contenedor" TValue="string" TextFieldName="NumSerie" ValueFieldName="NumSerie" @bind-Value="solicitud.CodigoEntrega" Enabled="@(tarea?.Entrega1 == true)" CssClass="w-100" NullText="Seleccionar..."><Columns><DxListEditorColumn FieldName="NumSerie" Caption="Nº Serie" /><DxListEditorColumn FieldName="Tipo.Descripcion" Caption="Tipo" /><DxListEditorColumn FieldName="EstadoFisico" Caption="Estado" /></Columns></DxComboBox></div>
@@ -93,22 +143,30 @@
                 </div>
             </section>
 
-            <div class="row g-2 border-top pt-3 mb-3">
-                <div class="col-12 col-md-4"><label class="form-label small fw-bold">Tipo de residuo</label>
-                    <DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" 
-                        TData="ArticuloSage50" TValue="string" 
-                        TextFieldName="Descripcion" 
-                        ValueFieldName="Codigo" @bind-Value="solicitud.TipoResiduo" 
-                        CssClass="w-100" 
-                        NullText="Seleccione el tipo de residuo..." />
-                </div>
-                <div class="col-12 col-md-3"><label class="form-label small fw-bold">Albarán de planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div>
-                <div class="col-12 col-md-3"><label class="form-label small fw-bold">Kg albarán</label><DxSpinEdit @bind-Value="solicitud.KgAlbaran" @bind-Value:after="OnKgAlbaranChanged" MinValue="0" Increment="1" CssClass="w-100" /></div>
-                <div class="col-12 col-md-2"><label class="form-label small fw-bold">Hora pesaje</label><DxTimeEdit @bind-Time="solicitud.HoraPesaje" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="w-100 text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></div>
+            <h3 class="h6 text-primary fw-bold mt-2 mb-3 pb-2 border-bottom">Báscula</h3>
+
+            <div class="row g-2">
+            <div class="col-12"><label class="form-label small fw-bold">Tipo de residuo</label><DxComboBox Data="@tiposResiduo.OrderBy(articulo => articulo.Nombre)" TData="ArticuloSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="solicitud.TipoResiduo" CssClass="w-100" NullText="Seleccione el tipo de residuo..." /></div>
+            <div class="col-6 col-md-3"><label class="form-label small fw-bold">Albarán planta</label><DxTextBox @bind-Text="solicitud.AlbaranPlanta" MaxLength="20" CssClass="w-100" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small fw-bold">Fecha pesaje</label><DxDateEdit @bind-Date="solicitud.FechaPesaje" CssClass="w-100" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small fw-bold">Kg. Neto</label><input type="number" class="form-control w-100" @bind="solicitud.KgAlbaran" @bind:after="OnKgAlbaranChanged" min="0" step="1" inputmode="numeric" /></div>
+            <div class="col-6 col-md-3"><label class="form-label small fw-bold">Hora pesaje</label><DxTimeEdit @bind-Time="solicitud.HoraPesaje" DisplayFormat="HH:mm" Format="HH:mm" TimeSectionVisible="false" CssClass="w-100 text-center" ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto" /></div>
+            <div class="col-12 d-flex flex-wrap gap-2 mt-2">
+                @if (esAplicacionNativa)
+                {
+                    <DxButton Text="Fotografiar tique" IconCssClass="oi oi-camera-slr" RenderStyle="ButtonRenderStyle.Primary" Click="CapturarTiquePesajeAsync" Enabled="@(!procesandoTique)" />
+                    <DxButton Text="Elegir foto" IconCssClass="oi oi-folder" RenderStyle="ButtonRenderStyle.Secondary" Click="SeleccionarTiqueNativoAsync" Enabled="@(!procesandoTique)" />
+                }
+                else
+                {
+                    <label class="btn btn-outline-primary btn-sm mb-0 @(procesandoTique ? "disabled" : string.Empty)"><i class="oi oi-folder me-1"></i>Seleccionar tique<InputFile class="d-none" OnChange="SeleccionarTiquePesajeAsync" accept="image/*" disabled="@procesandoTique" /></label>
+                }
+                @if (procesandoTique) { <span class="small text-muted align-self-center">Analizando el tique…</span> }
+            </div>
             </div>
 
-            <section class="border-top pt-3 mb-3">
-                <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Observaciones</h3>
+            <section>
+                <h3 class="h6 text-primary fw-bold mt-2 mb-3 pb-2 border-bottom">Observaciones</h3>
                 <div class="row g-2">
                     <div class="col-12">
                         <label class="form-label small fw-bold">Observaciones del conductor</label>
@@ -120,8 +178,8 @@
                 </div>
             </section>
 
-            <section class="border-top pt-3">
-                <h3 class="h6 text-primary fw-bold mb-3 pb-2 border-bottom">Firma de solicitud</h3>
+            <section>
+                <h3 class="h6 text-primary fw-bold mt-2 mb-3 pb-2 border-bottom">Firma de solicitud</h3>
                 <div class="row g-2">
                     <div class="col-7"><label class="form-label small fw-bold">Nombre firmante</label><DxTextBox @bind-Text="solicitud.FirmaNombre" NullText="Nombre y apellidos" MaxLength="50" CssClass="w-100" /></div>
                     <div class="col-5"><label class="form-label small fw-bold">DNI</label><DxTextBox @bind-Text="solicitud.FirmaDni" NullText="DNI" MaxLength="25" CssClass="w-100" /></div>
@@ -132,11 +190,11 @@
                 </div>
             </section>
 
-            <section class="border-top pt-3 mt-3">
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h3 class="h6 text-primary fw-bold mb-0">Foto de la entrega o recogida <span class="text-danger" aria-label="Obligatoria">*</span></h3><div class="d-flex gap-2">@if (esAplicacionNativa) { <button type="button" class="btn btn-primary" @onclick="CapturarFotoAsync"><i class="oi oi-camera-slr me-1"></i>Cámara</button> }<label class="btn btn-outline-primary mb-0"><i class="oi oi-folder me-1"></i>Seleccionar<InputFile class="d-none" OnChange="SubirFotoAsync" accept="image/*" /></label></div></div>
-                <p class="small text-muted">Obligatoria para completar el servicio. Use Cámara en la tableta o seleccione una imagen desde el dispositivo.</p>
+            <section>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2"><h3 class="h6 text-primary fw-bold mb-0">Foto en @(EnRutaAPlanta ? "planta" : "obra") <span class="text-danger" aria-label="Obligatoria">*</span></h3><div class="d-flex gap-2">@if (esAplicacionNativa) { <button type="button" class="btn btn-primary mt-2" @onclick="CapturarFotoAsync"><i class="oi oi-camera-slr me-1"></i>Cámara</button> }<label class="btn btn-outline-primary mt-2 mb-0"><i class="oi oi-folder me-1"></i>Seleccionar<InputFile class="d-none" OnChange="SubirFotoAsync" accept="image/*" /></label></div></div>
+                <p class="small text-muted">La foto se guardará identificada como @(EnRutaAPlanta ? "PLANTA" : "OBRA"). Use Cámara en la tableta o seleccione una imagen desde el dispositivo.</p>
                 @if (fotos.Count == 0) { <div class="small text-danger border border-danger rounded p-3">Debe añadir una foto de la entrega o recogida.</div> }
-                else { <div class="firma-fotos">@foreach (var foto in fotos) { <div class="firma-foto"><button type="button" class="firma-miniatura" title="Abrir foto original" @onclick="() => AbrirFotoOriginalAsync(foto.Id)" @onclick:stopPropagation="true"><img src="@FotoDataUri(foto.Id)" alt="Abrir foto original" /></button><button type="button" class="btn btn-danger" title="Eliminar foto" @onclick="() => EliminarFotoAsync(foto.Id)"><i class="oi oi-trash"></i></button></div> }</div> }
+                else { <div class="firma-fotos">@foreach (var foto in fotos) { <div class="firma-foto"><span class="firma-foto-fase">@FaseDeFoto(foto)</span><button type="button" class="firma-miniatura" title="@($"Foto de {FaseDeFoto(foto)}: abrir original")" @onclick="() => AbrirFotoOriginalAsync(foto.Id)" @onclick:stopPropagation="true"><img src="@FotoDataUri(foto.Id)" alt="Abrir foto original" /></button><button type="button" class="btn btn-danger" title="Eliminar foto" @onclick="() => EliminarFotoAsync(foto.Id)"><i class="oi oi-trash"></i></button></div> }</div> }
             </section>
 
             <div class="firma-acciones d-flex justify-content-end gap-2 border-top pt-3 mt-3"><button type="button" class="btn btn-outline-secondary" @onclick="Volver">Cancelar</button><button type="button" class="btn btn-primary" disabled="@guardando" @onclick="GuardarAsync">@(guardando ? "Guardando..." : "Guardar")</button></div>
@@ -166,6 +224,7 @@
     private Solicitud? solicitud;
     private Tarea? tarea;
     private List<ArticuloSage50> tiposResiduo = [];
+    private List<EstadoSolicitud> estadosSolicitud = [];
     private List<Contenedor> contenedores = [];
     private List<Solicitud> solicitudesConContenedores = [];
     private List<ContenedorTipo> tiposContenedor = [];
@@ -183,7 +242,13 @@
     private bool loading = true, guardando, firmaInicializada, firmaModificada, firmaEliminada, firmaPendienteDeMostrar, fotoCargando;
     private int intentosInicializacionFirma;
     private bool esAplicacionNativa;
+    private bool procesandoTique;
+    private bool revisionTiqueVisible;
+    private TiquePesajeAnalisisResponse? tiqueAnalisis;
     private string FechaServicio => solicitud?.FechaTarea?.ToString("dd/MM/yyyy") ?? string.Empty;
+    private bool EnRutaAPlanta => solicitud is not null && estadosSolicitud.FirstOrDefault(estado => estado.IdEstado == solicitud.Estado)?.EstadoServicio == EstadoServicio.RutaPlanta;
+    private string FaseFotoActual => EnRutaAPlanta ? "PLANTA" : "OBRA";
+    private static string FaseDeFoto(SolicitudFoto foto) => foto.NombreArchivo?.StartsWith("PLANTA_", StringComparison.OrdinalIgnoreCase) == true ? "Planta" : foto.NombreArchivo?.StartsWith("OBRA_", StringComparison.OrdinalIgnoreCase) == true ? "Obra" : "Sin clasificar";
 
     protected override async Task OnInitializedAsync()
     {
@@ -197,6 +262,7 @@
             if (solicitud is null) { errorMessage = "No se ha encontrado la solicitud."; return; }
             tarea = (await Http.GetFromJsonAsync<List<Tarea>>("api/tareas"))?.FirstOrDefault(t => t.IdTarea == solicitud.IdTipoTarea);
             tiposResiduo = await Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50/contenedores") ?? [];
+            estadosSolicitud = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
             contenedores = await Http.GetFromJsonAsync<List<Contenedor>>("api/contenedores") ?? [];
             solicitudesConContenedores = await Http.GetFromJsonAsync<List<Solicitud>>("api/solicitudes/con-contenedores") ?? [];
             tiposContenedor = await Http.GetFromJsonAsync<List<ContenedorTipo>>("api/contenedorestipos") ?? [];
@@ -276,6 +342,147 @@
         }
     }
 
+    private async Task SeleccionarTiquePesajeAsync(InputFileChangeEventArgs args)
+    {
+        try
+        {
+            var archivo = args.File;
+            await using var stream = archivo.OpenReadStream(10 * 1024 * 1024);
+            using var memoria = new MemoryStream();
+            await stream.CopyToAsync(memoria);
+            await AnalizarTiquePesajeAsync(archivo.Name, archivo.ContentType, memoria.ToArray());
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido leer la imagen del tique: {ex.Message}";
+        }
+    }
+
+    private async Task CapturarTiquePesajeAsync()
+    {
+        try
+        {
+            var foto = await FormFactor.CapturePhotoAsync();
+            if (foto is not null)
+                await AnalizarTiquePesajeAsync(foto.FileName, foto.ContentType, foto.Content);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido abrir la cámara: {ex.Message}";
+        }
+    }
+
+    private async Task SeleccionarTiqueNativoAsync()
+    {
+        try
+        {
+            var foto = await FormFactor.PickPhotoAsync();
+            if (foto is not null)
+                await AnalizarTiquePesajeAsync(foto.FileName, foto.ContentType, foto.Content);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido seleccionar la imagen del tique: {ex.Message}";
+        }
+    }
+    private async Task AnalizarTiquePesajeAsync(string nombreArchivo, string? contentType, byte[] contenido)
+    {
+        if (solicitud?.IdSolicitud <= 0)
+        {
+            errorMessage = "Guarde primero la solicitud para poder escanear el tique.";
+            return;
+        }
+
+        try
+        {
+            procesandoTique = true;
+            var ocr = await FormFactor.RecognizeTextAsync(contenido);
+            var response = await Http.PostAsJsonAsync(
+                $"api/solicitudes/{solicitud.IdSolicitud}/tique-pesaje/analizar",
+                new AnalizarTiquePesajeRequest
+                {
+                    NombreArchivo = nombreArchivo,
+                    ContentType = contentType,
+                    ImagenBase64 = $"data:{contentType ?? "image/jpeg"};base64,{Convert.ToBase64String(contenido)}",
+                    TextoOcr = ocr.Text,
+                    ConfianzaOcr = ocr.Confidence
+                });
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await ObtenerMensajeErrorAsync(response, "No se ha podido analizar el tique.");
+                return;
+            }
+
+            tiqueAnalisis = await response.Content.ReadFromJsonAsync<TiquePesajeAnalisisResponse>();
+            if (tiqueAnalisis is null)
+            {
+                errorMessage = "El reconocimiento local no ha devuelto datos para revisar.";
+                return;
+            }
+            revisionTiqueVisible = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido analizar el tique: {ex.Message}";
+        }
+        finally
+        {
+            procesandoTique = false;
+        }
+    }
+
+    private async Task ConfirmarTiquePesajeAsync()
+    {
+        if (solicitud?.IdSolicitud <= 0 || tiqueAnalisis is null) return;
+        try
+        {
+            procesandoTique = true;
+            var response = await Http.PostAsJsonAsync(
+                $"api/solicitudes/{solicitud.IdSolicitud}/tique-pesaje/{tiqueAnalisis.IdTiquePesaje}/confirmar",
+                new ConfirmarTiquePesajeRequest
+                {
+                    NumeroAlbaran = tiqueAnalisis.NumeroAlbaran,
+                    Matricula = tiqueAnalisis.Matricula,
+                    Fecha = tiqueAnalisis.Fecha,
+                    Hora = tiqueAnalisis.Hora,
+                    PesoNetoKg = tiqueAnalisis.PesoNetoKg
+                });
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await ObtenerMensajeErrorAsync(response, "No se ha podido confirmar el tique.");
+                return;
+            }
+
+            var confirmado = await response.Content.ReadFromJsonAsync<TiquePesajeAnalisisResponse>();
+            if (confirmado is null)
+            {
+                errorMessage = "El servidor no ha devuelto los datos confirmados.";
+                return;
+            }
+
+            solicitud.AlbaranPlanta = confirmado.NumeroAlbaran;
+            solicitud.FechaPesaje = confirmado.Fecha;
+            solicitud.HoraPesaje = confirmado.Hora;
+            solicitud.KgAlbaran = confirmado.PesoNetoKg;
+            revisionTiqueVisible = false;
+            tiqueAnalisis = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido confirmar el tique: {ex.Message}";
+        }
+        finally
+        {
+            procesandoTique = false;
+        }
+    }
+
+    private void CancelarRevisionTique()
+    {
+        revisionTiqueVisible = false;
+        tiqueAnalisis = null;
+    }
+
     private async Task GuardarAsync()
     {
         if (solicitud is null) return;
@@ -286,6 +493,7 @@
             {
                 solicitud.AlbaranPlanta,
                 solicitud.KgAlbaran,
+                solicitud.FechaPesaje,
                 solicitud.HoraPesaje,
                 solicitud.TipoResiduo,
                 solicitud.FirmaNombre,
@@ -343,7 +551,7 @@
 
     private async Task GuardarFotoAsync(string nombreArchivo, string? contentType, byte[] contenido)
     {
-        var respuesta = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/fotos", new { NombreArchivo = nombreArchivo, ImagenBase64 = $"data:{contentType ?? "image/jpeg"};base64,{Convert.ToBase64String(contenido)}" });
+        var respuesta = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/fotos", new { NombreArchivo = $"{FaseFotoActual}_{nombreArchivo}", ImagenBase64 = $"data:{contentType ?? "image/jpeg"};base64,{Convert.ToBase64String(contenido)}" });
         if (!respuesta.IsSuccessStatusCode)
         {
             var error = await ObtenerMensajeErrorAsync(respuesta, "No se ha podido guardar la foto.");
