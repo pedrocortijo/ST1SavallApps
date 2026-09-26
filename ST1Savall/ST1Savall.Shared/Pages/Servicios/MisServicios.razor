@@ -165,11 +165,16 @@
                     </div>
                 </div>
 
-                <div class="p-2 border rounded bg-white d-inline-block shadow-sm mb-2">
-                    <img src="@($"api/deca/solicitud/{detalleDeCa.IdSolicitud}/qr-imagen?t={DateTime.UtcNow.Ticks}")"
-                         alt="Código QR DeCA"
-                         style="width: 200px; height: 200px; display: block;" />
-                </div>
+                @if (!string.IsNullOrWhiteSpace(qrDeCaImagenSrc))
+                {
+                    <div class="p-2 border rounded bg-white d-inline-block shadow-sm mb-2">
+                        <img src="@qrDeCaImagenSrc" alt="Código QR DeCA" style="width: 200px; height: 200px; display: block;" />
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning py-2 small">No se ha podido cargar el código QR.</div>
+                }
 
                 <div class="alert alert-info py-2 small text-start mb-2">
                     <strong>Para la Inspección / Guardia Civil:</strong><br />
@@ -199,9 +204,14 @@
         <div class="d-flex justify-content-between align-items-center w-100">
             @if (detalleDeCa is not null && !string.IsNullOrWhiteSpace(detalleDeCa.GuidDeCa))
             {
-                <a href="@($"api/deca/solicitud/{detalleDeCa.IdSolicitud}/pdf")" target="_blank" class="btn btn-outline-primary btn-sm">
-                    <i class="oi oi-document me-1"></i>Descargar PDF
-                </a>
+                <div class="d-flex gap-2">
+                    <a href="@detalleDeCa.UrlDescarga" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="oi oi-document me-1"></i>Descargar PDF
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="GenerarDeCaManualAsync">
+                        <i class="oi oi-reload me-1"></i>Regenerar y publicar
+                    </button>
+                </div>
             }
             else { <span></span> }
             <DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => deCaPopupVisible = false" />
@@ -232,6 +242,7 @@
     private bool deCaPopupVisible;
     private bool cargandoDeCa;
     private DeCaDetalleDto? detalleDeCa;
+    private string? qrDeCaImagenSrc;
     private int idSolicitudDeCaActual;
 
     protected override async Task OnInitializedAsync() => await LoadDataAsync();
@@ -642,9 +653,11 @@
         deCaPopupVisible = true;
         cargandoDeCa = true;
         detalleDeCa = null;
+        qrDeCaImagenSrc = null;
         try
         {
             detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitud}");
+            qrDeCaImagenSrc = await CargarQrDeCaAsync(idSolicitud);
         }
         catch (Exception ex)
         {
@@ -656,6 +669,15 @@
         }
     }
 
+    private async Task<string?> CargarQrDeCaAsync(int idSolicitud)
+    {
+        var response = await Http.GetAsync($"api/deca/solicitud/{idSolicitud}/qr-imagen");
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var pngBytes = await response.Content.ReadAsByteArrayAsync();
+        return $"data:image/png;base64,{Convert.ToBase64String(pngBytes)}";
+    }
     private async Task GenerarDeCaManualAsync()
     {
         if (idSolicitudDeCaActual <= 0) return;
@@ -668,6 +690,7 @@
             if (resp.IsSuccessStatusCode)
             {
                 detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitudDeCaActual}");
+                qrDeCaImagenSrc = await CargarQrDeCaAsync(idSolicitudDeCaActual);
             }
         }
         catch (Exception ex)

@@ -178,8 +178,22 @@
                                         <DxFormLayoutItem Caption="Autorización de Transporte (Tarjeta)" ColSpanMd="6">
                                             <DxTextBox @bind-Text="parametro.AutorizacionTransporte" NullText="Nº de autorización de transportista (ej. MDPE-12345678)..." />
                                         </DxFormLayoutItem>
-                                        <DxFormLayoutItem Caption="URL Pública Base para QR" ColSpanMd="6">
+                                        <DxFormLayoutItem Caption="URL Pública Base para QR" ColSpanMd="12" BeginRow="true">
                                             <DxTextBox @bind-Text="parametro.UrlBasePublicaDeCa" NullText="URL pública del servidor para inspección (ej. https://savall.app)..." />
+                                        </DxFormLayoutItem>
+                                    </DxFormLayoutGroup>
+                                    <DxFormLayoutGroup Caption="Publicación FTPS de PDF DeCA" ColSpanMd="12">
+                                        <DxFormLayoutItem Caption="Servidor FTPS" ColSpanMd="9">
+                                            <DxTextBox @bind-Text="parametro.FtpsHost" NullText="servidor.ejemplo.com" />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Puerto" ColSpanMd="3">
+                                            <DxSpinEdit @bind-Value="parametro.FtpsPuerto" MinValue="1" MaxValue="65535" />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Usuario FTPS" ColSpanMd="4" BeginRow="true">
+                                            <DxTextBox @bind-Text="parametro.FtpsUsuario" />
+                                        </DxFormLayoutItem>
+                                        <DxFormLayoutItem Caption="Carpeta remota" ColSpanMd="8">
+                                            <DxTextBox @bind-Text="parametro.FtpsRutaRemota" NullText="www/wwwroot/pdf/Contenedores/" />
                                         </DxFormLayoutItem>
                                     </DxFormLayoutGroup>
                                     <DxFormLayoutGroup Caption="Estados" ColSpanMd="12">

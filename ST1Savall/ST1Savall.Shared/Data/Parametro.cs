@@ -143,4 +143,15 @@ public class Parametro
 
     [MaxLength(255)]
     public string? UrlBasePublicaDeCa { get; set; }
+
+    [MaxLength(255)]
+    public string? FtpsHost { get; set; }
+
+    public int? FtpsPuerto { get; set; } = 21;
+
+    [MaxLength(255)]
+    public string? FtpsRutaRemota { get; set; }
+
+    [MaxLength(100)]
+    public string? FtpsUsuario { get; set; }
 }

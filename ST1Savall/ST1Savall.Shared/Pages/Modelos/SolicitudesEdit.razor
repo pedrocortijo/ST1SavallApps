@@ -381,7 +381,7 @@
                     Emitido: @(solicitud.FechaHoraEmisionDeCa?.ToString("dd/MM/yyyy HH:mm:ss") ?? "--")
                 </div>
                 <div class="p-2 border rounded bg-white d-inline-block shadow-sm mb-3">
-                    <img src="@($"api/deca/solicitud/{solicitud.IdSolicitud}/qr-imagen?t={DateTime.UtcNow.Ticks}")"
+                                        <img src="@qrDeCaOficinaImagenSrc"
                          alt="Código QR DeCA"
                          style="width: 220px; height: 220px; display: block;" />
                 </div>
@@ -393,9 +393,9 @@
     </BodyContentTemplate>
     <FooterContentTemplate>
         <div class="d-flex justify-content-between align-items-center w-100">
-            @if (solicitud != null && !string.IsNullOrWhiteSpace(solicitud.GuidDeCa))
+            @if (!string.IsNullOrWhiteSpace(urlDescargaDeCaOficina))
             {
-                <a href="@($"api/deca/publico/descarga/{solicitud.GuidDeCa}")" target="_blank" class="btn btn-outline-primary btn-sm">
+                <a href="@urlDescargaDeCaOficina" target="_blank" class="btn btn-outline-primary btn-sm">
                     <i class="oi oi-document me-1"></i>Ver PDF DeCA
                 </a>
             }
@@ -3847,10 +3847,32 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
 
     private bool deCaOficinaPopupVisible;
     private bool emitiendoDeCaOficina;
+    private string? qrDeCaOficinaImagenSrc;
+    private string? urlDescargaDeCaOficina;
 
-    private void AbrirModalDeCaOficinaAsync()
+    private async Task AbrirModalDeCaOficinaAsync()
     {
         deCaOficinaPopupVisible = true;
+        if (solicitud is null)
+        {
+            qrDeCaOficinaImagenSrc = null;
+            urlDescargaDeCaOficina = null;
+            return;
+        }
+
+        var detalle = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{solicitud.IdSolicitud}");
+        urlDescargaDeCaOficina = detalle?.UrlDescarga;
+        qrDeCaOficinaImagenSrc = await CargarQrDeCaOficinaAsync(solicitud.IdSolicitud);
+    }
+
+    private async Task<string?> CargarQrDeCaOficinaAsync(int idSolicitud)
+    {
+        var response = await Http.GetAsync($"api/deca/solicitud/{idSolicitud}/qr-imagen");
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var pngBytes = await response.Content.ReadAsByteArrayAsync();
+        return $"data:image/png;base64,{Convert.ToBase64String(pngBytes)}";
     }
 
     private async Task EmitirDeCaOficinaAsync()
@@ -3870,6 +3892,8 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
                     solicitud.GuidDeCa = resultado.GuidDeCa;
                     solicitud.TipoDeCaEmitido = resultado.Tipo;
                     solicitud.FechaHoraEmisionDeCa = resultado.FechaHoraEmision;
+                    urlDescargaDeCaOficina = resultado.UrlDescarga;
+                    qrDeCaOficinaImagenSrc = await CargarQrDeCaOficinaAsync(solicitud.IdSolicitud);
                     StateHasChanged();
                 }
             }

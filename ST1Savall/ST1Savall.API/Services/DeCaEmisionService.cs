@@ -18,6 +18,7 @@ public sealed class DeCaEmisionService(
     SageGestionDbContext sage,
     SageComunDbContext comun,
     DeCaPdfService pdfService,
+    FtpsPdfStorageService ftpsPdfStorage,
     ILogger<DeCaEmisionService> logger)
 {
     public async Task<GenerarDeCaResultadoDto> EmitirDeCaAsync(
@@ -122,12 +123,16 @@ public sealed class DeCaEmisionService(
                 cubicajeM3 ??= 6.0m;
             }
 
-            // Construcción de la URL de descarga para el QR
-            var urlBase = !string.IsNullOrWhiteSpace(parametros.UrlBasePublicaDeCa)
+            var nombreArchivo = $"DECA_{solicitud.IdSolicitud}_{tipoOperacion}_{solicitud.GuidDeCa}.pdf";
+            var usaPublicacionFtps = ftpsPdfStorage.EstaConfigurado(parametros) &&
+                !string.IsNullOrWhiteSpace(parametros.UrlBasePublicaDeCa);
+            var urlBasePublica = !string.IsNullOrWhiteSpace(parametros.UrlBasePublicaDeCa)
                 ? parametros.UrlBasePublicaDeCa.TrimEnd('/')
-                : (!string.IsNullOrWhiteSpace(urlBaseServidor) ? urlBaseServidor.TrimEnd('/') : "https://savall.app");
-
-            var urlDescargaQr = $"{urlBase}/api/deca/publico/descarga/{solicitud.GuidDeCa}";
+                : string.Empty;
+            var urlBaseApi = !string.IsNullOrWhiteSpace(urlBaseServidor) ? urlBaseServidor.TrimEnd('/') : "https://savall.app";
+            var urlDescargaQr = usaPublicacionFtps
+                ? $"{urlBasePublica}/{Uri.EscapeDataString(nombreArchivo)}"
+                : $"{urlBaseApi}/api/deca/publico/descarga/{solicitud.GuidDeCa}";
 
             // Firma física/digital
             string? rutaFirma = solicitud.FirmaPath;
@@ -165,11 +170,15 @@ public sealed class DeCaEmisionService(
             var carpetaDeCa = Path.Combine(carpetaBase, "DeCA", ahora.Year.ToString());
             Directory.CreateDirectory(carpetaDeCa);
 
-            var nombreArchivo = $"DECA_{solicitud.IdSolicitud}_{tipoOperacion}_{solicitud.GuidDeCa}.pdf";
             var rutaCompleta = Path.Combine(carpetaDeCa, nombreArchivo);
 
             await File.WriteAllBytesAsync(rutaCompleta, bytesPdf);
+            if (usaPublicacionFtps)
+            {
+                await ftpsPdfStorage.SubirAsync(parametros, rutaCompleta, nombreArchivo);
+            }
             solicitud.RutaArchivoDeCa = rutaCompleta;
+            solicitud.UrlPublicaDeCa = usaPublicacionFtps ? urlDescargaQr : null;
 
             await db.SaveChangesAsync();
 
@@ -204,9 +213,7 @@ public sealed class DeCaEmisionService(
         if (solicitud is null) return null;
 
         var parametros = await db.Parametros.AsNoTracking().FirstOrDefaultAsync();
-        var urlBase = !string.IsNullOrWhiteSpace(parametros?.UrlBasePublicaDeCa)
-            ? parametros!.UrlBasePublicaDeCa!.TrimEnd('/')
-            : (!string.IsNullOrWhiteSpace(urlBaseServidor) ? urlBaseServidor.TrimEnd('/') : "");
+        var urlBaseApi = !string.IsNullOrWhiteSpace(urlBaseServidor) ? urlBaseServidor.TrimEnd('/') : "";
 
         string? matricula = null;
         string? conductorNombre = solicitud.ConductorNombre;
@@ -234,7 +241,9 @@ public sealed class DeCaEmisionService(
 
         var tienePdf = !string.IsNullOrWhiteSpace(solicitud.RutaArchivoDeCa) && File.Exists(solicitud.RutaArchivoDeCa);
         var urlDescarga = !string.IsNullOrWhiteSpace(solicitud.GuidDeCa)
-            ? $"{urlBase}/api/deca/publico/descarga/{solicitud.GuidDeCa}"
+            ? !string.IsNullOrWhiteSpace(solicitud.UrlPublicaDeCa)
+                ? solicitud.UrlPublicaDeCa
+                : $"{urlBaseApi}/api/deca/publico/descarga/{solicitud.GuidDeCa}"
             : null;
 
         var esEntrega = string.Equals(solicitud.TipoDeCaEmitido, "ENTREGA", StringComparison.OrdinalIgnoreCase);

@@ -198,6 +198,9 @@ public class Solicitud
     [MaxLength(255)]
     public string? RutaArchivoDeCa { get; set; }
 
+    [MaxLength(500)]
+    public string? UrlPublicaDeCa { get; set; }
+
     [Column(TypeName = "decimal(8, 2)")]
     public decimal? CubicajeM3DeCa { get; set; }
 }

@@ -55,6 +55,7 @@ builder.Services.AddScoped<AlbaranPdfService>();
 builder.Services.AddScoped<SmtpAlbaranService>();
 builder.Services.AddScoped<DeCaPdfService>();
 builder.Services.AddScoped<DeCaEmisionService>();
+builder.Services.AddScoped<FtpsPdfStorageService>();
 
 // Add SageComun DbContext
 var sageComunConnectionString = builder.Configuration.GetConnectionString("SageComunConnection") 
@@ -88,15 +89,29 @@ using (var scope = app.Services.CreateScope())
         var sageGestionContext = services.GetRequiredService<SageGestionDbContext>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        // Aplicación instalada antes de PathDocumentos: esta actualización debe
-        // ejecutarse antes de que EF consulte la tabla Parametros.
+        // Las columnas de Parametros deben existir antes de que DbInitializer
+        // consulte la tabla en instalaciones actualizadas desde versiones previas.
         await context.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('Parametros', 'PathDocumentos') IS NULL
-                ALTER TABLE Parametros ADD PathDocumentos VARCHAR(255) NULL;");
+                ALTER TABLE Parametros ADD PathDocumentos VARCHAR(255) NULL;
+            IF COL_LENGTH('Parametros', 'AutorizacionTransporte') IS NULL
+                ALTER TABLE Parametros ADD AutorizacionTransporte NVARCHAR(50) NULL;
+            IF COL_LENGTH('Parametros', 'UrlBasePublicaDeCa') IS NULL
+                ALTER TABLE Parametros ADD UrlBasePublicaDeCa NVARCHAR(255) NULL;
+            IF COL_LENGTH('Parametros', 'FtpsHost') IS NULL
+                ALTER TABLE Parametros ADD FtpsHost NVARCHAR(255) NULL;
+            IF COL_LENGTH('Parametros', 'FtpsPuerto') IS NULL
+                ALTER TABLE Parametros ADD FtpsPuerto INT NULL;
+            IF COL_LENGTH('Parametros', 'FtpsRutaRemota') IS NULL
+                ALTER TABLE Parametros ADD FtpsRutaRemota NVARCHAR(255) NULL;
+            IF COL_LENGTH('Parametros', 'FtpsUsuario') IS NULL
+                ALTER TABLE Parametros ADD FtpsUsuario NVARCHAR(100) NULL;");
         // Esta columna la utiliza el modelo de Solicitud; debe existir antes de que DbInitializer consulte solicitudes.
         await context.Database.ExecuteSqlRawAsync(@"
             IF COL_LENGTH('Solicitudes', 'IdPeriodicidadObraEjecucion') IS NULL
-                ALTER TABLE Solicitudes ADD IdPeriodicidadObraEjecucion INT NULL;");
+                ALTER TABLE Solicitudes ADD IdPeriodicidadObraEjecucion INT NULL;
+            IF COL_LENGTH('Solicitudes', 'UrlPublicaDeCa') IS NULL
+                ALTER TABLE Solicitudes ADD UrlPublicaDeCa NVARCHAR(500) NULL;");
         await DbInitializer.InitializeAsync(context, sageGestionContext, userManager, roleManager);
         await services.GetRequiredService<ParametrosIntegracionesService>().MigrarDesdeConfiguracionAsync();
     }
