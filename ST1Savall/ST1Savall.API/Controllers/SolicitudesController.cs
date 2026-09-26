@@ -24,6 +24,7 @@ public class SolicitudesController : ControllerBase
     private readonly ArticulosSage50Service _articulosSage50Service;
     private readonly GeneracionAlbaranServicioService _generacionAlbaranServicioService;
     private readonly PeriodicidadObraService _periodicidadObraService;
+    private readonly DeCaEmisionService _deCaService;
     private static readonly SemaphoreSlim GeneracionAlbaranesPendientesLock = new(1, 1);
 
     public SolicitudesController(
@@ -34,7 +35,8 @@ public class SolicitudesController : ControllerBase
         CalculoRutaSolicitudService calculoRutaService,
         ArticulosSage50Service articulosSage50Service,
         GeneracionAlbaranServicioService generacionAlbaranServicioService,
-        PeriodicidadObraService periodicidadObraService)
+        PeriodicidadObraService periodicidadObraService,
+        DeCaEmisionService deCaService)
     {
         _context = context;
         _comunContext = comunContext;
@@ -44,6 +46,7 @@ public class SolicitudesController : ControllerBase
         _articulosSage50Service = articulosSage50Service;
         _generacionAlbaranServicioService = generacionAlbaranServicioService;
         _periodicidadObraService = periodicidadObraService;
+        _deCaService = deCaService;
     }
 
     [HttpPost("calcular-ruta")]
@@ -494,6 +497,16 @@ public class SolicitudesController : ControllerBase
         var estadoIniciado = parametro?.EstadoIniciado ?? idsIniciado.First();
         solicitud.Estado = estadoIniciado;
         await _context.SaveChangesAsync();
+
+        // Normativa DeCA: Si la tarea incluye entrega/colocación de contenedor,
+        // generar el documento de control previo a salir de la base hacia la obra.
+        var tareaInicio = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
+        if (tareaInicio != null && (tareaInicio.Entrega1 || tareaInicio.Entrega2))
+        {
+            var urlBase = $"{Request.Scheme}://{Request.Host}";
+            await _deCaService.EmitirDeCaAsync(solicitud.IdSolicitud, "ENTREGA", urlBase);
+        }
+
         return NoContent();
     }
 
@@ -570,6 +583,12 @@ public class SolicitudesController : ControllerBase
         // KgAlbaran y los datos propios de planta se completan posteriormente en planta.
         solicitud.Estado = estadoPlanta.IdEstado;
         await _context.SaveChangesAsync();
+
+        // Normativa DeCA: Al salir de la obra hacia la planta con los residuos de construcción,
+        // generar y sellar digitalmente el documento de control previo al inicio del trayecto.
+        var urlBase = $"{Request.Scheme}://{Request.Host}";
+        await _deCaService.EmitirDeCaAsync(solicitud.IdSolicitud, "RETIRADA", urlBase);
+
         return NoContent();
     }
     [HttpPost("{id}/cancelar-planta")]

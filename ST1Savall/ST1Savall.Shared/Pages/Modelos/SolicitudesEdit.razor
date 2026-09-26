@@ -364,6 +364,47 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="deCaOficinaPopupVisible"
+         HeaderText="Código QR DeCA (Control de Transporte)"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        @if (solicitud != null && !string.IsNullOrWhiteSpace(solicitud.GuidDeCa))
+        {
+            <div class="py-2 text-center">
+                <div class="fw-bold text-primary mb-1">
+                    @(solicitud.TipoDeCaEmitido == "ENTREGA" ? "DeCA de Entrega / Colocación" : "DeCA de Retirada de Residuos (RCDs)")
+                </div>
+                <div class="small text-muted mb-2">
+                    Emitido: @(solicitud.FechaHoraEmisionDeCa?.ToString("dd/MM/yyyy HH:mm:ss") ?? "--")
+                </div>
+                <div class="p-2 border rounded bg-white d-inline-block shadow-sm mb-3">
+                    <img src="@($"api/deca/solicitud/{solicitud.IdSolicitud}/qr-imagen?t={DateTime.UtcNow.Ticks}")"
+                         alt="Código QR DeCA"
+                         style="width: 220px; height: 220px; display: block;" />
+                </div>
+                <div class="alert alert-info py-2 small text-start mb-0">
+                    Al escanear este código QR, los agentes de la autoridad descargan directamente el documento PDF nativo sin requerir contraseña.
+                </div>
+            </div>
+        }
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-between align-items-center w-100">
+            @if (solicitud != null && !string.IsNullOrWhiteSpace(solicitud.GuidDeCa))
+            {
+                <a href="@($"api/deca/publico/descarga/{solicitud.GuidDeCa}")" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="oi oi-document me-1"></i>Ver PDF DeCA
+                </a>
+            }
+            else { <span></span> }
+            <DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => deCaOficinaPopupVisible = false" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 <div class="container-fluid py-0">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -910,6 +951,42 @@
                                                               CssClass="w-100 text-nowrap"
                                                               Click="GenerarAlbaranSageAsync" />
                                                 </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12 mt-3 pt-2 border-top">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <label class="form-label fw-bold text-primary small mb-0">
+                                                <i class="oi oi-shield me-1"></i>Control de Transporte DeCA
+                                            </label>
+                                            @if (!string.IsNullOrWhiteSpace(solicitud.GuidDeCa))
+                                            {
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    Emitido (@solicitud.TipoDeCaEmitido)
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                                                    Pendiente
+                                                </span>
+                                            }
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            @if (!string.IsNullOrWhiteSpace(solicitud.GuidDeCa))
+                                            {
+                                                <a href="@($"api/deca/publico/descarga/{solicitud.GuidDeCa}")" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                    <i class="oi oi-document me-1"></i>Ver PDF DeCA
+                                                </a>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="AbrirModalDeCaOficinaAsync">
+                                                    <i class="oi oi-fullscreen_exit me-1"></i>Ver QR
+                                                </button>
+                                            }
+                                            @if (solicitud.IdSolicitud > 0)
+                                            {
+                                                <button type="button" class="btn btn-outline-dark btn-sm ms-auto" @onclick="EmitirDeCaOficinaAsync" disabled="@emitiendoDeCaOficina">
+                                                    <i class="oi oi-reload me-1"></i>@(string.IsNullOrWhiteSpace(solicitud.GuidDeCa) ? "Emitir DeCA" : "Regenerar DeCA")
+                                                </button>
                                             }
                                         </div>
                                     </div>
@@ -3766,5 +3843,44 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         public double Latitud { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("longitud")]
         public double Longitud { get; set; }
+    }
+
+    private bool deCaOficinaPopupVisible;
+    private bool emitiendoDeCaOficina;
+
+    private void AbrirModalDeCaOficinaAsync()
+    {
+        deCaOficinaPopupVisible = true;
+    }
+
+    private async Task EmitirDeCaOficinaAsync()
+    {
+        if (solicitud == null || solicitud.IdSolicitud <= 0) return;
+        emitiendoDeCaOficina = true;
+        try
+        {
+            var tareaSel = TareasDisponibles?.FirstOrDefault(t => t.IdTarea == solicitud.IdTipoTarea);
+            var tipo = (tareaSel != null && (tareaSel.Entrega1 || tareaSel.Entrega2)) ? "ENTREGA" : "RETIRADA";
+            var resp = await Http.PostAsync($"api/deca/solicitud/{solicitud.IdSolicitud}/emitir?tipo={tipo}", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                var resultado = await resp.Content.ReadFromJsonAsync<GenerarDeCaResultadoDto>();
+                if (resultado != null && resultado.Exito)
+                {
+                    solicitud.GuidDeCa = resultado.GuidDeCa;
+                    solicitud.TipoDeCaEmitido = resultado.Tipo;
+                    solicitud.FechaHoraEmisionDeCa = resultado.FechaHoraEmision;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al emitir DeCA en oficina: {ex.Message}");
+        }
+        finally
+        {
+            emitiendoDeCaOficina = false;
+        }
     }
 }

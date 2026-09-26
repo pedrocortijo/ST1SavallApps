@@ -53,6 +53,8 @@ builder.Services.AddScoped<DatosAlbaranPlantaExcelService>();
 builder.Services.AddScoped<GeneracionAlbaranServicioService>();
 builder.Services.AddScoped<AlbaranPdfService>();
 builder.Services.AddScoped<SmtpAlbaranService>();
+builder.Services.AddScoped<DeCaPdfService>();
+builder.Services.AddScoped<DeCaEmisionService>();
 
 // Add SageComun DbContext
 var sageComunConnectionString = builder.Configuration.GetConnectionString("SageComunConnection") 

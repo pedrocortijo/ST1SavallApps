@@ -1248,6 +1248,31 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
                 );
                 await sageGestionContext.SaveChangesAsync();
             }
+
+            // Actualización de esquema para normativa DeCA
+            await context.Database.ExecuteSqlRawAsync(@"
+                IF OBJECT_ID(N'Parametros', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH('Parametros', 'AutorizacionTransporte') IS NULL
+                        ALTER TABLE Parametros ADD AutorizacionTransporte NVARCHAR(50) NULL;
+                    IF COL_LENGTH('Parametros', 'UrlBasePublicaDeCa') IS NULL
+                        ALTER TABLE Parametros ADD UrlBasePublicaDeCa NVARCHAR(255) NULL;
+                END;
+
+                IF OBJECT_ID(N'Solicitudes', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH('Solicitudes', 'GuidDeCa') IS NULL
+                        ALTER TABLE Solicitudes ADD GuidDeCa NVARCHAR(50) NULL;
+                    IF COL_LENGTH('Solicitudes', 'FechaHoraEmisionDeCa') IS NULL
+                        ALTER TABLE Solicitudes ADD FechaHoraEmisionDeCa DATETIME2 NULL;
+                    IF COL_LENGTH('Solicitudes', 'TipoDeCaEmitido') IS NULL
+                        ALTER TABLE Solicitudes ADD TipoDeCaEmitido NVARCHAR(20) NULL;
+                    IF COL_LENGTH('Solicitudes', 'RutaArchivoDeCa') IS NULL
+                        ALTER TABLE Solicitudes ADD RutaArchivoDeCa NVARCHAR(255) NULL;
+                    IF COL_LENGTH('Solicitudes', 'CubicajeM3DeCa') IS NULL
+                        ALTER TABLE Solicitudes ADD CubicajeM3DeCa DECIMAL(8,2) NULL;
+                END;
+            ");
         }
         catch (Exception ex)
         {

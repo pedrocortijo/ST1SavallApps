@@ -108,6 +108,12 @@
                             <i class="@(rutaPlanta ? "oi oi-media-stop me-1" : rutaObra ? "oi oi-map-marker me-1" : "oi oi-map-marker me-1")"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Actualizando..." : rutaPlanta ? "Finalizar" : "Ruta a Planta")
                         </button>
                     </div>
+                    @if (rutaObra || rutaPlanta || EsRutaFinalizada(servicio) || !string.IsNullOrWhiteSpace(servicio.GuidDeCa))
+                    {
+                        <button class="btn btn-sm btn-outline-dark w-100 mt-2 fw-semibold" @onclick="() => AbrirModalDeCaAsync(servicio.IdSolicitud)">
+                            <i class="oi oi-shield me-1 text-primary"></i>DeCA / Código QR
+                        </button>
+                    }
                 </article>
             }
         </div>
@@ -133,6 +139,76 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="deCaPopupVisible"
+         HeaderText="Documento de Control Administrativo (DeCA)"
+         ShowFooter="true"
+         Width="520px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        @if (cargandoDeCa)
+        {
+            <div class="p-4 text-center">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 small text-muted">Cargando documento DeCA...</div>
+            </div>
+        }
+        else if (detalleDeCa is not null && !string.IsNullOrWhiteSpace(detalleDeCa.GuidDeCa))
+        {
+            <div class="py-1 text-center">
+                <div class="alert alert-light border py-2 mb-2">
+                    <div class="fw-bold text-primary" style="font-size: 1rem;">
+                        @(detalleDeCa.Tipo == "ENTREGA" ? "DeCA: Entrega / Colocación de Contenedor" : "DeCA: Retirada de Residuos de Construcción (RCDs)")
+                    </div>
+                    <div class="small text-muted">
+                        Emitido el @(detalleDeCa.FechaHoraEmision?.ToString("dd/MM/yyyy HH:mm:ss") ?? "--")
+                    </div>
+                </div>
+
+                <div class="p-2 border rounded bg-white d-inline-block shadow-sm mb-2">
+                    <img src="@($"api/deca/solicitud/{detalleDeCa.IdSolicitud}/qr-imagen?t={DateTime.UtcNow.Ticks}")"
+                         alt="Código QR DeCA"
+                         style="width: 200px; height: 200px; display: block;" />
+                </div>
+
+                <div class="alert alert-info py-2 small text-start mb-2">
+                    <strong>Para la Inspección / Guardia Civil:</strong><br />
+                    Muestre este código QR. El escaneo descarga el PDF nativo oficial sin contraseña.
+                </div>
+
+                <div class="text-start small p-2 bg-light border rounded">
+                    <div><strong>Matrícula:</strong> @detalleDeCa.Matricula</div>
+                    <div><strong>Cargador:</strong> @detalleDeCa.CargadorNombre</div>
+                    <div><strong>Origen:</strong> @detalleDeCa.OrigenDireccion</div>
+                    <div><strong>Destino:</strong> @detalleDeCa.DestinoDireccion</div>
+                    <div><strong>Carga:</strong> @detalleDeCa.DescripcionCarga @(detalleDeCa.CubicajeM3.HasValue ? $"({detalleDeCa.CubicajeM3.Value:0.##} m³)" : "")</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning py-3">
+                No hay un documento DeCA emitido para este servicio.
+                <button type="button" class="btn btn-sm btn-primary mt-2 d-block" @onclick="GenerarDeCaManualAsync">
+                    <i class="oi oi-reload me-1"></i>Emitir DeCA ahora
+                </button>
+            </div>
+        }
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-between align-items-center w-100">
+            @if (detalleDeCa is not null && !string.IsNullOrWhiteSpace(detalleDeCa.GuidDeCa))
+            {
+                <a href="@($"api/deca/solicitud/{detalleDeCa.IdSolicitud}/pdf")" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="oi oi-document me-1"></i>Descargar PDF
+                </a>
+            }
+            else { <span></span> }
+            <DxButton Text="Cerrar" RenderStyle="ButtonRenderStyle.Secondary" Click="() => deCaPopupVisible = false" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 @code {
     [SupplyParameterFromQuery(Name = "conductor")]
     public int? ConductorDeRetornoId { get; set; }
@@ -153,6 +229,10 @@
     private bool mostrarPendientesAnteriores = true;
     private bool mostrarFinalizados;
     private HashSet<int> tareasQueCreanAlbaran = [];
+    private bool deCaPopupVisible;
+    private bool cargandoDeCa;
+    private DeCaDetalleDto? detalleDeCa;
+    private int idSolicitudDeCaActual;
 
     protected override async Task OnInitializedAsync() => await LoadDataAsync();
 
@@ -556,4 +636,47 @@
         return mensajePredeterminado;
     }
 
+    private async Task AbrirModalDeCaAsync(int idSolicitud)
+    {
+        idSolicitudDeCaActual = idSolicitud;
+        deCaPopupVisible = true;
+        cargandoDeCa = true;
+        detalleDeCa = null;
+        try
+        {
+            detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitud}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar DeCA: {ex.Message}");
+        }
+        finally
+        {
+            cargandoDeCa = false;
+        }
+    }
+
+    private async Task GenerarDeCaManualAsync()
+    {
+        if (idSolicitudDeCaActual <= 0) return;
+        cargandoDeCa = true;
+        try
+        {
+            var s = servicios.FirstOrDefault(x => x.IdSolicitud == idSolicitudDeCaActual);
+            var tipo = (s != null && EsRutaObra(s)) ? "ENTREGA" : "RETIRADA";
+            var resp = await Http.PostAsync($"api/deca/solicitud/{idSolicitudDeCaActual}/emitir?tipo={tipo}", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitudDeCaActual}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al emitir DeCA: {ex.Message}");
+        }
+        finally
+        {
+            cargandoDeCa = false;
+        }
+    }
 }

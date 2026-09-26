@@ -137,4 +137,10 @@ public class Parametro
     [NotMapped]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WialonPassword { get; set; }
+
+    [MaxLength(50)]
+    public string? AutorizacionTransporte { get; set; }
+
+    [MaxLength(255)]
+    public string? UrlBasePublicaDeCa { get; set; }
 }

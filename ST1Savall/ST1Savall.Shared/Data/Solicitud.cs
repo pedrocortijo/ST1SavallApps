@@ -186,4 +186,18 @@ public class Solicitud
 
     [MaxLength(20)]
     public string? Movil { get; set; }
+
+    [MaxLength(50)]
+    public string? GuidDeCa { get; set; }
+
+    public DateTime? FechaHoraEmisionDeCa { get; set; }
+
+    [MaxLength(20)]
+    public string? TipoDeCaEmitido { get; set; }
+
+    [MaxLength(255)]
+    public string? RutaArchivoDeCa { get; set; }
+
+    [Column(TypeName = "decimal(8, 2)")]
+    public decimal? CubicajeM3DeCa { get; set; }
 }
