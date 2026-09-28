@@ -30,7 +30,6 @@ public sealed class DeCaPdfService
         string? conductorNombre,
         Planta? plantaDestino,
         decimal? cubicajeM3,
-        string? rutaFirma,
         string urlDescargaQr)
     {
         using var report = CrearReport(
@@ -43,7 +42,6 @@ public sealed class DeCaPdfService
             conductorNombre,
             plantaDestino,
             cubicajeM3,
-            rutaFirma,
             urlDescargaQr);
 
         using var stream = new MemoryStream();
@@ -77,6 +75,7 @@ public sealed class DeCaPdfService
             Text = texto
         };
         b.Controls.Add(qrCode);
+        qrCode.SendToBack();
 
         using var ms = new MemoryStream();
         r.ExportToImage(ms, new ImageExportOptions { Format = DevExpress.Drawing.DXImageFormat.Png });
@@ -105,7 +104,6 @@ public sealed class DeCaPdfService
         string? conductorNombre,
         Planta? plantaDestino,
         decimal? cubicajeM3,
-        string? rutaFirma,
         string urlDescargaQr)
     {
         var r = new XtraReport
@@ -134,9 +132,9 @@ public sealed class DeCaPdfService
         var colorTipo = esEntrega ? Color.FromArgb(25, 135, 84) : Color.FromArgb(220, 53, 69);
 
         Box(b, 0, y, 757, 28, Color.FromArgb(248, 249, 250), colorTipo, 1.5f);
-        L(b, tituloTipo, 10, y + 4, 450, 20, 10, true, TextAlignment.MiddleLeft, colorTipo);
+        L(b, tituloTipo, 10, y + 4, 520, 20, 10, true, TextAlignment.MiddleLeft, colorTipo);
         var fechaEmision = s.FechaHoraEmisionDeCa ?? DateTime.Now;
-        L(b, $"EMISIÓN PREVIA: {fechaEmision:dd/MM/yyyy HH:mm:ss}", 460, y + 4, 287, 20, 9.5f, true, TextAlignment.MiddleRight, Color.FromArgb(33, 37, 41));
+        L(b, $"EMISIÓN PREVIA: {fechaEmision:dd/MM/yyyy HH:mm:ss}", 530, y + 4, 217, 20, 8f, true, TextAlignment.MiddleRight, Color.FromArgb(33, 37, 41));
         y += 34;
 
         // Subtítulo con Identificador y Solicitud
@@ -222,45 +220,24 @@ public sealed class DeCaPdfService
         if (esEntrega)
         {
             var entregados = string.Join(", ", new[] { s.CodigoEntrega, s.CodigoAmbosEntrega }.Where(c => !string.IsNullOrWhiteSpace(c)));
-            L(b, "Naturaleza de la Carga: EQUIPOS / CONTENEDORES DE OBRA VACÍOS", 8, y + 24, 450, 18, 9f, true);
-            L(b, $"Nº Serie de Contenedor(es) entregado(s): {(string.IsNullOrWhiteSpace(entregados) ? "En transporte" : entregados)}", 8, y + 42, 450, 18, 8.5f);
+            L(b, "Naturaleza de la Carga: EQUIPOS / CONTENEDORES DE OBRA VACÍOS", 8, y + 24, 741, 18, 9f, true);
+            L(b, $"Nº Serie de Contenedor(es) entregado(s): {(string.IsNullOrWhiteSpace(entregados) ? "En transporte" : entregados)}", 8, y + 42, 741, 18, 8.5f);
             var m3 = cubicajeM3 ?? s.CubicajeM3DeCa ?? 6.0m;
-            L(b, $"Capacidad / Volumen unitario estimado: {m3:0.##} m³", 8, y + 60, 450, 18, 8.5f);
-            L(b, "Estado físico de carga: Vacío, limpio y apto para colocación en obra de construcción.", 8, y + 78, 450, 18, 8f, false, TextAlignment.MiddleLeft, Color.FromArgb(108, 117, 125));
+            L(b, $"Capacidad / Volumen unitario estimado: {m3:0.##} m³", 8, y + 60, 741, 18, 8.5f);
+            L(b, "Estado físico de carga: Vacío, limpio y apto para colocación en obra de construcción.", 8, y + 78, 741, 18, 8f, false, TextAlignment.MiddleLeft, Color.FromArgb(108, 117, 125));
         }
         else
         {
             var retirados = string.Join(", ", new[] { s.CodigoRecogida, s.CodigoAmbosRecogida }.Where(c => !string.IsNullOrWhiteSpace(c)));
             var residuo = !string.IsNullOrWhiteSpace(s.TipoResiduo) ? s.TipoResiduo.Trim() : "RCDs / Escombros de Construcción";
-            L(b, $"Naturaleza de la Carga: RESIDUOS DE CONSTRUCCIÓN Y DEMOLICIÓN (RCDs) - {residuo}", 8, y + 24, 450, 18, 9f, true);
-            L(b, $"Nº Serie de Contenedor(es) retirado(s): {(string.IsNullOrWhiteSpace(retirados) ? "Registrado en obra" : retirados)}", 8, y + 42, 450, 18, 8.5f);
+            L(b, $"Naturaleza de la Carga: RESIDUOS DE CONSTRUCCIÓN Y DEMOLICIÓN (RCDs) - {residuo}", 8, y + 24, 741, 18, 9f, true);
+            L(b, $"Nº Serie de Contenedor(es) retirado(s): {(string.IsNullOrWhiteSpace(retirados) ? "Registrado en obra" : retirados)}", 8, y + 42, 741, 18, 8.5f);
             var m3 = cubicajeM3 ?? s.CubicajeM3DeCa ?? 6.0m;
             var pesoEst = s.KgAlbaran.HasValue ? $"{s.KgAlbaran.Value:N0} Kg (báscula)" : $"{Math.Round(m3 * 1200m, 0):N0} Kg (estimado según densidad de RCDs)";
-            L(b, $"Volumen contenedor: {m3:0.##} m³  |  Peso de referencia: {pesoEst}", 8, y + 60, 450, 18, 8.5f, true);
-            L(b, "Destino de valorización: Planta gestora autorizada de residuos no peligrosos.", 8, y + 78, 450, 18, 8f, false, TextAlignment.MiddleLeft, Color.FromArgb(108, 117, 125));
+            L(b, $"Volumen contenedor: {m3:0.##} m³  |  Peso de referencia: {pesoEst}", 8, y + 60, 741, 18, 8.5f, true);
+            L(b, "Destino de valorización: Planta gestora autorizada de residuos no peligrosos.", 8, y + 78, 741, 18, 8f, false, TextAlignment.MiddleLeft, Color.FromArgb(108, 117, 125));
         }
 
-        // Subcuadro de firma de recepción si existe
-        Box(b, 470, y + 23, 277, hBloqueCarga - 28, Color.FromArgb(248, 249, 250), Color.FromArgb(222, 226, 230), 1);
-        L(b, "CONFORMIDAD EN OBRA:", 476, y + 25, 265, 14, 7.5f, true);
-        L(b, $"Firmante: {s.FirmaNombre?.Trim() ?? "Verificado en dispositivo"}", 476, y + 40, 265, 14, 7.5f);
-        L(b, $"DNI: {s.FirmaDni?.Trim() ?? "Registrado electrónicamente"}", 476, y + 54, 265, 14, 7.5f);
-
-        var imgFirma = CargarImagen(rutaFirma ?? s.FirmaPath);
-        if (imgFirma != null)
-        {
-            b.Controls.Add(new XRPictureBox
-            {
-                ImageSource = imgFirma,
-                Sizing = ImageSizeMode.ZoomImage,
-                LocationFloat = new DevExpress.Utils.PointFloat(560, y + 68),
-                SizeF = new SizeF(110, 34)
-            });
-        }
-        else
-        {
-            L(b, "[REGISTRO DIGITAL SELLADO]", 476, y + 74, 265, 20, 8f, true, TextAlignment.MiddleCenter, Color.FromArgb(108, 117, 125));
-        }
         y += hBloqueCarga + 12;
 
         // SECCIÓN 7: CÓDIGO QR ENLAZADO Y CONTROL DE INSPECCIÓN
@@ -283,14 +260,15 @@ public sealed class DeCaPdfService
             Text = !string.IsNullOrWhiteSpace(urlDescargaQr) ? urlDescargaQr : "https://savall.app/api/deca/sin-url"
         };
         b.Controls.Add(qrCode);
+        qrCode.SendToBack();
 
         float xTextoQr = 148;
         L(b, "CÓDIGO QR DE CONTROL ADMINISTRATIVO EN CARRETERA (DeCA)", xTextoQr, y + 12, 595, 20, 10.5f, true, TextAlignment.MiddleLeft, Color.FromArgb(13, 110, 253));
         L(b, "INSTRUCCIÓN PARA EL AGENTE DE TRANSPORTE / GUARDIA CIVIL:", xTextoQr, y + 34, 595, 16, 8.5f, true, TextAlignment.MiddleLeft, Color.FromArgb(220, 53, 69));
-        L(b, "El escaneo de este código QR redirige a la descarga directa del documento PDF nativo oficial (máx. 5 MB) sin requerir autenticación ni contraseñas, acreditando la emisión previa al transporte y la inalterabilidad de los datos según la normativa vigente.", xTextoQr, y + 50, 595, 36, 8f, false, TextAlignment.TopLeft, Color.FromArgb(33, 37, 41), true);
+        L(b, "El escaneo de este código QR redirige a la descarga directa del documento PDF nativo oficial (máx. 5 MB) sin requerir autenticación ni contraseñas, acreditando la emisión previa al transporte y la inalterabilidad de los datos según la normativa vigente.", xTextoQr, y + 50, 595, 52, 7.3f, false, TextAlignment.TopLeft, Color.FromArgb(33, 37, 41), true);
 
-        Box(b, xTextoQr, y + 90, 595, 28, Color.FromArgb(240, 244, 248), Color.FromArgb(206, 212, 218), 1);
-        L(b, $"URL de Verificación Oficial: {urlDescargaQr}", xTextoQr + 8, y + 94, 579, 20, 8f, true, TextAlignment.MiddleLeft, Color.FromArgb(13, 110, 253));
+        Box(b, xTextoQr, y + 104, 595, 28, Color.FromArgb(240, 244, 248), Color.FromArgb(206, 212, 218), 1);
+        L(b, $"URL de Verificación Oficial: {urlDescargaQr}", xTextoQr + 8, y + 108, 579, 20, 8f, true, TextAlignment.MiddleLeft, Color.FromArgb(13, 110, 253));
         y += hBloqueQr + 10;
 
         // SECCIÓN 8: PIE LEGAL Y CONSERVACIÓN OBLIGATORIA
@@ -301,30 +279,21 @@ public sealed class DeCaPdfService
         return r;
     }
 
-    private static ImageSource? CargarImagen(string? ruta)
-    {
-        if (string.IsNullOrWhiteSpace(ruta) || !File.Exists(ruta)) return null;
-        try
-        {
-            return new ImageSource(false, File.ReadAllBytes(ruta));
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private static void Box(Band b, float x, float y, float w, float h, Color fondo, Color borde, float bordeAncho = 1)
     {
-        b.Controls.Add(new XRPanel
+        var panel = new XRPanel
         {
             LocationFloat = new DevExpress.Utils.PointFloat(x, y),
             SizeF = new SizeF(w, h),
-            BackColor = fondo,
+            // XRPanel tapa los controles superpuestos al exportar a PDF,
+            // aunque se altere su orden de capa. Se conserva el borde y las
+            // etiquetas aportan el contenido legible.
+            BackColor = Color.Transparent,
             BorderColor = borde,
             BorderWidth = (int)Math.Max(1, bordeAncho),
             Borders = BorderSide.All
-        });
+        };
+        b.Controls.Add(panel);
     }
 
     private static void L(
@@ -340,7 +309,7 @@ public sealed class DeCaPdfService
         Color? color = null,
         bool wrap = false)
     {
-        b.Controls.Add(new XRLabel
+        var label = new XRLabel
         {
             Text = texto ?? string.Empty,
             LocationFloat = new DevExpress.Utils.PointFloat(x, y),
@@ -353,6 +322,10 @@ public sealed class DeCaPdfService
             WordWrap = wrap,
             Multiline = wrap,
             CanGrow = false
-        });
+        };
+        b.Controls.Add(label);
+        // DevExpress pinta primero los controles situados al inicio de la
+        // colección. Las etiquetas deben quedar por delante de los paneles.
+        label.SendToBack();
     }
 }

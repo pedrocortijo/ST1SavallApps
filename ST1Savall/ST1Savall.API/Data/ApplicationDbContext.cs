@@ -17,6 +17,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ContenedorTipo> ContenedoresTipos { get; set; } = null!;
     public DbSet<Contenedor> Contenedores { get; set; } = null!;
     public DbSet<Solicitud> Solicitudes { get; set; } = null!;
+    public DbSet<DocumentoDeCa> DocumentosDeCa { get; set; } = null!;
     public DbSet<EstadoSolicitud> EstadosSolicitud { get; set; } = null!;
     public DbSet<Prioridad> Prioridades { get; set; } = null!;
     public DbSet<Tarea> Tareas { get; set; } = null!;
@@ -104,6 +105,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PeriodicidadObraEjecucion>().HasIndex(e => new { e.IdPeriodicidadObra, e.FechaPrevista }).IsUnique();
         builder.Entity<PeriodicidadObraEjecucion>().HasOne(e => e.Periodicidad).WithMany(p => p.Ejecuciones).HasForeignKey(e => e.IdPeriodicidadObra).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<Solicitud>().HasIndex(s => s.IdPeriodicidadObraEjecucion).IsUnique().HasFilter("[IdPeriodicidadObraEjecucion] IS NOT NULL");
+        builder.Entity<DocumentoDeCa>().HasKey(d => d.IdDocumentoDeCa);
+        builder.Entity<DocumentoDeCa>().HasIndex(d => d.GuidDeCa).IsUnique();
+        builder.Entity<DocumentoDeCa>().HasIndex(d => new { d.IdSolicitud, d.Tipo, d.FechaHoraEmision });
 
 
         builder.Entity<Solicitud>()

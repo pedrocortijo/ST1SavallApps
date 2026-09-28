@@ -48,11 +48,9 @@ public sealed class DeCaEmisionService(
                 };
             }
 
-            // Asignar o conservar GUID único no predecible para inspección pública sin login
-            if (string.IsNullOrWhiteSpace(solicitud.GuidDeCa))
-            {
-                solicitud.GuidDeCa = Guid.NewGuid().ToString("N");
-            }
+            tipoOperacion = tipoOperacion.Trim().ToUpperInvariant();
+            // Cada emisión, incluida una regeneración, mantiene su propio PDF consultable.
+            var guidDocumento = Guid.NewGuid().ToString("N");
 
             // Datos del cliente y obra
             string? clienteNombre = solicitud.NombreCliente;
@@ -123,7 +121,7 @@ public sealed class DeCaEmisionService(
                 cubicajeM3 ??= 6.0m;
             }
 
-            var nombreArchivo = $"DECA_{solicitud.IdSolicitud}_{tipoOperacion}_{solicitud.GuidDeCa}.pdf";
+            var nombreArchivo = $"DECA_{solicitud.IdSolicitud}_{tipoOperacion}_{guidDocumento}.pdf";
             var usaPublicacionFtps = ftpsPdfStorage.EstaConfigurado(parametros) &&
                 !string.IsNullOrWhiteSpace(parametros.UrlBasePublicaDeCa);
             var urlBasePublica = !string.IsNullOrWhiteSpace(parametros.UrlBasePublicaDeCa)
@@ -132,15 +130,7 @@ public sealed class DeCaEmisionService(
             var urlBaseApi = !string.IsNullOrWhiteSpace(urlBaseServidor) ? urlBaseServidor.TrimEnd('/') : "https://savall.app";
             var urlDescargaQr = usaPublicacionFtps
                 ? $"{urlBasePublica}/{Uri.EscapeDataString(nombreArchivo)}"
-                : $"{urlBaseApi}/api/deca/publico/descarga/{solicitud.GuidDeCa}";
-
-            // Firma física/digital
-            string? rutaFirma = solicitud.FirmaPath;
-            if (string.IsNullOrWhiteSpace(rutaFirma) && !string.IsNullOrWhiteSpace(parametros.PathFirmas))
-            {
-                var rutaAlt = Path.Combine(parametros.PathFirmas.Trim(), $"{solicitud.IdSolicitud}.png");
-                if (File.Exists(rutaAlt)) rutaFirma = rutaAlt;
-            }
+                : $"{urlBaseApi}/api/deca/publico/descarga/{guidDocumento}";
 
             // Sello temporal previo al inicio de la marcha
             var ahora = DateTime.Now;
@@ -159,7 +149,6 @@ public sealed class DeCaEmisionService(
                 conductorNombre,
                 plantaDestino,
                 cubicajeM3,
-                rutaFirma,
                 urlDescargaQr);
 
             // Guardar archivo en disco para conservación obligatoria de 1 año
@@ -171,12 +160,23 @@ public sealed class DeCaEmisionService(
             Directory.CreateDirectory(carpetaDeCa);
 
             var rutaCompleta = Path.Combine(carpetaDeCa, nombreArchivo);
-
             await File.WriteAllBytesAsync(rutaCompleta, bytesPdf);
             if (usaPublicacionFtps)
             {
                 await ftpsPdfStorage.SubirAsync(parametros, rutaCompleta, nombreArchivo);
             }
+            db.DocumentosDeCa.Add(new DocumentoDeCa
+            {
+                IdSolicitud = solicitud.IdSolicitud,
+                GuidDeCa = guidDocumento,
+                Tipo = tipoOperacion,
+                FechaHoraEmision = ahora,
+                RutaArchivo = rutaCompleta,
+                UrlPublica = usaPublicacionFtps ? urlDescargaQr : null
+            });
+
+            // Campos heredados: mantienen el último documento emitido para compatibilidad.
+            solicitud.GuidDeCa = guidDocumento;
             solicitud.RutaArchivoDeCa = rutaCompleta;
             solicitud.UrlPublicaDeCa = usaPublicacionFtps ? urlDescargaQr : null;
 
@@ -184,12 +184,12 @@ public sealed class DeCaEmisionService(
 
             logger.LogInformation(
                 "Documento DeCA emitido con éxito para la solicitud #{IdSolicitud} ({TipoOperacion}) con GUID {Guid}",
-                idSolicitud, tipoOperacion, solicitud.GuidDeCa);
+                idSolicitud, tipoOperacion, guidDocumento);
 
             return new GenerarDeCaResultadoDto
             {
                 Exito = true,
-                GuidDeCa = solicitud.GuidDeCa,
+                GuidDeCa = guidDocumento,
                 UrlDescarga = urlDescargaQr,
                 FechaHoraEmision = ahora,
                 Tipo = tipoOperacion,
@@ -207,10 +207,15 @@ public sealed class DeCaEmisionService(
         }
     }
 
-    public async Task<DeCaDetalleDto?> ObtenerDetalleDeCaAsync(int idSolicitud, string? urlBaseServidor = null)
+    public async Task<DeCaDetalleDto?> ObtenerDetalleDeCaAsync(int idSolicitud, string? urlBaseServidor = null, string? tipo = null)
     {
         var solicitud = await db.Solicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.IdSolicitud == idSolicitud);
         if (solicitud is null) return null;
+
+        var documentos = db.DocumentosDeCa.AsNoTracking().Where(d => d.IdSolicitud == idSolicitud);
+        if (!string.IsNullOrWhiteSpace(tipo))
+            documentos = documentos.Where(d => d.Tipo == tipo.Trim().ToUpperInvariant());
+        var documento = await documentos.OrderByDescending(d => d.FechaHoraEmision).FirstOrDefaultAsync();
 
         var parametros = await db.Parametros.AsNoTracking().FirstOrDefaultAsync();
         var urlBaseApi = !string.IsNullOrWhiteSpace(urlBaseServidor) ? urlBaseServidor.TrimEnd('/') : "";
@@ -239,21 +244,24 @@ public sealed class DeCaEmisionService(
             nomPlanta = p?.Nombre;
         }
 
-        var tienePdf = !string.IsNullOrWhiteSpace(solicitud.RutaArchivoDeCa) && File.Exists(solicitud.RutaArchivoDeCa);
-        var urlDescarga = !string.IsNullOrWhiteSpace(solicitud.GuidDeCa)
-            ? !string.IsNullOrWhiteSpace(solicitud.UrlPublicaDeCa)
-                ? solicitud.UrlPublicaDeCa
-                : $"{urlBaseApi}/api/deca/publico/descarga/{solicitud.GuidDeCa}"
+        var guidDeCa = documento?.GuidDeCa ?? solicitud.GuidDeCa;
+        var tipoDeCa = documento?.Tipo ?? solicitud.TipoDeCaEmitido;
+        var rutaArchivo = documento?.RutaArchivo ?? solicitud.RutaArchivoDeCa;
+        var tienePdf = !string.IsNullOrWhiteSpace(rutaArchivo) && File.Exists(rutaArchivo);
+        var urlDescarga = !string.IsNullOrWhiteSpace(guidDeCa)
+            ? !string.IsNullOrWhiteSpace(documento?.UrlPublica ?? solicitud.UrlPublicaDeCa)
+                ? documento?.UrlPublica ?? solicitud.UrlPublicaDeCa
+                : $"{urlBaseApi}/api/deca/publico/descarga/{guidDeCa}"
             : null;
 
-        var esEntrega = string.Equals(solicitud.TipoDeCaEmitido, "ENTREGA", StringComparison.OrdinalIgnoreCase);
+        var esEntrega = string.Equals(tipoDeCa, "ENTREGA", StringComparison.OrdinalIgnoreCase);
 
         return new DeCaDetalleDto
         {
             IdSolicitud = solicitud.IdSolicitud,
-            GuidDeCa = solicitud.GuidDeCa,
-            FechaHoraEmision = solicitud.FechaHoraEmisionDeCa,
-            Tipo = solicitud.TipoDeCaEmitido,
+            GuidDeCa = guidDeCa,
+            FechaHoraEmision = documento?.FechaHoraEmision ?? solicitud.FechaHoraEmisionDeCa,
+            Tipo = tipoDeCa,
             UrlDescarga = urlDescarga,
             TienePdf = tienePdf,
             CargadorNombre = solicitud.NombreCliente,
@@ -274,33 +282,32 @@ public sealed class DeCaEmisionService(
         };
     }
 
+    private static string? ObtenerNombreArchivoRemoto(string? urlPublica)
+    {
+        if (string.IsNullOrWhiteSpace(urlPublica)) return null;
+        return Uri.TryCreate(urlPublica, UriKind.Absolute, out var uri)
+            ? Path.GetFileName(Uri.UnescapeDataString(uri.AbsolutePath))
+            : null;
+    }
+
     public async Task<(byte[] Contenido, string NombreArchivo)?> ObtenerPdfPorGuidAsync(string guid)
     {
         if (string.IsNullOrWhiteSpace(guid)) return null;
 
-        var solicitud = await db.Solicitudes.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.GuidDeCa == guid);
+        var documento = await db.DocumentosDeCa.AsNoTracking().FirstOrDefaultAsync(d => d.GuidDeCa == guid);
+        var rutaArchivo = documento?.RutaArchivo;
 
-        if (solicitud is null) return null;
-
-        if (!string.IsNullOrWhiteSpace(solicitud.RutaArchivoDeCa) && File.Exists(solicitud.RutaArchivoDeCa))
+        if (string.IsNullOrWhiteSpace(rutaArchivo))
         {
-            var bytes = await File.ReadAllBytesAsync(solicitud.RutaArchivoDeCa);
-            var nombre = Path.GetFileName(solicitud.RutaArchivoDeCa);
-            return (bytes, nombre);
+            var solicitudHeredada = await db.Solicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.GuidDeCa == guid);
+            rutaArchivo = solicitudHeredada?.RutaArchivoDeCa;
         }
 
-        // Si por alguna razón el archivo no existiera en disco, se regenera sobre la marcha
-        var resultado = await EmitirDeCaAsync(solicitud.IdSolicitud, solicitud.TipoDeCaEmitido ?? "RETIRADA");
-        if (resultado.Exito)
+        if (!string.IsNullOrWhiteSpace(rutaArchivo) && File.Exists(rutaArchivo))
         {
-            var solicitudActualizada = await db.Solicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.IdSolicitud == solicitud.IdSolicitud);
-            if (!string.IsNullOrWhiteSpace(solicitudActualizada?.RutaArchivoDeCa) && File.Exists(solicitudActualizada.RutaArchivoDeCa))
-            {
-                var bytes = await File.ReadAllBytesAsync(solicitudActualizada.RutaArchivoDeCa);
-                var nombre = Path.GetFileName(solicitudActualizada.RutaArchivoDeCa);
-                return (bytes, nombre);
-            }
+            var bytes = await File.ReadAllBytesAsync(rutaArchivo);
+            var nombre = Path.GetFileName(rutaArchivo);
+            return (bytes, nombre);
         }
 
         return null;

@@ -20,8 +20,7 @@ public sealed class FtpsPdfStorageService(IConfiguration configuration, ILogger<
             throw new InvalidOperationException(
                 "La publicación FTPS no está completamente configurada. Configure host, carpeta, usuario y el secreto FtpsPdfStorage:Password en la API.");
 
-        var rutaRemota = $"/{parametro.FtpsRutaRemota!.Trim().Trim('/')}/{nombreArchivo}";
-        var uri = new UriBuilder(Uri.UriSchemeFtp, parametro.FtpsHost!.Trim(), parametro.FtpsPuerto.GetValueOrDefault(21), rutaRemota).Uri;
+        var uri = CrearUri(parametro, nombreArchivo);
         var request = (FtpWebRequest)WebRequest.Create(uri);
         request.Method = WebRequestMethods.Ftp.UploadFile;
         request.EnableSsl = true;
@@ -35,5 +34,39 @@ public sealed class FtpsPdfStorageService(IConfiguration configuration, ILogger<
 
         using var respuesta = (FtpWebResponse)await request.GetResponseAsync();
         logger.LogInformation("PDF DeCA {NombreArchivo} publicado por FTPS. Estado: {Estado}", nombreArchivo, respuesta.StatusDescription.Trim());
+    }
+
+    public async Task EliminarAsync(Parametro parametro, string nombreArchivo, CancellationToken cancellationToken = default)
+    {
+        if (!EstaConfigurado(parametro))
+            throw new InvalidOperationException(
+                "La publicación FTPS no está completamente configurada. Configure host, carpeta, usuario y el secreto FtpsPdfStorage:Password en la API.");
+
+        var request = (FtpWebRequest)WebRequest.Create(CrearUri(parametro, nombreArchivo));
+        request.Method = WebRequestMethods.Ftp.DeleteFile;
+        request.EnableSsl = true;
+        request.UsePassive = true;
+        request.UseBinary = true;
+        request.Credentials = new NetworkCredential(parametro.FtpsUsuario!.Trim(), configuration[PasswordConfigurationKey]);
+
+        try
+        {
+            using var respuesta = (FtpWebResponse)await request.GetResponseAsync();
+            logger.LogInformation("PDF DeCA anterior {NombreArchivo} eliminado de FTPS. Estado: {Estado}", nombreArchivo, respuesta.StatusDescription.Trim());
+        }
+        catch (WebException ex) when ((ex.Response as FtpWebResponse)?.StatusCode == FtpStatusCode.ActionNotTakenFileUnavailable)
+        {
+            logger.LogInformation("El PDF DeCA anterior {NombreArchivo} ya no existía en FTPS.", nombreArchivo);
+        }
+    }
+
+    private static Uri CrearUri(Parametro parametro, string nombreArchivo)
+    {
+        var nombreSeguro = Path.GetFileName(nombreArchivo);
+        if (string.IsNullOrWhiteSpace(nombreSeguro))
+            throw new ArgumentException("El nombre del archivo FTPS no es válido.", nameof(nombreArchivo));
+
+        var rutaRemota = $"/{parametro.FtpsRutaRemota!.Trim().Trim('/')}/{Uri.EscapeDataString(nombreSeguro)}";
+        return new UriBuilder(Uri.UriSchemeFtp, parametro.FtpsHost!.Trim(), parametro.FtpsPuerto.GetValueOrDefault(21), rutaRemota).Uri;
     }
 }

@@ -32,10 +32,10 @@ public class DeCaController(DeCaEmisionService deCaService) : ControllerBase
     /// Obtiene los datos detallados del documento DeCA para visualización en la aplicación.
     /// </summary>
     [HttpGet("solicitud/{idSolicitud}")]
-    public async Task<ActionResult<DeCaDetalleDto>> ObtenerDetalle(int idSolicitud)
+    public async Task<ActionResult<DeCaDetalleDto>> ObtenerDetalle(int idSolicitud, [FromQuery] string? tipo = null)
     {
         var urlBase = $"{Request.Scheme}://{Request.Host}";
-        var detalle = await deCaService.ObtenerDetalleDeCaAsync(idSolicitud, urlBase);
+        var detalle = await deCaService.ObtenerDetalleDeCaAsync(idSolicitud, urlBase, tipo);
         if (detalle is null)
         {
             return NotFound($"No se ha encontrado la solicitud #{idSolicitud}.");
@@ -64,10 +64,10 @@ public class DeCaController(DeCaEmisionService deCaService) : ControllerBase
     /// Descarga el PDF del DeCA para usuarios autenticados de la aplicación.
     /// </summary>
     [HttpGet("solicitud/{idSolicitud}/pdf")]
-    public async Task<IActionResult> DescargarPdfAutenticado(int idSolicitud)
+    public async Task<IActionResult> DescargarPdfAutenticado(int idSolicitud, [FromQuery] string? tipo = null)
     {
         var urlBase = $"{Request.Scheme}://{Request.Host}";
-        var detalle = await deCaService.ObtenerDetalleDeCaAsync(idSolicitud, urlBase);
+        var detalle = await deCaService.ObtenerDetalleDeCaAsync(idSolicitud, urlBase, tipo);
         if (detalle is null || string.IsNullOrWhiteSpace(detalle.GuidDeCa))
         {
             return NotFound("La solicitud no tiene un documento DeCA emitido.");
@@ -86,10 +86,10 @@ public class DeCaController(DeCaEmisionService deCaService) : ControllerBase
     /// Devuelve la imagen PNG del código QR de inspección de la solicitud.
     /// </summary>
     [HttpGet("solicitud/{idSolicitud}/qr-imagen")]
-    public async Task<IActionResult> ObtenerQrImagen(int idSolicitud)
+    public async Task<IActionResult> ObtenerQrImagen(int idSolicitud, [FromQuery] string? tipo = null)
     {
         var urlBase = $"{Request.Scheme}://{Request.Host}";
-        var detalle = await deCaService.ObtenerDetalleDeCaAsync(idSolicitud, urlBase);
+        var detalle = await deCaService.ObtenerDetalleDeCaAsync(idSolicitud, urlBase, tipo);
         if (detalle is null || string.IsNullOrWhiteSpace(detalle.UrlDescarga))
         {
             return NotFound("No hay DeCA emitido para esta solicitud.");

@@ -94,23 +94,32 @@
                             bool sinIniciar = EsRutaSinIniciar(servicio);
                             bool rutaObra = EsRutaObra(servicio);
                             bool rutaPlanta = EsRutaPlanta(servicio);
+                            bool puedeIniciarRutaObra = PuedeIniciarRutaObra(servicio);
+                            bool puedeIniciarRutaPlanta = PuedeIniciarRutaPlanta(servicio);
+                            bool tieneRecogida = tareasPorId.TryGetValue(servicio.IdTipoTarea, out var tareaServicio)
+                                && (tareaServicio.Recoger1 || tareaServicio.Recoger2);
+                            bool requiereTiqueBascula = tieneRecogida && tareaServicio.CreaAlbaran;
+                            bool requiereContenedor = (sinIniciar && !puedeIniciarRutaObra)
+                                || (rutaObra && !puedeIniciarRutaPlanta);
                             bool hayOtraRutaObra = servicioIniciadoActualId.HasValue && servicioIniciadoActualId.Value != servicio.IdSolicitud;
                         }
                         <button class="btn @(sinIniciar ? "btn-outline-success" : "btn-outline-danger")"
-                                disabled="@(!sinIniciar && !rutaObra && !rutaPlanta || iniciandoServicioId == servicio.IdSolicitud || (sinIniciar && hayOtraRutaObra))"
+                                disabled="@(!sinIniciar && !rutaObra && !rutaPlanta || iniciandoServicioId == servicio.IdSolicitud || (sinIniciar && (hayOtraRutaObra || !puedeIniciarRutaObra)))"
                                 @onclick="() => CambiarRutaObraAsync(servicio)">
                             <i class="@(sinIniciar ? "oi oi-media-play me-1" : "oi oi-x me-1")"></i>@(iniciandoServicioId == servicio.IdSolicitud ? "Actualizando..." : sinIniciar ? "Ruta a Obra" : "Cancelar")
                         </button>
-                        <button class="btn btn-outline-primary" disabled="@(!rutaObra && !rutaPlanta)" @onclick="() => AbrirFirma(servicio.IdSolicitud)"><i class="oi oi-pencil me-1"></i>@(rutaPlanta ? "Tique Báscula" : "Firma")</button>
+                        <button class="btn btn-outline-primary" disabled="@(!rutaObra && !rutaPlanta && !requiereContenedor || (rutaPlanta && !requiereTiqueBascula))" @onclick="() => AbrirFirma(servicio.IdSolicitud)">
+                            <i class="@(requiereContenedor ? "oi oi-list-rich me-1" : "oi oi-pencil me-1")"></i>@(requiereContenedor ? "Falta Contenedor" : rutaPlanta ? "Tique Báscula" : "Firma")
+                        </button>
                         <button class="btn @(rutaPlanta ? "btn-outline-danger" : "btn-outline-warning")"
-                                disabled="@(!rutaObra && !rutaPlanta || finalizandoServicioId == servicio.IdSolicitud)"
+                                disabled="@(!rutaObra && !rutaPlanta || (rutaObra && !puedeIniciarRutaPlanta) || finalizandoServicioId == servicio.IdSolicitud)"
                                 @onclick="() => CambiarRutaPlantaAsync(servicio)">
                             <i class="@(rutaPlanta ? "oi oi-media-stop me-1" : rutaObra ? "oi oi-map-marker me-1" : "oi oi-map-marker me-1")"></i>@(finalizandoServicioId == servicio.IdSolicitud ? "Actualizando..." : rutaPlanta ? "Finalizar" : "Ruta a Planta")
                         </button>
                     </div>
-                    @if (rutaObra || rutaPlanta || EsRutaFinalizada(servicio) || !string.IsNullOrWhiteSpace(servicio.GuidDeCa))
+                    @if (rutaObra || (rutaPlanta && tieneRecogida))
                     {
-                        <button class="btn btn-sm btn-outline-dark w-100 mt-2 fw-semibold" @onclick="() => AbrirModalDeCaAsync(servicio.IdSolicitud)">
+                        <button class="btn btn-sm btn-outline-dark w-100 mt-2 fw-semibold" @onclick="() => AbrirModalDeCaAsync(servicio.IdSolicitud, TipoDeCaParaRuta(rutaObra))">
                             <i class="oi oi-shield me-1 text-primary"></i>DeCA / Código QR
                         </button>
                     }
@@ -140,11 +149,13 @@
 </DxPopup>
 
 <DxPopup @bind-Visible="deCaPopupVisible"
-         HeaderText="Documento de Control Administrativo (DeCA)"
          ShowFooter="true"
          Width="520px"
          HorizontalAlignment="HorizontalAlignment.Center"
          VerticalAlignment="VerticalAlignment.Center">
+    <HeaderContentTemplate>
+        <span style="font-size: 0.95rem; line-height: 1.2;">Documento de Control Administrativo (DeCA)</span>
+    </HeaderContentTemplate>
     <BodyContentTemplate>
         @if (cargandoDeCa)
         {
@@ -181,7 +192,7 @@
                     Muestre este código QR. El escaneo descarga el PDF nativo oficial sin contraseña.
                 </div>
 
-                <div class="text-start small p-2 bg-light border rounded">
+                <div class="text-start small p-2 bg-light border rounded text-dark">
                     <div><strong>Matrícula:</strong> @detalleDeCa.Matricula</div>
                     <div><strong>Cargador:</strong> @detalleDeCa.CargadorNombre</div>
                     <div><strong>Origen:</strong> @detalleDeCa.OrigenDireccion</div>
@@ -239,11 +250,15 @@
     private bool mostrarPendientesAnteriores = true;
     private bool mostrarFinalizados;
     private HashSet<int> tareasQueCreanAlbaran = [];
+    private Dictionary<int, Tarea> tareasPorId = [];
     private bool deCaPopupVisible;
     private bool cargandoDeCa;
     private DeCaDetalleDto? detalleDeCa;
     private string? qrDeCaImagenSrc;
     private int idSolicitudDeCaActual;
+    private string tipoDeCaActual = "RETIRADA";
+
+    private static string TipoDeCaParaRuta(bool rutaObra) => rutaObra ? "ENTREGA" : "RETIRADA";
 
     protected override async Task OnInitializedAsync() => await LoadDataAsync();
 
@@ -261,6 +276,7 @@
             var users = await Http.GetFromJsonAsync<List<ApplicationUserDto>>("api/users") ?? [];
             var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
             tareasQueCreanAlbaran = tareas.Where(t => t.CreaAlbaran).Select(t => t.IdTarea).ToHashSet();
+            tareasPorId = tareas.ToDictionary(t => t.IdTarea);
             var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? [];
             estadosRuta = estados;
@@ -374,6 +390,20 @@
     private bool EsRutaObra(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaObra;
     private bool EsRutaPlanta(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaPlanta;
     private bool EsRutaFinalizada(Solicitud servicio) => ObtenerEstadoServicio(servicio) == EstadoServicio.RutaFinalizada;
+
+    private bool PuedeIniciarRutaObra(Solicitud servicio)
+    {
+        if (!tareasPorId.TryGetValue(servicio.IdTipoTarea, out var tarea)) return false;
+        return (!tarea.Entrega1 || !string.IsNullOrWhiteSpace(servicio.CodigoEntrega))
+            && (!tarea.Entrega2 || !string.IsNullOrWhiteSpace(servicio.CodigoAmbosEntrega));
+    }
+
+    private bool PuedeIniciarRutaPlanta(Solicitud servicio)
+    {
+        if (!tareasPorId.TryGetValue(servicio.IdTipoTarea, out var tarea)) return false;
+        return (!tarea.Recoger1 || !string.IsNullOrWhiteSpace(servicio.CodigoRecogida))
+            && (!tarea.Recoger2 || !string.IsNullOrWhiteSpace(servicio.CodigoAmbosRecogida));
+    }
     private static bool EsServicioIniciado(Solicitud servicio) =>
         servicio.EstadoDescripcion?.Contains("iniciado", StringComparison.OrdinalIgnoreCase) == true;
 
@@ -474,8 +504,13 @@
         return FinalizarServicioAsync(servicio.IdSolicitud);
     }
 
-    private static List<string> ObtenerCamposBasculaPendientes(Solicitud servicio)
+    private List<string> ObtenerCamposBasculaPendientes(Solicitud servicio)
     {
+        if (!tareasPorId.TryGetValue(servicio.IdTipoTarea, out var tarea)
+            || !(tarea.Recoger1 || tarea.Recoger2)
+            || !tarea.CreaAlbaran)
+            return [];
+
         var campos = new List<string>();
         if (string.IsNullOrWhiteSpace(servicio.TipoResiduo)) campos.Add(" • Tipo de residuo." + Environment.NewLine);
         if (string.IsNullOrWhiteSpace(servicio.AlbaranPlanta)) campos.Add(" • Albarán planta" + Environment.NewLine);
@@ -647,17 +682,18 @@
         return mensajePredeterminado;
     }
 
-    private async Task AbrirModalDeCaAsync(int idSolicitud)
+    private async Task AbrirModalDeCaAsync(int idSolicitud, string tipo)
     {
         idSolicitudDeCaActual = idSolicitud;
+        tipoDeCaActual = tipo;
         deCaPopupVisible = true;
         cargandoDeCa = true;
         detalleDeCa = null;
         qrDeCaImagenSrc = null;
         try
         {
-            detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitud}");
-            qrDeCaImagenSrc = await CargarQrDeCaAsync(idSolicitud);
+            detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitud}?tipo={tipoDeCaActual}");
+            qrDeCaImagenSrc = await CargarQrDeCaAsync(idSolicitud, tipoDeCaActual);
         }
         catch (Exception ex)
         {
@@ -669,9 +705,9 @@
         }
     }
 
-    private async Task<string?> CargarQrDeCaAsync(int idSolicitud)
+    private async Task<string?> CargarQrDeCaAsync(int idSolicitud, string tipo)
     {
-        var response = await Http.GetAsync($"api/deca/solicitud/{idSolicitud}/qr-imagen");
+        var response = await Http.GetAsync($"api/deca/solicitud/{idSolicitud}/qr-imagen?tipo={tipo}");
         if (!response.IsSuccessStatusCode)
             return null;
 
@@ -684,13 +720,11 @@
         cargandoDeCa = true;
         try
         {
-            var s = servicios.FirstOrDefault(x => x.IdSolicitud == idSolicitudDeCaActual);
-            var tipo = (s != null && EsRutaObra(s)) ? "ENTREGA" : "RETIRADA";
-            var resp = await Http.PostAsync($"api/deca/solicitud/{idSolicitudDeCaActual}/emitir?tipo={tipo}", null);
+            var resp = await Http.PostAsync($"api/deca/solicitud/{idSolicitudDeCaActual}/emitir?tipo={tipoDeCaActual}", null);
             if (resp.IsSuccessStatusCode)
             {
-                detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitudDeCaActual}");
-                qrDeCaImagenSrc = await CargarQrDeCaAsync(idSolicitudDeCaActual);
+                detalleDeCa = await Http.GetFromJsonAsync<DeCaDetalleDto>($"api/deca/solicitud/{idSolicitudDeCaActual}?tipo={tipoDeCaActual}");
+                qrDeCaImagenSrc = await CargarQrDeCaAsync(idSolicitudDeCaActual, tipoDeCaActual);
             }
         }
         catch (Exception ex)

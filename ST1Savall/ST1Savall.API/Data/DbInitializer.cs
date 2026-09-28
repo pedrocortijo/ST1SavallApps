@@ -1272,6 +1272,28 @@ await context.Database.ExecuteSqlRawAsync(@"SET IDENTITY_INSERT Tareas ON;");
                     IF COL_LENGTH('Solicitudes', 'CubicajeM3DeCa') IS NULL
                         ALTER TABLE Solicitudes ADD CubicajeM3DeCa DECIMAL(8,2) NULL;
                 END;
+
+                IF OBJECT_ID(N'DocumentosDeCa', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE DocumentosDeCa (
+                        IdDocumentoDeCa INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        IdSolicitud INT NOT NULL,
+                        GuidDeCa NVARCHAR(50) NOT NULL,
+                        Tipo NVARCHAR(20) NOT NULL,
+                        FechaHoraEmision DATETIME2 NOT NULL,
+                        RutaArchivo NVARCHAR(255) NOT NULL,
+                        UrlPublica NVARCHAR(500) NULL,
+                        CONSTRAINT FK_DocumentosDeCa_Solicitudes FOREIGN KEY (IdSolicitud) REFERENCES Solicitudes(IdSolicitud) ON DELETE CASCADE
+                    );
+                    CREATE UNIQUE INDEX IX_DocumentosDeCa_GuidDeCa ON DocumentosDeCa(GuidDeCa);
+                    CREATE INDEX IX_DocumentosDeCa_Solicitud_Tipo ON DocumentosDeCa(IdSolicitud, Tipo, FechaHoraEmision);
+                END;
+
+                INSERT INTO DocumentosDeCa (IdSolicitud, GuidDeCa, Tipo, FechaHoraEmision, RutaArchivo, UrlPublica)
+                SELECT s.IdSolicitud, s.GuidDeCa, s.TipoDeCaEmitido, COALESCE(s.FechaHoraEmisionDeCa, GETDATE()), s.RutaArchivoDeCa, s.UrlPublicaDeCa
+                FROM Solicitudes s
+                WHERE s.GuidDeCa IS NOT NULL AND s.TipoDeCaEmitido IS NOT NULL AND s.RutaArchivoDeCa IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM DocumentosDeCa d WHERE d.IdSolicitud = s.IdSolicitud AND d.Tipo = s.TipoDeCaEmitido);
             ");
         }
         catch (Exception ex)

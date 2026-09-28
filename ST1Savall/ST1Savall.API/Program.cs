@@ -112,6 +112,23 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE Solicitudes ADD IdPeriodicidadObraEjecucion INT NULL;
             IF COL_LENGTH('Solicitudes', 'UrlPublicaDeCa') IS NULL
                 ALTER TABLE Solicitudes ADD UrlPublicaDeCa NVARCHAR(500) NULL;");
+        // El historial DeCA debe existir antes de que se resuelvan servicios o documentos.
+        await context.Database.ExecuteSqlRawAsync(@"
+            IF OBJECT_ID(N'DocumentosDeCa', N'U') IS NULL
+            BEGIN
+                CREATE TABLE DocumentosDeCa (
+                    IdDocumentoDeCa INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    IdSolicitud INT NOT NULL,
+                    GuidDeCa NVARCHAR(50) NOT NULL,
+                    Tipo NVARCHAR(20) NOT NULL,
+                    FechaHoraEmision DATETIME2 NOT NULL,
+                    RutaArchivo NVARCHAR(255) NOT NULL,
+                    UrlPublica NVARCHAR(500) NULL,
+                    CONSTRAINT FK_DocumentosDeCa_Solicitudes FOREIGN KEY (IdSolicitud) REFERENCES Solicitudes(IdSolicitud) ON DELETE CASCADE
+                );
+                CREATE UNIQUE INDEX IX_DocumentosDeCa_GuidDeCa ON DocumentosDeCa(GuidDeCa);
+                CREATE INDEX IX_DocumentosDeCa_Solicitud_Tipo ON DocumentosDeCa(IdSolicitud, Tipo, FechaHoraEmision);
+            END;");
         await DbInitializer.InitializeAsync(context, sageGestionContext, userManager, roleManager);
         await services.GetRequiredService<ParametrosIntegracionesService>().MigrarDesdeConfiguracionAsync();
     }

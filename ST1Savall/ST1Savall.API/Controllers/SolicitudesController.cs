@@ -481,6 +481,16 @@ public class SolicitudesController : ControllerBase
         if (!solicitud.IdConductor.HasValue)
             return BadRequest(new { message = "El servicio no tiene un conductor asignado." });
 
+        var tareaInicio = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
+        if (tareaInicio == null)
+            return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
+
+        var entregasPendientes = new List<string>();
+        if (tareaInicio.Entrega1 && string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)) entregasPendientes.Add(" • Número de serie de Entrega [1]");
+        if (tareaInicio.Entrega2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)) entregasPendientes.Add(" • Número de serie de Entrega [2]");
+        if (entregasPendientes.Count > 0)
+            return BadRequest(new { message = $"Debe indicar el contenedor antes de iniciar la ruta a obra:{Environment.NewLine}{string.Join(Environment.NewLine, entregasPendientes)}." });
+
         var servicioIniciadoExistente = await _context.Solicitudes
             .AsNoTracking()
             .Where(s => s.IdConductor == solicitud.IdConductor.Value
@@ -500,8 +510,7 @@ public class SolicitudesController : ControllerBase
 
         // Normativa DeCA: Si la tarea incluye entrega/colocación de contenedor,
         // generar el documento de control previo a salir de la base hacia la obra.
-        var tareaInicio = await _context.Tareas.AsNoTracking().FirstOrDefaultAsync(t => t.IdTarea == solicitud.IdTipoTarea);
-        if (tareaInicio != null && (tareaInicio.Entrega1 || tareaInicio.Entrega2))
+        if (tareaInicio.Entrega1 || tareaInicio.Entrega2)
         {
             var urlBase = $"{Request.Scheme}://{Request.Host}";
             await _deCaService.EmitirDeCaAsync(solicitud.IdSolicitud, "ENTREGA", urlBase);
@@ -584,10 +593,13 @@ public class SolicitudesController : ControllerBase
         solicitud.Estado = estadoPlanta.IdEstado;
         await _context.SaveChangesAsync();
 
-        // Normativa DeCA: Al salir de la obra hacia la planta con los residuos de construcción,
-        // generar y sellar digitalmente el documento de control previo al inicio del trayecto.
-        var urlBase = $"{Request.Scheme}://{Request.Host}";
-        await _deCaService.EmitirDeCaAsync(solicitud.IdSolicitud, "RETIRADA", urlBase);
+        // Solo los servicios que recogen contenedor transportan residuos hacia planta.
+        // Una entrega pura puede cerrar su ruta, pero no debe generar un DeCA de retirada.
+        if (tarea.Recoger1 || tarea.Recoger2)
+        {
+            var urlBase = $"{Request.Scheme}://{Request.Host}";
+            await _deCaService.EmitirDeCaAsync(solicitud.IdSolicitud, "RETIRADA", urlBase);
+        }
 
         return NoContent();
     }
@@ -642,12 +654,15 @@ public class SolicitudesController : ControllerBase
         if (tarea == null)
             return BadRequest(new { message = "No se ha encontrado el tipo de tarea del servicio." });
 
-        if (tarea.CreaAlbaran && string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta))
-            datosPendientes.Add(" • número de albarán de planta");
-
-        var requiereTipoResiduo = tarea.Recoger1 || tarea.Recoger2;
-        if (requiereTipoResiduo && string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
-            datosPendientes.Add(" • Tipo de residuo");
+        var requiereBascula = (tarea.Recoger1 || tarea.Recoger2) && tarea.CreaAlbaran;
+        if (requiereBascula)
+        {
+            if (string.IsNullOrWhiteSpace(solicitud.TipoResiduo)) datosPendientes.Add(" • Tipo de residuo");
+            if (string.IsNullOrWhiteSpace(solicitud.AlbaranPlanta)) datosPendientes.Add(" • número de albarán de planta");
+            if (!solicitud.FechaPesaje.HasValue) datosPendientes.Add(" • Fecha de pesaje");
+            if (!solicitud.KgAlbaran.HasValue || solicitud.KgAlbaran.Value <= 0) datosPendientes.Add(" • Kg neto");
+            if (!solicitud.HoraPesaje.HasValue) datosPendientes.Add(" • Hora de pesaje");
+        }
 
         if (tarea.Entrega1 && string.IsNullOrWhiteSpace(solicitud.CodigoEntrega)) datosPendientes.Add(" • Número de serie de Entrega [1]");
         if (tarea.Entrega2 && string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega)) datosPendientes.Add(" • Número de serie de Entrega [2]");
