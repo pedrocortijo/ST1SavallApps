@@ -34,6 +34,8 @@ public class ParametrosController : ControllerBase
     public async Task<ActionResult<Parametro>> PostParametro(Parametro parametro)
     {
         parametro.PathDocumentos = NormalizarRutaDocumentos(parametro.PathDocumentos);
+        parametro.PathDocumentosOVP = NormalizarRutaDocumentos(parametro.PathDocumentosOVP);
+        parametro.PathPdfFacturas = NormalizarRutaDocumentos(parametro.PathPdfFacturas);
         GuardarSecretosPlanos(parametro);
         _context.Parametros.Add(parametro);
         await _context.SaveChangesAsync();
@@ -68,6 +70,8 @@ public class ParametrosController : ControllerBase
         // Se asigna expresamente porque la ruta se utiliza desde la API al generar
         // documentos y debe persistirse incluso en instalaciones con esquema previo.
         existente.PathDocumentos = NormalizarRutaDocumentos(parametro.PathDocumentos);
+        existente.PathDocumentosOVP = NormalizarRutaDocumentos(parametro.PathDocumentosOVP);
+        existente.PathPdfFacturas = NormalizarRutaDocumentos(parametro.PathPdfFacturas);
         await _context.SaveChangesAsync();
         return NoContent();
     }

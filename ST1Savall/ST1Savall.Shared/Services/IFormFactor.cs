@@ -7,9 +7,14 @@ namespace ST1Savall.Shared.Services
         public string GetFormFactor();
         public string GetPlatform();
         public Task OpenUrlAsync(string url);
+        public Task OpenFileAsync(string path);
         public Task<DeviceLocation?> GetCurrentLocationAsync();
         public Task<CapturedPhoto?> CapturePhotoAsync();
         public Task<CapturedPhoto?> PickPhotoAsync();
+        public Task<string?> PickPdfPathAsync();
+        public Task<string?> PickFolderPathAsync();
+        public Task<string?> MoveFileToDirectoryAsync(string sourcePath, string destinationDirectory);
+        public Task DeleteFileAsync(string path);
         public Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData);
     }
 

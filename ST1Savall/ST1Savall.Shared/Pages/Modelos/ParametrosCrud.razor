@@ -3,6 +3,7 @@
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
+@inject IFormFactor FormFactor
 
 <PageTitle>Gestión de Parámetros</PageTitle>
 
@@ -166,13 +167,39 @@
                                         <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.PathImagenes" NullText="Carpeta de red donde se guardan las fotos..." />
+                                        <DxTextBox @bind-Text="parametro.PathImagenes" NullText="Carpeta de red donde se guardan las fotos...">
+                                            <Buttons>
+                                                <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathImagenes)))" />
+                                            </Buttons>
+                                        </DxTextBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Ruta de firmas" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas..." />
+                                        <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas...">
+                                            <Buttons>
+                                                <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathFirmas)))" />
+                                            </Buttons>
+                                        </DxTextBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutItem Caption="Ruta de documentos" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.PathDocumentos" NullText="Carpeta donde se guardan los PDF de albaranes..." />
+                                        <DxTextBox @bind-Text="parametro.PathDocumentos" NullText="Carpeta donde se guardan los PDF de albaranes...">
+                                            <Buttons>
+                                                <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathDocumentos)))" />
+                                            </Buttons>
+                                        </DxTextBox>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta de documentos OVP" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.PathDocumentosOVP" MaxLength="255" NullText="Carpeta donde se guardan los PDF de OVP...">
+                                            <Buttons>
+                                                <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathDocumentosOVP)))" />
+                                            </Buttons>
+                                        </DxTextBox>
+                                    </DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Ruta de PDF de facturas" ColSpanMd="12">
+                                        <DxTextBox @bind-Text="parametro.PathPdfFacturas" MaxLength="255" NullText="Carpeta donde se guardan los PDF de facturas...">
+                                            <Buttons>
+                                                <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathPdfFacturas)))" />
+                                            </Buttons>
+                                        </DxTextBox>
                                     </DxFormLayoutItem>
                                     <DxFormLayoutGroup Caption="Normativa DeCA (Control de Transporte)" ColSpanMd="12">
                                         <DxFormLayoutItem Caption="Autorización de Transporte (Tarjeta)" ColSpanMd="6">
@@ -410,6 +437,38 @@
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar parámetros: {ex.Message}";
+        }
+    }
+
+    private async Task SeleccionarCarpetaAsync(Parametro parametro, string propiedad)
+    {
+        try
+        {
+            var ruta = await FormFactor.PickFolderPathAsync();
+            if (string.IsNullOrWhiteSpace(ruta)) return;
+
+            switch (propiedad)
+            {
+                case nameof(Parametro.PathImagenes):
+                    parametro.PathImagenes = ruta;
+                    break;
+                case nameof(Parametro.PathFirmas):
+                    parametro.PathFirmas = ruta;
+                    break;
+                case nameof(Parametro.PathDocumentos):
+                    parametro.PathDocumentos = ruta;
+                    break;
+                case nameof(Parametro.PathDocumentosOVP):
+                    parametro.PathDocumentosOVP = ruta;
+                    break;
+                case nameof(Parametro.PathPdfFacturas):
+                    parametro.PathPdfFacturas = ruta;
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido seleccionar la carpeta: {ex.Message}";
         }
     }
 

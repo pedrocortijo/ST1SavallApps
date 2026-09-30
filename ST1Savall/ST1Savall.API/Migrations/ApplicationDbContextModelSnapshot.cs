@@ -482,6 +482,14 @@ namespace ST1Savall.API.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("PathDocumentosOVP")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("PathPdfFacturas")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("ReceiverEmail")
                         .IsRequired()
                         .HasMaxLength(256)

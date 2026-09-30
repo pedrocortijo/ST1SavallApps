@@ -145,7 +145,6 @@ public class ObrasComunSage50Controller : ControllerBase
         _context.Entry(obra).State = EntityState.Modified;
         var entry = _context.Entry(obra);
         entry.Property(o => o.Descuento).IsModified = false;
-        entry.Property(o => o.Fpag).IsModified = false;
         entry.Property(o => o.Isp).IsModified = false;
         entry.Property(o => o.Marvehic).IsModified = false;
         entry.Property(o => o.Modvehic).IsModified = false;

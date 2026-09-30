@@ -110,6 +110,7 @@ public sealed class GeneracionAlbaranServicioService(
                 Usuario = parametros.UsuarioAlbaranes.Trim(),
                 Cliente = clienteCodigo,
                 Obra = obra.Codigo.Trim(),
+                FormaPago = !string.IsNullOrWhiteSpace(obra.Fpag) ? obra.Fpag.Trim() : cliente.Fpag.Trim(),
                 Articulo = articuloCodigo,
                 Unidades = 1m,
                 Precio = 0m,
@@ -421,7 +422,7 @@ public sealed class GeneracionAlbaranServicioService(
         {
             EMPRESA = d.Empresa, NUMERO = FormatearNumeroSage(d.Numero), LETRA = d.Serie, USUARIO = d.Usuario, FECHA = d.Fecha.Date,
             CLIENTE = d.Cliente, CLIENTEERP = cliente.Clienteerp.Trim(), ALMACEN = d.Almacen,
-            FPAG = cliente.Fpag.Trim(), VENDEDOR = "00001", OPERARIO = "01", ENV_CLI = 1,
+            FPAG = string.IsNullOrWhiteSpace(d.FormaPago) ? cliente.Fpag.Trim() : d.FormaPago.Trim(), VENDEDOR = "00001", OPERARIO = "01", ENV_CLI = 1,
             DIVISA = "000", CAMBIO = 1m, STOCK_COEF = 1m, CANAL = "MATRICULA",
             OBRA = d.Obra, RUTA = cliente.Ruta.Trim(), PRONTO = cliente.Pronto, OBSERVACIO = d.Observaciones,
             IMPORTE = calculoFiscal.BaseImponible, TOTALDOC = calculoFiscal.TotalDocumento,

@@ -65,7 +65,8 @@ public sealed class TiquePesajeParser
             hora = new TimeSpan(h, m, s);
         }
 
-        // El valor válido es el que figura expresamente junto a «Peso neto». 
+        // Los tiques pueden repetir el resumen de pesos; se toma el último
+        // valor válido que figure expresamente junto a «Peso neto».
         var peso = ExtraerPeso(todo, PesoNetoRegex);
 
 
@@ -78,8 +79,14 @@ public sealed class TiquePesajeParser
 
     private static int? ExtraerPeso(string texto, Regex patron)
     {
-        var coincidencia = patron.Match(texto);
-        return coincidencia.Success ? ConvertirPeso(coincidencia) : null;
+        var coincidencias = patron.Matches(texto);
+        for (var indice = coincidencias.Count - 1; indice >= 0; indice--)
+        {
+            var peso = ConvertirPeso(coincidencias[indice]);
+            if (peso.HasValue) return peso;
+        }
+
+        return null;
     }
     private static int? ConvertirPeso(Match match)
     {

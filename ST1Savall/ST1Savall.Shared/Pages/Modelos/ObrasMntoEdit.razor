@@ -205,17 +205,40 @@
                                 <div class="form-text text-warning"><i class="oi oi-warning me-1"></i> Atención (Admin): La obra tiene servicios asignados. Cambiar el cliente solicitará confirmación.</div>
                             }
                         </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Forma de pago" ColSpanMd="5">
+                            <DxComboBox Data="@formasPago"
+                                        TData="FpagSage50"
+                                        TValue="string"
+                                        TextFieldName="Descripcion"
+                                        ValueFieldName="Codigo"
+                                        @bind-Value="obra.Fpag"
+                                        NullText="Seleccione una forma de pago..."
+                                        SearchMode="ListSearchMode.AutoSearch"
+                                        SearchFilterCondition="ListSearchFilterCondition.Contains">
+                                <ItemTemplate Context="formaPago">
+                                    <span style="font-size: 0.9rem;"><strong>@formaPago.Codigo</strong> - @formaPago.Nombre</span>
+                                </ItemTemplate>
+                            </DxComboBox>
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="12" BeginRow="true">
+                            <DxTextBox Text="@GetClientDireccion(obra.Cliente)"
+                            ReadOnly="true" EnableValidation="@false"
+                            TextExpression="@(() => obra.Cliente)" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Cód. Postal" ColSpanMd="3" BeginRow="true">
+                            <DxTextBox Text="@GetClientCodpost(obra.Cliente)" MaxLength="5"
+                            ReadOnly="true" EnableValidation="@false"
+                            TextExpression="@(() => obra.Cliente)" />
+                        </DxFormLayoutItem>
+                        <DxFormLayoutItem Caption="Población" ColSpanMd="4" >
+                            <DxTextBox Text="@GetClientPoblacion(obra.Cliente)"
+                            ReadOnly="true" EnableValidation="@false"
+                            TextExpression="@(() => obra.Cliente)" />
+                        </DxFormLayoutItem>
                         <DxFormLayoutItem Caption="Teléfono Cliente" ColSpanMd="5">
-                            <DxTextBox Text="@GetClientTelefono(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="5" BeginRow="true">
-                            <DxTextBox Text="@GetClientDireccion(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Población" ColSpanMd="4">
-                            <DxTextBox Text="@GetClientPoblacion(obra.Cliente)" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
-                        </DxFormLayoutItem>
-                        <DxFormLayoutItem Caption="Cód. Postal" ColSpanMd="3">
-                            <DxTextBox Text="@GetClientCodpost(obra.Cliente)" MaxLength="5" ReadOnly="true" EnableValidation="@false" TextExpression="@(() => obra.Cliente)" />
+                            <DxTextBox Text="@GetClientTelefono(obra.Cliente)"
+                            ReadOnly="true" EnableValidation="@false"
+                            TextExpression="@(() => obra.Cliente)" />
                         </DxFormLayoutItem>
 
                         <!-- Botones de Acción Formulario -->
@@ -343,12 +366,127 @@
                             }
                         </div>
                     </DxTabPage>
+                    <DxTabPage Text="Control OVP" Enabled="@(!IsNew)">
+                        <div class="p-3">
+                            @if (IsNew)
+                            {
+                                <div class="alert alert-info mb-0">Guarde primero la obra para gestionar el control OVP.</div>
+                            }
+                            else
+                            {
+                                <h6 class="text-primary border-bottom pb-2 mb-3">Control OVP de la obra</h6>
+                                <DxGrid @ref="gridObrasOvp"
+                                        Data="@obrasOvp"
+                                        KeyFieldName="IdObrasOVP"
+                                        EditMode="GridEditMode.PopupEditForm"
+                                        EditModelSaving="GuardarObraOvpAsync"
+                                        CustomizeEditModel="PrepararObraOvpAsync"
+                                        PopupEditFormHeaderCssClass="bg-primary text-white"
+                                        PopupEditFormHeaderText="Control OVP"
+                                        PopupEditFormCssClass="crud-popup"
+                                        PageSize="10"
+                                        AllowSort="true"
+                                        ShowFilterRow="true"
+                                        ShowSearchBox="true"
+                                        SearchBoxNullText="Buscar control OVP...">
+                                    <Columns>
+                                        <DxGridCommandColumn Width="160px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                            <HeaderTemplate>
+                                                <button type="button" class="btn btn-primary btn-sm w-100" @onclick="() => gridObrasOvp?.StartEditNewRowAsync()"><i class="oi oi-plus"></i> Nuevo</button>
+                                            </HeaderTemplate>
+                                            <CellDisplayTemplate>
+                                                @{ var registro = (ObrasOVP)context.DataItem; }
+                                                <div class="d-flex gap-1">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => gridObrasOvp?.StartEditDataItemAsync(registro)"><i class="oi oi-pencil"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Duplicar" @onclick="() => DuplicarObraOvpAsync(registro)"><i class="oi oi-layers"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-success" title="Visualizar PDF" disabled="@(!ExistePdfOvp(registro.PathOVP))" @onclick="() => AbrirPdfOvpAsync(registro)"><i class="oi oi-eye"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" @onclick="() => SolicitarEliminacionObraOvp(registro)"><i class="oi oi-trash"></i></button>
+                                                </div>
+                                            </CellDisplayTemplate>
+                                        </DxGridCommandColumn>
+                                        <DxGridDataColumn FieldName="RequiereOVP" Caption="Activo" Width="125px" />
+                                        <DxGridDataColumn FieldName="NumLicenciaOVP" Caption="Núm. licencia" MinWidth="200" />
+                                        <DxGridDataColumn FieldName="FechaInicioOVP" Caption="Fecha inicio" DisplayFormat="d" Width="135px" />
+                                        <DxGridDataColumn FieldName="FechaFinOVP" Caption="Fecha fin" DisplayFormat="d" Width="135px" />
+                                        <DxGridDataColumn FieldName="PathOVP" Caption="Ruta documento" MinWidth="260" />
+                                    </Columns>
+                                    <EditFormTemplate Context="editContext">
+                                        @{ var registro = (ObrasOVP)editContext.EditModel; }
+                                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                                            <DxFormLayoutItem Caption="Activo" ColSpanMd="1" BeginRow="true">
+                                                <DxCheckBox @bind-Checked="registro.RequiereOVP" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="Número de licencia" ColSpanMd="3">
+                                                <DxTextBox @bind-Text="registro.NumLicenciaOVP" MaxLength="50" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="Fecha de inicio" ColSpanMd="2">
+                                                <DxDateEdit @bind-Date="registro.FechaInicioOVP" ClearButtonVisible="true" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="Fecha de fin" ColSpanMd="2">
+                                                <DxDateEdit @bind-Date="registro.FechaFinOVP" ClearButtonVisible="true" />
+                                            </DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="Ruta del documento" ColSpanMd="12" BeginRow="true">
+                                                <DxTextBox @bind-Text="registro.PathOVP" MaxLength="255">
+                                                    <Buttons>
+                                                        <DxEditorButton IconCssClass="oi oi-folder"
+                                                                        Tooltip="Seleccionar archivo PDF"
+                                                                        Click="@(() => SeleccionarPdfOvpAsync(registro))" />
+                                                        <DxEditorButton IconCssClass="oi oi-external-link"
+                                                                        Tooltip="Abrir archivo PDF"
+                                                                        Enabled="@ExistePdfOvp(registro.PathOVP)"
+                                                                        Click="@(() => AbrirPdfOvpAsync(registro))" />
+                                                    </Buttons>
+                                                </DxTextBox>
+                                            </DxFormLayoutItem>
+                                        </DxFormLayout>
+                                    </EditFormTemplate>
+                                </DxGrid>
+                            }
+                        </div>
+                    </DxTabPage>
                 </DxTabs>
             </div>
-        </div>        <DxMessageBox @bind-Visible="errorPopupVisible"
-                      Text="@errorMessage"
-                      Title="Error"
-                      Type="MessageBoxType.Alert" />
+        </div>
+        <DxPopup @bind-Visible="errorPopupVisible"
+                 HeaderText="Error"
+                 ShowFooter="true"
+                 Width="min(440px, 92vw)"
+                 HorizontalAlignment="HorizontalAlignment.Center"
+                 VerticalAlignment="VerticalAlignment.Center">
+            <BodyContentTemplate>
+                <div class="d-flex align-items-start gap-2 py-1">
+                    <i class="oi oi-warning text-danger mt-1"></i>
+                    <div class="small text-break">@errorMessage</div>
+                </div>
+            </BodyContentTemplate>
+            <FooterContentTemplate>
+                <div class="d-flex justify-content-end w-100">
+                    <DxButton Text="OK" RenderStyle="ButtonRenderStyle.Primary" Click="() => errorPopupVisible = false" />
+                </div>
+            </FooterContentTemplate>
+        </DxPopup>
+
+        <DxPopup @bind-Visible="confirmarEliminacionOvpVisible"
+                 HeaderText="Eliminar control OVP"
+                 ShowFooter="true"
+                 Width="min(460px, 92vw)"
+                 HorizontalAlignment="HorizontalAlignment.Center"
+                 VerticalAlignment="VerticalAlignment.Center">
+            <BodyContentTemplate>
+                <p class="mb-1">¿Desea eliminar también el archivo PDF correspondiente?</p>
+                @if (!string.IsNullOrWhiteSpace(obraOvpPendienteEliminar?.PathOVP))
+                {
+                    <div class="small text-muted text-break">@obraOvpPendienteEliminar.PathOVP</div>
+                }
+            </BodyContentTemplate>
+            <FooterContentTemplate>
+                <div class="d-flex justify-content-end gap-2 w-100">
+                    <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarEliminacionObraOvp" />
+                    <DxButton Text="Solo registro" RenderStyle="ButtonRenderStyle.Danger" Click="() => ConfirmarEliminacionObraOvpAsync(false)" />
+                    <DxButton Text="Registro y PDF" RenderStyle="ButtonRenderStyle.Danger" Click="() => ConfirmarEliminacionObraOvpAsync(true)" />
+                </div>
+            </FooterContentTemplate>
+        </DxPopup>
 
 
 
@@ -509,6 +647,7 @@
     private UnsavedChangesGuard? unsavedChangesGuard;
     private List<ClienteSage50>? clientesList;
     private List<ClienteSage50>? todosLosClientes;
+    private List<FpagSage50>? formasPago;
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
     private bool poblacionValida = true;
@@ -548,6 +687,12 @@
     private bool showClienteWarningPopup = false;
     private string? codigoObraOrigenDuplicada;
     private IGrid? gridPrecios;
+    private IGrid? gridObrasOvp;
+    private List<ObrasOVP> obrasOvp = [];
+    private bool obrasOvpCargadas;
+    private ObrasOVP? obraOvpADuplicar;
+    private ObrasOVP? obraOvpPendienteEliminar;
+    private bool confirmarEliminacionOvpVisible;
     private PrecioEspecialCabecera precioCabecera = new();
     private bool preciosCargados;
     private List<CodigoNombre> articulosPrecio = [];
@@ -565,7 +710,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : string.Equals(Tab, "periodicidad", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
+        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : string.Equals(Tab, "periodicidad", StringComparison.OrdinalIgnoreCase) ? 2 : string.Equals(Tab, "ovp", StringComparison.OrdinalIgnoreCase) ? 3 : 0;
         await SetupHeadersAsync();
         await Task.WhenAll(LoadAuxiliaryDataAsync(), LoadObraAsync());
     }
@@ -595,9 +740,21 @@
                     c.Direccion = c.Direccion?.Trim() ?? "";
                     c.Poblacion = c.Poblacion?.Trim() ?? "";
                     c.Codpost = c.Codpost?.Trim() ?? "";
+                    c.Fpag = c.Fpag?.Trim() ?? "";
                 }
                 todosLosClientes = todosLosClientes.OrderBy(c => c.Codigo).ToList();
                 AplicarFiltroClientes();
+            }
+
+            formasPago = await Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50");
+            if (formasPago is not null)
+            {
+                foreach (var formaPago in formasPago)
+                {
+                    formaPago.Codigo = formaPago.Codigo?.Trim() ?? string.Empty;
+                    formaPago.Nombre = formaPago.Nombre?.Trim() ?? string.Empty;
+                }
+                formasPago = formasPago.OrderBy(formaPago => formaPago.Codigo).ToList();
             }
 
             var articulos = await Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50");
@@ -632,6 +789,7 @@
                     obra.Nombre = obra.Nombre?.Trim() ?? "";
                     obra.Direccion = obra.Direccion?.Trim() ?? "";
                     obra.Cliente = obra.Cliente?.Trim() ?? "";
+                    obra.Fpag = obra.Fpag?.Trim() ?? "";
                     obra.Codpost = obra.Codpost?.Trim() ?? "";
                     obra.Provincia = obra.Provincia?.Trim() ?? "";
                     obra.Poblacion = obra.Poblacion?.Trim() ?? "";
@@ -715,6 +873,8 @@
             }
             if (!IsNew && obra != null && activeTabIndex == 2)
                 await CargarPeriodicidadAsync();
+            if (!IsNew && obra != null && activeTabIndex == 3)
+                await CargarObrasOvpAsync();
 
             if (AplicarPoblacionSeleccionada())
             {
@@ -774,6 +934,180 @@
         }
         if (tabIndex == 2 && !IsNew)
             await CargarPeriodicidadAsync();
+        if (tabIndex == 3 && !IsNew && !obrasOvpCargadas)
+        {
+            await CargarObrasOvpAsync();
+            obrasOvpCargadas = true;
+        }
+    }
+
+    private async Task CargarObrasOvpAsync()
+    {
+        if (obra is null || string.IsNullOrWhiteSpace(obra.Codigo)) return;
+        try
+        {
+            obrasOvp = await Http.GetFromJsonAsync<List<ObrasOVP>>(
+                $"api/obras-ovp/por-obra/{Uri.EscapeDataString(obra.Codigo.Trim())}") ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar el control OVP: {ex.Message}";
+        }
+    }
+
+    private void PrepararObraOvpAsync(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew || obra is null) return;
+
+        var registro = (ObrasOVP)e.EditModel;
+        registro.IdObra = obra.Codigo.Trim();
+        if (obraOvpADuplicar is null)
+        {
+            registro.RequiereOVP = false;
+            return;
+        }
+
+        registro.RequiereOVP = obraOvpADuplicar.RequiereOVP;
+        registro.NumLicenciaOVP = obraOvpADuplicar.NumLicenciaOVP;
+        registro.FechaInicioOVP = obraOvpADuplicar.FechaInicioOVP;
+        registro.FechaFinOVP = obraOvpADuplicar.FechaFinOVP;
+        registro.PathOVP = obraOvpADuplicar.PathOVP;
+        obraOvpADuplicar = null;
+    }
+
+    private async Task DuplicarObraOvpAsync(ObrasOVP original)
+    {
+        obraOvpADuplicar = original;
+        await gridObrasOvp!.StartEditNewRowAsync();
+    }
+
+    private async Task SeleccionarPdfOvpAsync(ObrasOVP registro)
+    {
+        try
+        {
+            var ruta = await FormFactor.PickPdfPathAsync();
+            if (string.IsNullOrWhiteSpace(ruta)) return;
+            if (!ruta.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                errorMessage = "Seleccione un archivo PDF válido.";
+                return;
+            }
+
+            registro.PathOVP = ruta;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido seleccionar el PDF: {ex.Message}";
+        }
+    }
+
+    private static bool ExistePdfOvp(string? ruta) =>
+        !string.IsNullOrWhiteSpace(ruta) &&
+        ruta.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) &&
+        File.Exists(ruta);
+
+    private async Task AbrirPdfOvpAsync(ObrasOVP registro)
+    {
+        if (!ExistePdfOvp(registro.PathOVP))
+        {
+            errorMessage = "No se encuentra el archivo PDF indicado.";
+            return;
+        }
+
+        try
+        {
+            await FormFactor.OpenFileAsync(registro.PathOVP);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se ha podido abrir el PDF: {ex.Message}";
+        }
+    }
+
+    private async Task TrasladarPdfOvpAsync(ObrasOVP registro)
+    {
+        if (string.IsNullOrWhiteSpace(registro.PathOVP)) return;
+
+        var parametros = await Http.GetFromJsonAsync<List<Parametro>>("api/parametros") ?? [];
+        var carpetaOvp = parametros.FirstOrDefault()?.PathDocumentosOVP;
+        if (string.IsNullOrWhiteSpace(carpetaOvp)) return;
+
+        registro.PathOVP = await FormFactor.MoveFileToDirectoryAsync(registro.PathOVP, carpetaOvp)
+            ?? registro.PathOVP;
+    }
+
+    private async Task GuardarObraOvpAsync(GridEditModelSavingEventArgs e)
+    {
+        if (obra is null) return;
+        var registro = (ObrasOVP)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            registro.IdObra = obra.Codigo.Trim();
+            registro.NumLicenciaOVP = registro.NumLicenciaOVP?.Trim();
+            registro.PathOVP = registro.PathOVP?.Trim();
+            await TrasladarPdfOvpAsync(registro);
+
+            var response = e.IsNew
+                ? await Http.PostAsJsonAsync("api/obras-ovp", registro)
+                : await Http.PutAsJsonAsync($"api/obras-ovp/{registro.IdObrasOVP}", registro);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al guardar el control OVP: {await ObtenerDetalleErrorAsync(response)}";
+                e.Cancel = true;
+                return;
+            }
+
+            await CargarObrasOvpAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar el control OVP: {ex.Message}";
+            e.Cancel = true;
+        }
+    }
+
+    private void SolicitarEliminacionObraOvp(ObrasOVP registro)
+    {
+        obraOvpPendienteEliminar = registro;
+        confirmarEliminacionOvpVisible = true;
+    }
+
+    private void CancelarEliminacionObraOvp()
+    {
+        confirmarEliminacionOvpVisible = false;
+        obraOvpPendienteEliminar = null;
+    }
+
+    private async Task ConfirmarEliminacionObraOvpAsync(bool eliminarArchivo)
+    {
+        var registro = obraOvpPendienteEliminar;
+        if (registro is null) return;
+
+        confirmarEliminacionOvpVisible = false;
+        try
+        {
+            if (eliminarArchivo && !string.IsNullOrWhiteSpace(registro.PathOVP))
+                await FormFactor.DeleteFileAsync(registro.PathOVP);
+
+            await SetupHeadersAsync();
+            var response = await Http.DeleteAsync($"api/obras-ovp/{registro.IdObrasOVP}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al eliminar el control OVP: {await ObtenerDetalleErrorAsync(response)}";
+                return;
+            }
+
+            await CargarObrasOvpAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al eliminar el control OVP: {ex.Message}";
+        }
+        finally
+        {
+            obraOvpPendienteEliminar = null;
+        }
     }
 
     private async Task CargarPeriodicidadAsync()
@@ -999,6 +1333,7 @@
             var client = clientesList.FirstOrDefault(c => c.Codigo == newCode);
             if (client != null)
             {
+                obra.Fpag = client.Fpag?.Trim() ?? string.Empty;
                 try
                 {
                     var contacts = await Http.GetFromJsonAsync<List<ContlfCliSage50>>($"api/contlfclisage50/por-cliente/{Uri.EscapeDataString(newCode)}");
@@ -1337,6 +1672,7 @@
             obra.Nombre = obra.Nombre?.Trim() ?? "";
             obra.Direccion = obra.Direccion?.Trim() ?? "";
             obra.Cliente = obra.Cliente?.Trim() ?? "";
+            obra.Fpag = obra.Fpag?.Trim() ?? "";
             obra.Codpost = obra.Codpost?.Trim() ?? "";
             obra.Poblacion = obra.Poblacion?.Trim() ?? "";
             obra.Provincia = obra.Provincia?.Trim() ?? "";

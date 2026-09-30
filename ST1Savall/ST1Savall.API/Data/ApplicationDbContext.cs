@@ -36,6 +36,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<HorarioObra> HorariosObra { get; set; } = null!;
     public DbSet<PeriodicidadObra> PeriodicidadesObra { get; set; } = null!;
     public DbSet<PeriodicidadObraEjecucion> PeriodicidadesObraEjecuciones { get; set; } = null!;
+    public DbSet<ObrasOVP> ObrasOVP { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -108,6 +109,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<DocumentoDeCa>().HasKey(d => d.IdDocumentoDeCa);
         builder.Entity<DocumentoDeCa>().HasIndex(d => d.GuidDeCa).IsUnique();
         builder.Entity<DocumentoDeCa>().HasIndex(d => new { d.IdSolicitud, d.Tipo, d.FechaHoraEmision });
+        builder.Entity<ObrasOVP>(entity =>
+        {
+            entity.ToTable("ObrasOVP");
+            entity.HasKey(o => o.IdObrasOVP);
+            entity.Property(o => o.IdObrasOVP).UseIdentityColumn();
+            entity.Property(o => o.IdObra).HasColumnType("char(5)").HasMaxLength(5).IsFixedLength().IsUnicode(false);
+            entity.Property(o => o.RequiereOVP).IsRequired();
+            entity.Property(o => o.NumLicenciaOVP).HasColumnType("nvarchar(50)").HasMaxLength(50).UseCollation("Modern_Spanish_CI_AS");
+            entity.Property(o => o.FechaInicioOVP).HasColumnType("datetime2(7)");
+            entity.Property(o => o.FechaFinOVP).HasColumnType("datetime2(7)");
+            entity.Property(o => o.PathOVP).HasColumnType("varchar(255)").HasMaxLength(255).IsUnicode(false);
+        });
 
 
         builder.Entity<Solicitud>()

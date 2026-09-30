@@ -14,6 +14,17 @@ namespace ST1Savall.Services
         public string GetPlatform() => DeviceInfo.Platform + " - " + DeviceInfo.VersionString;
         public async Task OpenUrlAsync(string url) => await Launcher.Default.OpenAsync(url);
 
+        public async Task OpenFileAsync(string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException("No se ha encontrado el archivo indicado.", path);
+
+            await Launcher.Default.OpenAsync(new OpenFileRequest
+            {
+                File = new ReadOnlyFile(path)
+            });
+        }
+
         public async Task<DeviceLocation?> GetCurrentLocationAsync()
         {
             var permission = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
@@ -58,6 +69,78 @@ namespace ST1Savall.Services
             using var memory = new MemoryStream();
             await source.CopyToAsync(memory);
             return new CapturedPhoto(photo.FileName, photo.ContentType, memory.ToArray());
+        }
+
+        public async Task<string?> PickPdfPathAsync()
+        {
+            var file = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Seleccionar documento OVP (PDF)",
+                FileTypes = new FilePickerFileType(new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.Android, new[] { "application/pdf" } },
+                    { DevicePlatform.WinUI, new[] { ".pdf" } },
+                    { DevicePlatform.iOS, new[] { "com.adobe.pdf" } },
+                    { DevicePlatform.MacCatalyst, new[] { "com.adobe.pdf" } }
+                })
+            });
+
+            return file?.FullPath;
+        }
+
+        public async Task<string?> PickFolderPathAsync()
+        {
+#if WINDOWS
+            var ventana = Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView as Microsoft.UI.Xaml.Window;
+            if (ventana is null)
+                throw new InvalidOperationException("No se encuentra la ventana de la aplicación para seleccionar la carpeta.");
+
+            var selector = new Windows.Storage.Pickers.FolderPicker();
+            selector.FileTypeFilter.Add("*");
+            WinRT.Interop.InitializeWithWindow.Initialize(selector, WinRT.Interop.WindowNative.GetWindowHandle(ventana));
+            var carpeta = await selector.PickSingleFolderAsync();
+            return carpeta?.Path;
+#else
+            throw new PlatformNotSupportedException("La selección de carpetas está disponible en la aplicación de Windows.");
+#endif
+        }
+
+        public Task<string?> MoveFileToDirectoryAsync(string sourcePath, string destinationDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath) || string.IsNullOrWhiteSpace(destinationDirectory))
+                return Task.FromResult<string?>(sourcePath);
+
+            var origen = Path.GetFullPath(sourcePath);
+            if (!File.Exists(origen))
+                throw new FileNotFoundException("No se encuentra el archivo seleccionado.", origen);
+
+            var destinoCarpeta = Path.GetFullPath(destinationDirectory);
+            var prefijoDestino = destinoCarpeta.EndsWith(Path.DirectorySeparatorChar)
+                ? destinoCarpeta
+                : destinoCarpeta + Path.DirectorySeparatorChar;
+            if (origen.StartsWith(prefijoDestino, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<string?>(origen);
+
+            Directory.CreateDirectory(destinoCarpeta);
+            var nombre = Path.GetFileName(origen);
+            var destino = Path.Combine(destinoCarpeta, nombre);
+            if (File.Exists(destino))
+            {
+                var nombreSinExtension = Path.GetFileNameWithoutExtension(nombre);
+                destino = Path.Combine(destinoCarpeta, $"{nombreSinExtension}_{Guid.NewGuid():N}{Path.GetExtension(nombre)}");
+            }
+
+            File.Move(origen, destino);
+            return Task.FromResult<string?>(destino);
+        }
+
+        public Task DeleteFileAsync(string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException("No se encuentra el archivo indicado.", path);
+
+            File.Delete(path);
+            return Task.CompletedTask;
         }
 
         public async Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData)

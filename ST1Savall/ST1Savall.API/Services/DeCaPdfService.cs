@@ -30,6 +30,7 @@ public sealed class DeCaPdfService
         string? conductorNombre,
         Planta? plantaDestino,
         decimal? cubicajeM3,
+        string? descripcionTipoResiduo,
         string urlDescargaQr)
     {
         using var report = CrearReport(
@@ -42,6 +43,7 @@ public sealed class DeCaPdfService
             conductorNombre,
             plantaDestino,
             cubicajeM3,
+            descripcionTipoResiduo,
             urlDescargaQr);
 
         using var stream = new MemoryStream();
@@ -104,6 +106,7 @@ public sealed class DeCaPdfService
         string? conductorNombre,
         Planta? plantaDestino,
         decimal? cubicajeM3,
+        string? descripcionTipoResiduo,
         string urlDescargaQr)
     {
         var r = new XtraReport
@@ -229,8 +232,13 @@ public sealed class DeCaPdfService
         else
         {
             var retirados = string.Join(", ", new[] { s.CodigoRecogida, s.CodigoAmbosRecogida }.Where(c => !string.IsNullOrWhiteSpace(c)));
-            var residuo = !string.IsNullOrWhiteSpace(s.TipoResiduo) ? s.TipoResiduo.Trim() : "RCDs / Escombros de Construcción";
-            L(b, $"Naturaleza de la Carga: RESIDUOS DE CONSTRUCCIÓN Y DEMOLICIÓN (RCDs) - {residuo}", 8, y + 24, 741, 18, 9f, true);
+            var residuo = !string.IsNullOrWhiteSpace(descripcionTipoResiduo)
+                ? descripcionTipoResiduo.Trim()
+                : !string.IsNullOrWhiteSpace(s.TipoResiduo) ? s.TipoResiduo.Trim() : "RCDs / Escombros de Construcción";
+            var naturalezaCarga = !string.IsNullOrWhiteSpace(descripcionTipoResiduo)
+                ? residuo
+                : $"RESIDUOS DE CONSTRUCCIÓN Y DEMOLICIÓN (RCDs) - {residuo}";
+            L(b, $"Naturaleza de la Carga: {naturalezaCarga}", 8, y + 24, 741, 18, 9f, true);
             L(b, $"Nº Serie de Contenedor(es) retirado(s): {(string.IsNullOrWhiteSpace(retirados) ? "Registrado en obra" : retirados)}", 8, y + 42, 741, 18, 8.5f);
             var m3 = cubicajeM3 ?? s.CubicajeM3DeCa ?? 6.0m;
             var pesoEst = s.KgAlbaran.HasValue ? $"{s.KgAlbaran.Value:N0} Kg (báscula)" : $"{Math.Round(m3 * 1200m, 0):N0} Kg (estimado según densidad de RCDs)";

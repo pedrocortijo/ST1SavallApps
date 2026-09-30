@@ -265,6 +265,12 @@ public static class DbInitializer
                 IF COL_LENGTH('Parametros', 'PathDocumentos') IS NULL
                     ALTER TABLE Parametros ADD PathDocumentos VARCHAR(255) NULL;
 
+                IF COL_LENGTH('Parametros', 'PathDocumentosOVP') IS NULL
+                    ALTER TABLE Parametros ADD PathDocumentosOVP VARCHAR(255) NULL;
+
+                IF COL_LENGTH('Parametros', 'PathPdfFacturas') IS NULL
+                    ALTER TABLE Parametros ADD PathPdfFacturas VARCHAR(255) NULL;
+
                 IF COL_LENGTH('Parametros', 'EstadoReprogramacion') IS NULL
                     ALTER TABLE Parametros ADD EstadoReprogramacion INT NULL;
 

@@ -5,8 +5,11 @@ public class DireccionEnvioClienteSage50
 {
     public string CLIENTE { get; set; } = string.Empty;
     public int LINEA { get; set; }
+    public string NOMBRE { get; set; } = string.Empty;
     public string DIRECCION { get; set; } = string.Empty;
     public string CODPOS { get; set; } = string.Empty;
     public string POBLACION { get; set; } = string.Empty;
     public string PROVINCIA { get; set; } = string.Empty;
+    public bool? VISTA { get; set; }
+    public int TIPO { get; set; }
 }

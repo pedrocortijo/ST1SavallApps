@@ -13,6 +13,8 @@ public class SageGestionDbContext : DbContext
     public DbSet<ClienteSage50> Clientes { get; set; } = null!;
     public DbSet<CodPosSage50> Codpos { get; set; } = null!;
     public DbSet<FpagSage50> Fpag { get; set; } = null!;
+    public DbSet<CuentaSage50> Cuentas { get; set; } = null!;
+    public DbSet<MonedaSage50> Monedas { get; set; } = null!;
     public DbSet<ContlfCliSage50> ContlfCli { get; set; } = null!;
     public DbSet<TipoIvaSage50> TipoIva { get; set; } = null!;
     public DbSet<ArticuloSage50> Articulos { get; set; } = null!;
@@ -65,10 +67,13 @@ public class SageGestionDbContext : DbContext
             entity.HasKey(d => new { d.CLIENTE, d.LINEA });
             entity.Property(d => d.CLIENTE).HasColumnName("CLIENTE").HasMaxLength(8).IsFixedLength();
             entity.Property(d => d.LINEA).HasColumnName("LINEA");
+            entity.Property(d => d.NOMBRE).HasColumnName("NOMBRE").HasMaxLength(80).IsFixedLength();
             entity.Property(d => d.DIRECCION).HasColumnName("DIRECCION").HasMaxLength(80).IsFixedLength();
             entity.Property(d => d.CODPOS).HasColumnName("CODPOS").HasMaxLength(10).IsFixedLength();
             entity.Property(d => d.POBLACION).HasColumnName("POBLACION").HasMaxLength(30).IsFixedLength();
             entity.Property(d => d.PROVINCIA).HasColumnName("PROVINCIA").HasMaxLength(30).IsFixedLength();
+            entity.Property(d => d.VISTA).HasColumnName("VISTA");
+            entity.Property(d => d.TIPO).HasColumnName("TIPO");
         });
 
         modelBuilder.Entity<CampoAdicionalSage50>(entity =>
@@ -253,6 +258,20 @@ public class SageGestionDbContext : DbContext
             entity.Property(c => c.Vista).HasColumnName("VISTA");
         });
 
+        modelBuilder.Entity<MonedaSage50>(entity =>
+        {
+            entity.ToTable("moneda");
+            entity.HasKey(moneda => moneda.Codigo);
+            entity.Property(moneda => moneda.Codigo).HasColumnName("CODIGO").HasMaxLength(3).IsFixedLength();
+            entity.Property(moneda => moneda.Nombre).HasColumnName("NOMBRE").HasMaxLength(20).IsFixedLength();
+        });
+        modelBuilder.Entity<CuentaSage50>(entity =>
+        {
+            entity.ToTable("cuentas");
+            entity.HasKey(cuenta => cuenta.Codigo);
+            entity.Property(cuenta => cuenta.Codigo).HasColumnName("CODIGO").HasMaxLength(8).IsFixedLength();
+            entity.Property(cuenta => cuenta.Nombre).HasColumnName("NOMBRE").HasMaxLength(120).IsFixedLength();
+        });
         modelBuilder.Entity<FpagSage50>(entity =>
         {
             entity.ToTable("fpag");

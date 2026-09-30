@@ -25,4 +25,5 @@ public class FpagSage50
     [MaxLength(100)] public string InfoAdi { get; set; } = string.Empty;
 
     public string Key => Codigo?.Trim() ?? string.Empty;
+    public string Descripcion => $"{Codigo?.Trim()} - {Nombre?.Trim()}";
 }

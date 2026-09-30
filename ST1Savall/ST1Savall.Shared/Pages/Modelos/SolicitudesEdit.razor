@@ -212,6 +212,38 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup @bind-Visible="selectorLicenciaOvpVisible"
+         HeaderText="Licencia OVP vigente"
+         ShowCloseButton="false"
+         CloseOnOutsideClick="false"
+         ShowFooter="true"
+         Width="min(560px, 92vw)"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <p class="mb-3">La obra seleccionada tiene licencias OVP activas y vigentes. Si el servicio actual afecta a algunos de los contenedores, seleccione la licencia que se aplicará, de lo contrario pulse Cancelar.</p>
+        <DxComboBox Data="@licenciasOvpVigentes"
+                    TData="ObrasOVP"
+                    TValue="int?"
+                    TextFieldName="NumLicenciaOVP"
+                    ValueFieldName="IdObrasOVP"
+                    @bind-Value="idLicenciaOvpSeleccionada"
+                    ClearButtonVisible="false"
+                    NullText="Seleccione una licencia..."
+                    CssClass="w-100">
+            <ItemTemplate Context="licencia">
+                <span><strong>@licencia.NumLicenciaOVP</strong> · @licencia.FechaInicioOVP?.ToString("d") - @licencia.FechaFinOVP?.ToString("d")</span>
+            </ItemTemplate>
+        </DxComboBox>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarSeleccionLicenciaOvp" />
+            <DxButton Text="Aplicar licencia" RenderStyle="ButtonRenderStyle.Primary" Enabled="@idLicenciaOvpSeleccionada.HasValue" Click="AplicarLicenciaOvpSeleccionada" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 <DxPopup Visible="@(!string.IsNullOrWhiteSpace(errorMessage))"
          VisibleChanged="CerrarMensajeError"
          HeaderText="Error"
@@ -1222,6 +1254,9 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
     private string? solicitudInicial;
     private bool confirmacionCambioTareaVisible;
     private bool popupObraBloqueadaVisible;
+    private List<ObrasOVP> licenciasOvpVigentes = [];
+    private int? idLicenciaOvpSeleccionada;
+    private bool selectorLicenciaOvpVisible;
     private int tareaComboKey = 0;
     private int? tipoTareaPendiente;
     private int? tareaAnterior;
@@ -1947,6 +1982,8 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
                 solicitud.Bloqueado = true;
             }
 
+            await ComprobarLicenciasOvpVigentesAsync(obra);
+
             if (TryParseCoordinate(obra.Libre1, out var oLat) && TryParseCoordinate(obra.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
             {
                 solicitud.Latitud = (decimal)oLat;
@@ -1981,8 +2018,81 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
             solicitud.CoordenadasGPS = null;
             solicitud.LatitudObra = null;
             solicitud.LongitudObra = null;
+            LimpiarDatosOvpSolicitud();
             StateHasChanged();
         }
+    }
+
+    private async Task ComprobarLicenciasOvpVigentesAsync(Obra obra)
+    {
+        if (solicitud is null || string.IsNullOrWhiteSpace(obra.Codigo))
+        {
+            LimpiarDatosOvpSolicitud();
+            return;
+        }
+
+        try
+        {
+            await SetupHeadersAsync();
+            var hoy = DateTime.Today;
+            var licencias = await Http.GetFromJsonAsync<List<ObrasOVP>>(
+                $"api/obras-ovp/por-obra/{Uri.EscapeDataString(obra.Codigo.Trim())}") ?? [];
+            licenciasOvpVigentes = licencias
+                .Where(licencia => licencia.RequiereOVP
+                    && licencia.FechaInicioOVP.HasValue
+                    && licencia.FechaInicioOVP.Value.Date <= hoy
+                    && (!licencia.FechaFinOVP.HasValue || licencia.FechaFinOVP.Value.Date >= hoy))
+                .OrderBy(licencia => licencia.FechaFinOVP)
+                .ThenBy(licencia => licencia.NumLicenciaOVP)
+                .ToList();
+
+            if (licenciasOvpVigentes.Count == 0)
+            {
+                LimpiarDatosOvpSolicitud();
+                return;
+            }
+
+            idLicenciaOvpSeleccionada = licenciasOvpVigentes[0].IdObrasOVP;
+            selectorLicenciaOvpVisible = true;
+        }
+        catch (Exception ex)
+        {
+            LimpiarDatosOvpSolicitud();
+            errorMessage = $"No se han podido comprobar las licencias OVP de la obra: {ex.Message}";
+        }
+    }
+
+    private void AplicarLicenciaOvpSeleccionada()
+    {
+        if (solicitud is null || !idLicenciaOvpSeleccionada.HasValue) return;
+
+        var licencia = licenciasOvpVigentes.FirstOrDefault(item => item.IdObrasOVP == idLicenciaOvpSeleccionada.Value);
+        if (licencia is null) return;
+
+        solicitud.RequiereOVP = licencia.RequiereOVP;
+        solicitud.NumLicenciaOVP = licencia.NumLicenciaOVP;
+        solicitud.FechaInicioOVP = licencia.FechaInicioOVP;
+        solicitud.FechaFinOVP = licencia.FechaFinOVP;
+        selectorLicenciaOvpVisible = false;
+    }
+
+    private void CancelarSeleccionLicenciaOvp()
+    {
+        selectorLicenciaOvpVisible = false;
+        LimpiarDatosOvpSolicitud();
+    }
+
+    private void LimpiarDatosOvpSolicitud()
+    {
+        if (solicitud is null) return;
+
+        solicitud.RequiereOVP = false;
+        solicitud.NumLicenciaOVP = null;
+        solicitud.FechaInicioOVP = null;
+        solicitud.FechaFinOVP = null;
+        licenciasOvpVigentes = [];
+        idLicenciaOvpSeleccionada = null;
+        selectorLicenciaOvpVisible = false;
     }
 
     private async Task<bool> GeocodificarUbicacionObraAsync(Obra obra)

@@ -21,6 +21,8 @@ namespace ST1Savall.Web.Services
             return Task.CompletedTask;
         }
 
+        public Task OpenFileAsync(string path) => Task.CompletedTask;
+
         public Task<DeviceLocation?> GetCurrentLocationAsync()
         {
             // En web la ubicación se solicita desde el navegador mediante JS interop.
@@ -30,6 +32,15 @@ namespace ST1Savall.Web.Services
         public Task<CapturedPhoto?> CapturePhotoAsync() => Task.FromResult<CapturedPhoto?>(null);
 
         public Task<CapturedPhoto?> PickPhotoAsync() => Task.FromResult<CapturedPhoto?>(null);
+
+        public Task<string?> PickPdfPathAsync() => Task.FromResult<string?>(null);
+
+        public Task<string?> PickFolderPathAsync() => Task.FromResult<string?>(null);
+
+        public Task<string?> MoveFileToDirectoryAsync(string sourcePath, string destinationDirectory) =>
+            Task.FromResult<string?>(sourcePath);
+
+        public Task DeleteFileAsync(string path) => Task.CompletedTask;
 
         public Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData) =>
             Task.FromException<(string Text, decimal? Confidence)>(new InvalidOperationException("El OCR local solo está disponible en la aplicación Windows o Android."));

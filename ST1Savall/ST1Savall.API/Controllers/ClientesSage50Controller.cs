@@ -178,6 +178,7 @@ public class ClientesSage50Controller : ControllerBase
         cliente.Codigo = (cliente.Codigo ?? "").Trim();
         cliente.Clienteerp = (cliente.Clienteerp ?? "").Trim();
         cliente.TipoIva = (cliente.TipoIva ?? "").Trim();
+        cliente.EnvCli = 1;
 
         if (!string.IsNullOrEmpty(cliente.Codigo))
         {
@@ -193,6 +194,7 @@ public class ClientesSage50Controller : ControllerBase
         }
 
         _context.Clientes.Add(cliente);
+        await SincronizarDireccionPrincipalAsync(cliente);
         try
         {
             await _context.SaveChangesAsync();
@@ -218,6 +220,7 @@ public class ClientesSage50Controller : ControllerBase
         cliente.Codigo = (cliente.Codigo ?? "").Trim();
         cliente.Clienteerp = (cliente.Clienteerp ?? "").Trim();
         cliente.TipoIva = (cliente.TipoIva ?? "").Trim();
+        cliente.EnvCli = 1;
 
         if (!string.Equals(targetCodigo, cliente.Codigo, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(targetErp, cliente.Clienteerp, StringComparison.OrdinalIgnoreCase))
@@ -236,6 +239,7 @@ public class ClientesSage50Controller : ControllerBase
         if (!clienteExiste) return NotFound(new { message = "El cliente especificado no existe." });
 
         _context.Entry(cliente).State = EntityState.Modified;
+        await SincronizarDireccionPrincipalAsync(cliente);
         try
         {
             await _context.SaveChangesAsync();
@@ -285,6 +289,31 @@ public class ClientesSage50Controller : ControllerBase
         }
 
         await _applicationContext.SaveChangesAsync();
+    }
+
+    private async Task SincronizarDireccionPrincipalAsync(ClienteSage50 cliente)
+    {
+        var codigo = cliente.Codigo.Trim();
+        var direccion = await _context.DireccionesEnvioClientes
+            .FirstOrDefaultAsync(d => d.CLIENTE.Trim() == codigo && d.LINEA == 1);
+
+        if (direccion is null)
+        {
+            direccion = new DireccionEnvioClienteSage50
+            {
+                CLIENTE = codigo,
+                LINEA = 1
+            };
+            _context.DireccionesEnvioClientes.Add(direccion);
+        }
+
+        direccion.NOMBRE = cliente.Nombre?.Trim() ?? string.Empty;
+        direccion.DIRECCION = cliente.Direccion?.Trim() ?? string.Empty;
+        direccion.CODPOS = cliente.Codpost?.Trim() ?? string.Empty;
+        direccion.POBLACION = cliente.Poblacion?.Trim() ?? string.Empty;
+        direccion.PROVINCIA = cliente.Provincia?.Trim() ?? string.Empty;
+        direccion.VISTA = true;
+        direccion.TIPO = 2;
     }
 
     private static int ParseCodigoToInt(string codigo)

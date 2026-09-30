@@ -3,7 +3,6 @@
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
 
 <PageTitle>Gestión de Clientes</PageTitle>
 
@@ -72,7 +71,7 @@
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm" 
                                                 style="width: 32px; height: 32px;"
-                                                @onclick="() => ConfirmDelete(item)" 
+                                                @onclick="() => SolicitarEliminacion(item)"
                                                 @onclick:stopPropagation
                                                 title="Eliminar">
                                             <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
@@ -120,9 +119,34 @@
     </div>
 </div>
 
+<DxPopup @bind-Visible="confirmarEliminacionVisible"
+         HeaderText="Eliminar cliente"
+         ShowFooter="true"
+         Width="min(460px, 92vw)"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        @if (clientePendienteEliminar is not null)
+        {
+            <div class="py-1">
+                ¿Está seguro de que desea eliminar al cliente <strong>@clientePendienteEliminar.Nombre</strong>
+                <span>(Código: @clientePendienteEliminar.Codigo)?</span>
+            </div>
+        }
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end gap-2 w-100">
+            <DxButton Text="Cancelar" RenderStyle="ButtonRenderStyle.Secondary" Click="CancelarEliminacion" />
+            <DxButton Text="Eliminar" RenderStyle="ButtonRenderStyle.Danger" Click="ConfirmarEliminacionAsync" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 @code {
     private List<ClienteSage50>? clientes;
     private string? errorMessage;
+    private ClienteSage50? clientePendienteEliminar;
+    private bool confirmarEliminacionVisible;
     private const int TamanoBloque = 100;
     private int paginaActual = 1;
     private int totalClientes;
@@ -215,32 +239,48 @@
         }
     }
 
-    private async Task ConfirmDelete(ClienteSage50 item)
+    private void SolicitarEliminacion(ClienteSage50 item)
     {
-        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de que desea eliminar al cliente {item.Nombre.Trim()} (Código: {item.Codigo.Trim()})?");
-        if (confirmed)
+        clientePendienteEliminar = item;
+        confirmarEliminacionVisible = true;
+    }
+
+    private void CancelarEliminacion()
+    {
+        confirmarEliminacionVisible = false;
+        clientePendienteEliminar = null;
+    }
+
+    private async Task ConfirmarEliminacionAsync()
+    {
+        var item = clientePendienteEliminar;
+        if (item is null) return;
+
+        confirmarEliminacionVisible = false;
+        try
         {
-            try
+            await SetupHeadersAsync();
+            var escCodigo = Uri.EscapeDataString(item.Codigo.Trim());
+            var url = $"api/clientessage50/{escCodigo}";
+            if (!string.IsNullOrWhiteSpace(item.Clienteerp))
             {
-                await SetupHeadersAsync();
-                var escCodigo = Uri.EscapeDataString(item.Codigo.Trim());
-                var url = $"api/clientessage50/{escCodigo}";
-                if (!string.IsNullOrWhiteSpace(item.Clienteerp))
-                {
-                    url += $"/{Uri.EscapeDataString(item.Clienteerp.Trim())}";
-                }
-                var response = await Http.DeleteAsync(url);
-                if (!response.IsSuccessStatusCode)
-                {
-                    errorMessage = $"Error al borrar cliente: {response.ReasonPhrase}";
-                    return;
-                }
-                await LoadDataAsync();
+                url += $"/{Uri.EscapeDataString(item.Clienteerp.Trim())}";
             }
-            catch (Exception ex)
+            var response = await Http.DeleteAsync(url);
+            if (!response.IsSuccessStatusCode)
             {
-                errorMessage = $"Error al borrar: {ex.Message}";
+                errorMessage = $"Error al borrar cliente: {response.ReasonPhrase}";
+                return;
             }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar: {ex.Message}";
+        }
+        finally
+        {
+            clientePendienteEliminar = null;
         }
     }
 }

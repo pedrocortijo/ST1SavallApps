@@ -47,7 +47,9 @@
     {
         <div class="card shadow-sm border-0" style="border-radius: 12px;">
             <div class="card-body p-4">
-                <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+                <DxTabs CssClass="w-100" ActiveTabIndex="@activeTabIndex" ActiveTabIndexChanged="OnActiveTabIndexChanged">
+                    <DxTabPage Text="Ficha">
+                        <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
                     <!-- Grupo 1: Datos Identificativos -->
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
                         Datos Identificativos
@@ -77,7 +79,7 @@
                             <div class="flex-grow-1">
                                 <DxTextBox Text="@cliente.Poblacion" TextExpression="@(() => cliente.Poblacion)" ReadOnly="true" />
                             </div>
-                            <button type="button" class="btn btn-outline-secondary btn-sm px-2" title="Buscar o crear población" @onclick="AbrirSelectorPoblacion" @onclick:stopPropagation>
+                            <button type="button" class="btn btn-outline-secondary btn-sm px-2" title="Buscar o crear población" @onclick="AbrirSelectorPoblacionAsync" @onclick:stopPropagation>
                                 <i class="oi oi-magnifying-glass"></i>
                             </button>
                         </div>
@@ -105,19 +107,25 @@
                     <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
                         Configuración comercial
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Forma de pago" ColSpanMd="3" BeginRow="true">
-                        <DxComboBox Data="@formasPago" TData="FpagSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" @bind-Value="cliente.Fpag" AllowCustomValue="true" NullText="Seleccione..." SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains">
+                    <DxFormLayoutItem Caption="Forma de pago" ColSpanMd="5" BeginRow="true">
+                        <DxComboBox Data="@formasPago" TData="FpagSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="cliente.Fpag" AllowCustomValue="true" NullText="Seleccione..." SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains">
                             <ItemTemplate Context="formaPago"><strong>@formaPago.Codigo</strong> - @formaPago.Nombre</ItemTemplate>
                         </DxComboBox>
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Banco previsto" ColSpanMd="3">
-                        <DxComboBox Data="@bancosPrevistos" TData="string" TValue="string" @bind-Value="cliente.BancoPrev" AllowCustomValue="true" NullText="Seleccione o introduzca..." SearchMode="ListSearchMode.AutoSearch" />
+                    <DxFormLayoutItem Caption="Banco previsto" ColSpanMd="7">
+                        <DxComboBox Data="@cuentasContables" TData="CuentaSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="cliente.BancoPrev" AllowCustomValue="true" NullText="Seleccione..." SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains">
+                            <ItemTemplate Context="cuenta"><strong>@cuenta.Codigo</strong> - @cuenta.Nombre</ItemTemplate>
+                        </DxComboBox>
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Idioma" ColSpanMd="3">
-                        <DxTextBox @bind-Text="cliente.Idioma" MaxLength="3" />
+                    <DxFormLayoutItem Caption="Divisa" ColSpanMd="4" BeginRow="true">
+                        <DxComboBox Data="@monedas" TData="MonedaSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="cliente.Idioma" AllowCustomValue="true" NullText="Seleccione..." SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains">
+                            <ItemTemplate Context="moneda"><strong>@moneda.Codigo</strong> - @moneda.Nombre</ItemTemplate>
+                        </DxComboBox>
                     </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Contrapartida" ColSpanMd="3">
-                        <DxTextBox @bind-Text="cliente.Contrapar" MaxLength="8" />
+                    <DxFormLayoutItem Caption="Contrapartida" ColSpanMd="8">
+                        <DxComboBox Data="@cuentasContables" TData="CuentaSage50" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="cliente.Contrapar" AllowCustomValue="true" NullText="Seleccione..." SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains">
+                            <ItemTemplate Context="cuenta"><strong>@cuenta.Codigo</strong> - @cuenta.Nombre</ItemTemplate>
+                        </DxComboBox>
                     </DxFormLayoutItem>
                     @*
                     <!-- Grupo 3: Configuración Sage50 -->
@@ -162,6 +170,47 @@
                     </DxFormLayoutItem>
                     *@
 
+                    <!-- Grupo Observaciones -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        Observaciones
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
+                        <DxMemo @bind-Text="@cliente.Observacio" Rows="4" />
+                    </DxFormLayoutItem>
+
+                    <!-- Grupo 4: Opciones Adicionales -->
+                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
+                        IVA / Opciones Especiales
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem Caption="Tipo de IVA" ColSpanMd="6" BeginRow="true">
+                        <DxComboBox Data="@tiposIvaList"
+                                    TextFieldName="DisplayLabel"
+                                    ValueFieldName="Codigo"
+                                    @bind-Value="@cliente.TipoIva"
+                                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                    NullText="Seleccione tipo de IVA..." />
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked:get="@cliente.BloqCli"
+                                    @bind-Checked:set="@OnBloqueoClienteChanged"
+                                    LabelPosition="LabelPosition.Right">Cliente Bloqueado</DxCheckBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked="@cliente.Recargo" LabelPosition="LabelPosition.Right">Recargo de Equivalencia</DxCheckBox>
+                    </DxFormLayoutItem>
+                    <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
+                        <DxCheckBox @bind-Checked="@cliente.Retencion" LabelPosition="LabelPosition.Right">Retención de IRPF</DxCheckBox>
+                    </DxFormLayoutItem>
+
+                    <!-- Acciones del Formulario -->
+                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                        <button class="btn btn-outline-secondary btn-sm px-4" @onclick="GoBack">Cancelar</button>
+                        <button class="btn btn-primary btn-sm px-4" @onclick="SaveAsync">Guardar</button>
+                    </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </DxTabPage>
+                    <DxTabPage Text="Contactos">
+                        <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
                     <!-- Grupo Contactos -->
                     @if (HasKeyParams)
                     {
@@ -288,44 +337,125 @@
                         </DxFormLayoutItem>
                     }
 
-                    <!-- Grupo Observaciones -->
-                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        Observaciones
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true">
-                        <DxMemo @bind-Text="@cliente.Observacio" Rows="4" />
-                    </DxFormLayoutItem>
 
-                    <!-- Grupo 4: Opciones Adicionales -->
-                    <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary mt-4 border-bottom pb-2 mb-3" BeginRow="true">
-                        IVA / Opciones Especiales
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem Caption="Tipo de IVA" ColSpanMd="6" BeginRow="true">
-                        <DxComboBox Data="@tiposIvaList"
-                                    TextFieldName="DisplayLabel"
-                                    ValueFieldName="Codigo"
-                                    @bind-Value="@cliente.TipoIva"
-                                    ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
-                                    NullText="Seleccione tipo de IVA..." />
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="4" BeginRow="true" CssClass="d-flex align-items-center">
-                        <DxCheckBox @bind-Checked:get="@cliente.BloqCli"
-                                    @bind-Checked:set="@OnBloqueoClienteChanged"
-                                    LabelPosition="LabelPosition.Right">Cliente Bloqueado</DxCheckBox>
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
-                        <DxCheckBox @bind-Checked="@cliente.Recargo" LabelPosition="LabelPosition.Right">Recargo de Equivalencia</DxCheckBox>
-                    </DxFormLayoutItem>
-                    <DxFormLayoutItem ColSpanMd="4" CssClass="d-flex align-items-center">
-                        <DxCheckBox @bind-Checked="@cliente.Retencion" LabelPosition="LabelPosition.Right">Retención de IRPF</DxCheckBox>
-                    </DxFormLayoutItem>
-
-                    <!-- Acciones del Formulario -->
-                    <DxFormLayoutItem ColSpanMd="12" BeginRow="true" CssClass="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-                        <button class="btn btn-outline-secondary btn-sm px-4" @onclick="GoBack">Cancelar</button>
-                        <button class="btn btn-primary btn-sm px-4" @onclick="SaveAsync">Guardar</button>
-                    </DxFormLayoutItem>
-                </DxFormLayout>
+                            @if (!HasKeyParams)
+                            {
+                                <DxFormLayoutItem ColSpanMd="12">
+                                    <div class="alert alert-info mb-0" role="alert">
+                                        Guarde primero el cliente para poder gestionar sus contactos.
+                                    </div>
+                                </DxFormLayoutItem>
+                            }
+                        </DxFormLayout>
+                    </DxTabPage>
+                    <DxTabPage Text="Direcciones">
+                        <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+                            @if (!HasKeyParams)
+                            {
+                                <DxFormLayoutItem ColSpanMd="12">
+                                    <div class="alert alert-info mb-0" role="alert">
+                                        Guarde primero el cliente para poder gestionar sus direcciones.
+                                    </div>
+                                </DxFormLayoutItem>
+                            }
+                            else
+                            {
+                                <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
+                                    Direcciones de envío
+                                </DxFormLayoutItem>
+                                <DxFormLayoutItem ColSpanMd="12" Context="direccionesLayoutContext">
+                                    <div class="card shadow-sm border">
+                                        <div class="card-body p-0">
+                                            <DxGrid @ref="direccionesGrid"
+                                                    Data="@direccionesEnvio"
+                                                    KeyFieldName="LINEA"
+                                                    EditMode="GridEditMode.PopupEditForm"
+                                                    EditModelSaving="OnDireccionSaving"
+                                                    DataItemDeleting="OnDireccionDeleting"
+                                                    CustomizeEditModel="OnDireccionCustomizeEditModel"
+                                                    PopupEditFormHeaderCssClass="bg-primary text-white"
+                                                    PopupEditFormHeaderText="Formulario - Dirección de envío"
+                                                    PopupEditFormCssClass="crud-popup"
+                                                    PagerPosition="GridPagerPosition.Bottom"
+                                                    PageSize="10"
+                                                    AllowSort="true"
+                                                    ShowFilterRow="true"
+                                                    ShowSearchBox="true"
+                                                    SearchBoxNullText="Buscar dirección...">
+                                                <Columns>
+                                                    <DxGridCommandColumn Width="80px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                                        <HeaderTemplate Context="headerContext">
+                                                            <button type="button" class="btn btn-primary btn-sm w-100" @onclick="() => { direccionesGrid?.StartEditNewRowAsync(); }">
+                                                                <i class="oi oi-plus"></i> Nuevo
+                                                            </button>
+                                                        </HeaderTemplate>
+                                                        <CellDisplayTemplate Context="commandContext">
+                                                            @{
+                                                                var direccion = (DireccionEnvioClienteSage50)commandContext.DataItem;
+                                                                <div class="d-flex gap-1">
+                                                                    <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
+                                                                            style="width: 32px; height: 32px;"
+                                                                            @onclick="() => { direccionesGrid?.StartEditDataItemAsync(direccion); }"
+                                                                            @onclick:stopPropagation
+                                                                            disabled="@(direccion.LINEA == 1)"
+                                                                            title="@(direccion.LINEA == 1 ? "La dirección principal se modifica desde la ficha del cliente" : "Editar")">
+                                                                        <i class="oi oi-pencil" style="font-size: 0.9rem;"></i>
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center shadow-sm"
+                                                                            style="width: 32px; height: 32px;"
+                                                                            @onclick="() => { direccionesGrid?.ShowDataItemDeleteConfirmation(direccion); }"
+                                                                            @onclick:stopPropagation
+                                                                            disabled="@(direccion.LINEA == 1)"
+                                                                            title="@(direccion.LINEA == 1 ? "La dirección principal no se puede eliminar" : "Eliminar")">
+                                                                        <i class="oi oi-trash" style="font-size: 0.9rem;"></i>
+                                                                    </button>
+                                                                </div>
+                                                            }
+                                                        </CellDisplayTemplate>
+                                                    </DxGridCommandColumn>
+                                                    <DxGridDataColumn FieldName="LINEA" Caption="Línea" Width="75px" />
+                                                    <DxGridDataColumn FieldName="NOMBRE" Caption="Nombre" Width="220px" />
+                                                    <DxGridDataColumn FieldName="DIRECCION" Caption="Dirección" Width="250px" />
+                                                    <DxGridDataColumn FieldName="CODPOS" Caption="Cód. postal" Width="110px" />
+                                                    <DxGridDataColumn FieldName="POBLACION" Caption="Población" Width="160px" />
+                                                    <DxGridDataColumn FieldName="PROVINCIA" Caption="Provincia" Width="160px" />
+                                                    <DxGridDataColumn FieldName="VISTA" Caption="Visible" Width="85px" />
+                                                </Columns>
+                                                <EditFormTemplate Context="editFormContext">
+                                                    @{
+                                                        var direccion = (DireccionEnvioClienteSage50)editFormContext.EditModel;
+                                                    }
+                                                    <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                                                        <DxFormLayoutItem Caption="Línea" ColSpanMd="3" Enabled="@(!direccionesEnvio.Any(d => d.LINEA == direccion.LINEA))">
+                                                            <DxSpinEdit @bind-Value="@direccion.LINEA" MinValue="1" />
+                                                        </DxFormLayoutItem>
+                                                        <DxFormLayoutItem Caption="Nombre" ColSpanMd="9">
+                                                            <DxTextBox @bind-Text="@direccion.NOMBRE" MaxLength="80" />
+                                                        </DxFormLayoutItem>
+                                                        <DxFormLayoutItem Caption="Dirección" ColSpanMd="12" BeginRow="true">
+                                                            <DxTextBox @bind-Text="@direccion.DIRECCION" MaxLength="80" />
+                                                        </DxFormLayoutItem>
+                                                        <DxFormLayoutItem Caption="Código postal" ColSpanMd="4" BeginRow="true">
+                                                            <DxTextBox @bind-Text="@direccion.CODPOS" MaxLength="10" />
+                                                        </DxFormLayoutItem>
+                                                        <DxFormLayoutItem Caption="Población" ColSpanMd="4">
+                                                            <DxTextBox @bind-Text="@direccion.POBLACION" MaxLength="30" />
+                                                        </DxFormLayoutItem>
+                                                        <DxFormLayoutItem Caption="Provincia" ColSpanMd="4">
+                                                            <DxTextBox @bind-Text="@direccion.PROVINCIA" MaxLength="30" />
+                                                        </DxFormLayoutItem>
+                                                        <DxFormLayoutItem Caption="" ColSpanMd="12" CssClass="d-flex align-items-center mt-3">
+                                                            <DxCheckBox @bind-Checked="@direccion.VISTA">Visible</DxCheckBox>
+                                                        </DxFormLayoutItem>
+                                                    </DxFormLayout>
+                                                </EditFormTemplate>
+                                            </DxGrid>
+                                        </div>
+                                    </div>
+                                </DxFormLayoutItem>
+                            }
+                        </DxFormLayout>
+                    </DxTabPage>                </DxTabs>
             </div>
         </div>
     }
@@ -397,7 +527,8 @@
     private List<CodPosSage50>? poblaciones;
     private List<CodPosSage50>? codigosPostales;
     private List<FpagSage50>? formasPago;
-    private List<string> bancosPrevistos = ["57200004"];
+    private List<CuentaSage50>? cuentasContables;
+    private List<MonedaSage50>? monedas;
     private List<TipoIvaSage50>? tiposIvaList;
     private bool showConflictPopup = false;
     private string? conflictMessage;
@@ -413,8 +544,13 @@
     private string? popupErrorMessage;
     private string? clienteInicial;
     private DotNetObjectReference<ClientesEdit>? selfRef;
-    private List<ContlfCliSage50>? contactos;
+    private List<ContlfCliSage50> contactos = new();
     private IGrid? contactsGrid;
+    private List<DireccionEnvioClienteSage50> direccionesEnvio = new();
+    private IGrid? direccionesGrid;
+    private int activeTabIndex;
+    private bool contactosCargados;
+    private bool direccionesCargadas;
     private List<string> cargosList = new()
     {
         "DIRECTOR",
@@ -489,6 +625,8 @@
         try
         {
             var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50");
+            var cuentasTask = Http.GetFromJsonAsync<List<CuentaSage50>>("api/cuentassage50");
+            var monedasTask = Http.GetFromJsonAsync<List<MonedaSage50>>("api/monedassage50");
             var tiposIvaTask = Http.GetFromJsonAsync<List<TipoIvaSage50>>("api/tipoivasage50");
 
             if (HasKeyParams)
@@ -496,13 +634,11 @@
                 var escCodigo = Uri.EscapeDataString(Codigo!.Trim());
                 var escClienteerp = Uri.EscapeDataString((Clienteerp ?? "").Trim());
                 var clienteTask = Http.GetFromJsonAsync<ClienteSage50>($"api/clientessage50/{escCodigo}/{escClienteerp}");
-                await Task.WhenAll(formasPagoTask, tiposIvaTask, clienteTask);
+                await Task.WhenAll(formasPagoTask, cuentasTask, monedasTask, tiposIvaTask, clienteTask);
                 cliente = await clienteTask;
                 if (cliente != null)
                 {
                     TrimClientFields(cliente);
-                    if (!string.IsNullOrWhiteSpace(cliente.BancoPrev) && !bancosPrevistos.Contains(cliente.BancoPrev.Trim(), StringComparer.OrdinalIgnoreCase))
-                        bancosPrevistos.Add(cliente.BancoPrev.Trim());
                 }
             }
             else
@@ -527,12 +663,12 @@
                     Recargo = false,
                     Retencion = false,
                     Agencia = "",
-                    BancoPrev = "",
+                    BancoPrev = "57200004",
                     CEnt = "",
                     Canal = "",
                     CiaCred = "",
                     Clifinal = "",
-                    Contrapar = "",
+                    Contrapar = "70500001",
                     Ctaerp = "",
                     Delegerp = "",
                     EfCuebanc = "",
@@ -544,7 +680,7 @@
                     GuidExp = "",
                     GuidId = "",
                     Http = "",
-                    Idioma = "",
+                    Idioma = "000",
                     IdiomaImp = "",
                     Letdefrect = "",
                     Letdefven = "",
@@ -578,7 +714,7 @@
                     Observacio = ""
                 };
 
-                await Task.WhenAll(formasPagoTask, tiposIvaTask);
+                await Task.WhenAll(formasPagoTask, cuentasTask, monedasTask, tiposIvaTask);
             }
             formasPago = await formasPagoTask;
             if (formasPago != null)
@@ -590,6 +726,26 @@
                 }
                 formasPago = formasPago.OrderBy(f => f.Codigo).ToList();
             }
+            cuentasContables = await cuentasTask;
+            if (cuentasContables is not null)
+            {
+                foreach (var cuenta in cuentasContables)
+                {
+                    cuenta.Codigo = cuenta.Codigo?.Trim() ?? "";
+                    cuenta.Nombre = cuenta.Nombre?.Trim() ?? "";
+                }
+                cuentasContables = cuentasContables.OrderBy(cuenta => cuenta.Codigo).ToList();
+            }
+            monedas = await monedasTask;
+            if (monedas is not null)
+            {
+                foreach (var moneda in monedas)
+                {
+                    moneda.Codigo = moneda.Codigo?.Trim() ?? "";
+                    moneda.Nombre = moneda.Nombre?.Trim() ?? "";
+                }
+                monedas = monedas.OrderBy(moneda => moneda.Codigo).ToList();
+            }
             tiposIvaList = await tiposIvaTask;
             if (tiposIvaList != null)
             {
@@ -600,7 +756,6 @@
                 }
                 tiposIvaList = tiposIvaList.OrderBy(t => t.Codigo).ToList();
             }
-            await LoadContactsAsync();
             AplicarPoblacionSeleccionada();
             clienteInicial = SerializarCliente();
             errorMessage = null;
@@ -612,6 +767,23 @@
         finally
         {
             loading = false;
+        }
+    }
+
+    private async Task OnActiveTabIndexChanged(Int32 tabIndex)
+    {
+        activeTabIndex = tabIndex;
+
+        if (tabIndex == 1 && HasKeyParams && !contactosCargados)
+        {
+            await LoadContactsAsync();
+            contactosCargados = true;
+        }
+
+        if (tabIndex == 2 && HasKeyParams && !direccionesCargadas)
+        {
+            await LoadDireccionesEnvioAsync();
+            direccionesCargadas = true;
         }
     }
 
@@ -747,6 +919,122 @@
         catch (Exception ex)
         {
             errorMessage = $"Error al borrar contacto: {ex.Message}";
+        }
+    }
+
+    private async Task LoadDireccionesEnvioAsync()
+    {
+        try
+        {
+            if (!HasKeyParams)
+            {
+                direccionesEnvio = new();
+                return;
+            }
+
+            var codigo = Uri.EscapeDataString(Codigo!.Trim());
+            direccionesEnvio = await Http.GetFromJsonAsync<List<DireccionEnvioClienteSage50>>(
+                $"api/direcciones-envio-clientes/por-cliente/{codigo}") ?? new();
+
+            foreach (var direccion in direccionesEnvio)
+            {
+                direccion.CLIENTE = direccion.CLIENTE?.Trim() ?? string.Empty;
+                direccion.NOMBRE = direccion.NOMBRE?.Trim() ?? string.Empty;
+                direccion.DIRECCION = direccion.DIRECCION?.Trim() ?? string.Empty;
+                direccion.CODPOS = direccion.CODPOS?.Trim() ?? string.Empty;
+                direccion.POBLACION = direccion.POBLACION?.Trim() ?? string.Empty;
+                direccion.PROVINCIA = direccion.PROVINCIA?.Trim() ?? string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar direcciones: {ex.Message}";
+        }
+    }
+
+    private void OnDireccionCustomizeEditModel(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew) return;
+
+        var direccion = (DireccionEnvioClienteSage50)e.EditModel;
+        direccion.CLIENTE = cliente?.Codigo?.Trim() ?? string.Empty;
+        direccion.LINEA = 0;
+        direccion.NOMBRE = string.Empty;
+        direccion.DIRECCION = string.Empty;
+        direccion.CODPOS = string.Empty;
+        direccion.POBLACION = string.Empty;
+        direccion.PROVINCIA = string.Empty;
+        direccion.VISTA = true;
+        direccion.TIPO = 2;
+    }
+
+    private async Task OnDireccionSaving(GridEditModelSavingEventArgs e)
+    {
+        var direccion = (DireccionEnvioClienteSage50)e.EditModel;
+        try
+        {
+            await SetupHeadersAsync();
+            direccion.CLIENTE = cliente?.Codigo?.Trim() ?? string.Empty;
+            direccion.NOMBRE = direccion.NOMBRE?.Trim() ?? string.Empty;
+            direccion.DIRECCION = direccion.DIRECCION?.Trim() ?? string.Empty;
+            direccion.CODPOS = direccion.CODPOS?.Trim() ?? string.Empty;
+            direccion.POBLACION = direccion.POBLACION?.Trim() ?? string.Empty;
+            direccion.PROVINCIA = direccion.PROVINCIA?.Trim() ?? string.Empty;
+            direccion.VISTA ??= true;
+            direccion.TIPO = 2;
+
+            HttpResponseMessage response;
+            if (e.IsNew)
+            {
+                direccion.LINEA = direccionesEnvio.Any() ? direccionesEnvio.Max(d => d.LINEA) + 1 : 1;
+                response = await Http.PostAsJsonAsync("api/direcciones-envio-clientes", direccion);
+            }
+            else
+            {
+                var codigo = Uri.EscapeDataString(direccion.CLIENTE);
+                response = await Http.PutAsJsonAsync(
+                    $"api/direcciones-envio-clientes/{codigo}/{direccion.LINEA}", direccion);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al guardar dirección: {response.ReasonPhrase}";
+                return;
+            }
+
+            await LoadDireccionesEnvioAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar dirección: {ex.Message}";
+        }
+    }
+
+    private async Task OnDireccionDeleting(GridDataItemDeletingEventArgs e)
+    {
+        var direccion = (DireccionEnvioClienteSage50)e.DataItem;
+        if (direccion.LINEA == 1)
+        {
+            errorMessage = "La dirección principal se actualiza desde la ficha del cliente y no se puede eliminar.";
+            return;
+        }
+
+        try
+        {
+            await SetupHeadersAsync();
+            var codigo = Uri.EscapeDataString(direccion.CLIENTE.Trim());
+            var response = await Http.DeleteAsync($"api/direcciones-envio-clientes/{codigo}/{direccion.LINEA}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = $"Error al borrar dirección: {response.ReasonPhrase}";
+                return;
+            }
+
+            await LoadDireccionesEnvioAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al borrar dirección: {ex.Message}";
         }
     }
 
@@ -940,12 +1228,13 @@
         }
     }
 
-    private void AbrirSelectorPoblacion()
+    private async Task AbrirSelectorPoblacionAsync()
     {
-        var retorno = HasKeyParams
-            ? $"/modelos/clientes/edit/{Uri.EscapeDataString(Codigo!.Trim())}/{Uri.EscapeDataString((Clienteerp ?? string.Empty).Trim())}"
-            : "/modelos/clientes/edit";
+        if (!await GuardarCambiosAntesDeNavegarAsync()) return;
+
+        var retorno = UrlEdicionCliente;
         var destino = $"/modelos/poblaciones?seleccionar=true&returnUrl={Uri.EscapeDataString(retorno)}";
+        unsavedChangesGuard?.AllowNextNavigation();
         NavigationManager.NavigateTo(destino);
     }
 
@@ -1104,19 +1393,30 @@
         StateHasChanged();
     }
 
-    private async Task SaveAsync()
+    private Task SaveAsync() => GuardarClienteAsync(volverAlGuardar: true);
+
+    private async Task<bool> GuardarCambiosAntesDeNavegarAsync()
     {
-        if (cliente == null) return;
+        if (!HasKeyParams || HayCambiosPendientes)
+            return await GuardarClienteAsync(volverAlGuardar: false);
+
+        return true;
+    }
+
+    private async Task<bool> GuardarClienteAsync(bool volverAlGuardar)
+    {
+        if (cliente == null) return false;
+        var esNuevoCliente = !HasKeyParams;
         TrimClientFields(cliente);
         
         // Basic validation
         if (string.IsNullOrWhiteSpace(cliente.Codigo))
         {
             errorMessage = "El código de cliente es obligatorio.";
-            return;
+            return false;
         }
 
-        if (!HasKeyParams)
+        if (esNuevoCliente)
         {
             try
             {
@@ -1126,13 +1426,13 @@
                 {
                     conflictMessage = $"El código de cliente '{cliente.Codigo}' ya ha sido registrado por otro usuario en este momento. Por favor, asigne otro código o intente de nuevo.";
                     showConflictPopup = true;
-                    return;
+                    return false;
                 }
             }
             catch (Exception ex)
             {
                 errorMessage = $"Error al verificar duplicados: {ex.Message}";
-                return;
+                return false;
             }
         }
 
@@ -1140,7 +1440,7 @@
         {
             await SetupHeadersAsync();
             HttpResponseMessage response;
-            if (HasKeyParams)
+            if (!esNuevoCliente)
             {
                 var escCodigo = Uri.EscapeDataString(Codigo!.Trim());
                 var escClienteerp = Uri.EscapeDataString((Clienteerp ?? "").Trim());
@@ -1153,9 +1453,28 @@
 
             if (response.IsSuccessStatusCode)
             {
+                if (esNuevoCliente)
+                {
+                    var clienteCreado = await response.Content.ReadFromJsonAsync<ClienteSage50>();
+                    if (clienteCreado is null || string.IsNullOrWhiteSpace(clienteCreado.Codigo))
+                    {
+                        errorMessage = "El cliente se ha guardado, pero no se ha podido recuperar su código para continuar en la ficha.";
+                        return false;
+                    }
+
+                    Codigo = clienteCreado.Codigo.Trim();
+                    Clienteerp = clienteCreado.Clienteerp?.Trim();
+                    cliente.Codigo = Codigo;
+                    cliente.Clienteerp = Clienteerp ?? string.Empty;
+                }
+
                 clienteInicial = SerializarCliente();
-                unsavedChangesGuard?.AllowNextNavigation();
-                GoBack();
+                if (volverAlGuardar)
+                {
+                    unsavedChangesGuard?.AllowNextNavigation();
+                    GoBack();
+                }
+                return true;
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
@@ -1167,10 +1486,12 @@
                 var content = await response.Content.ReadAsStringAsync();
                 errorMessage = $"Error al guardar el cliente: {ExtraerMensajeError(content, response.ReasonPhrase)}";
             }
+            return false;
         }
         catch (Exception ex)
         {
             errorMessage = $"Ocurrió un error al guardar: {ex.Message}";
+            return false;
         }
     }
 
@@ -1260,29 +1581,36 @@
         ? null
         : System.Text.Json.JsonSerializer.Serialize(cliente);
 
-    private Task VerEnMapaAsync()
+    private string UrlEdicionCliente
     {
-        if (cliente == null) return Task.CompletedTask;
+        get
+        {
+            if (!HasKeyParams) return "/modelos/clientes/edit";
+
+            var codigo = Uri.EscapeDataString(Codigo!.Trim());
+            return string.IsNullOrWhiteSpace(Clienteerp)
+                ? $"/modelos/clientes/edit/{codigo}"
+                : $"/modelos/clientes/edit/{codigo}/{Uri.EscapeDataString(Clienteerp.Trim())}";
+        }
+    }
+
+    private async Task VerEnMapaAsync()
+    {
+        if (cliente == null) return;
         var query = ST1Savall.MapHelper.BuildNormalizedQuery(cliente.Direccion, cliente.Poblacion, cliente.Provincia, cliente.Codpost);
 
         if (!string.IsNullOrEmpty(query))
         {
-            var backUrl = "/modelos/clientes";
-            if (!string.IsNullOrEmpty(Codigo))
-            {
-                backUrl = $"/modelos/clientes/edit/{Codigo}";
-                if (!string.IsNullOrEmpty(Clienteerp))
-                {
-                    backUrl += $"/{Clienteerp}";
-                }
-            }
+            if (!await GuardarCambiosAntesDeNavegarAsync()) return;
+
+            var backUrl = HasKeyParams ? UrlEdicionCliente : "/modelos/clientes";
             var mapsUrl = $"/modelos/contenedores/mapa?address={Uri.EscapeDataString(query)}&title={Uri.EscapeDataString(cliente.Nombre ?? "Cliente")}&backUrl={Uri.EscapeDataString(backUrl)}";
+            unsavedChangesGuard?.AllowNextNavigation();
             NavigationManager.NavigateTo(mapsUrl);
         }
         else
         {
             errorMessage = "Introduzca una dirección, población o código postal primero para verla en el mapa.";
         }
-        return Task.CompletedTask;
     }
 }

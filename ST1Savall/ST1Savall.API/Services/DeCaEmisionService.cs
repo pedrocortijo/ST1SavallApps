@@ -121,6 +121,14 @@ public sealed class DeCaEmisionService(
                 cubicajeM3 ??= 6.0m;
             }
 
+            string? descripcionTipoResiduo = null;
+            if (!string.IsNullOrWhiteSpace(solicitud.TipoResiduo))
+            {
+                var articuloResiduo = await sage.Articulos.AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.Codigo.Trim() == solicitud.TipoResiduo.Trim());
+                descripcionTipoResiduo = articuloResiduo?.Nombre?.Trim();
+            }
+
             var nombreArchivo = $"DECA_{solicitud.IdSolicitud}_{tipoOperacion}_{guidDocumento}.pdf";
             var usaPublicacionFtps = ftpsPdfStorage.EstaConfigurado(parametros) &&
                 !string.IsNullOrWhiteSpace(parametros.UrlBasePublicaDeCa);
@@ -149,6 +157,7 @@ public sealed class DeCaEmisionService(
                 conductorNombre,
                 plantaDestino,
                 cubicajeM3,
+                descripcionTipoResiduo,
                 urlDescargaQr);
 
             // Guardar archivo en disco para conservación obligatoria de 1 año
