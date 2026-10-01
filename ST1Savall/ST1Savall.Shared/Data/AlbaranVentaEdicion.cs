@@ -33,6 +33,8 @@ public class AlbaranVentaEdicion
     public decimal TotalDocumento { get; set; }
     public string Observaciones { get; set; } = string.Empty;
     public string Clave => $"{Empresa}|{Numero}|{Serie}";
+    public string AlbaranOrden => $"{Serie?.Trim()}-{Numero?.Trim()}";
+    public string ObraOrden => $"{Obra?.Trim()}-{ObraNombre?.Trim()}";
     public string ClienteCif { get; set; } = string.Empty;
     public string ClienteNombre { get; set; } = string.Empty;
     public string ClienteDireccion { get; set; } = string.Empty;

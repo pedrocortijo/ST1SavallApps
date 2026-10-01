@@ -6,7 +6,7 @@
 <PageTitle>Albaranes por correo</PageTitle>
 <NavigationLock ConfirmExternalNavigation="@ocupado" OnBeforeInternalNavigation="@((Microsoft.AspNetCore.Components.Routing.LocationChangingContext context) => { if (ocupado) context.PreventNavigation(); })" />
 <h2 class="fw-bold text-primary">Albaranes por correo</h2>
-<p>@(mostrarEnviados ? "Albaranes enviados (LIBRE_4 = 1)." : mostrarTodos ? "Todos los albaranes pendientes de envío (LIBRE_4 = 0)." : "Albaranes pendientes de envío del mes en curso (LIBRE_4 = 0). Se envía un correo por albarán a cada contacto del cliente marcado para envío de albaranes, con su PDF adjunto.")</p>
+<p>@(mostrarEnviados ? "Albaranes enviados." : mostrarTodos ? "Todos los albaranes pendientes de envío." : "Albaranes pendientes de envío del mes en curso. Se envía un correo por albarán a cada contacto del cliente marcado para envío de albaranes, con su PDF adjunto.")</p>
 @if (error is not null)
 {
     <div class="alert alert-danger" role="alert">@error</div>

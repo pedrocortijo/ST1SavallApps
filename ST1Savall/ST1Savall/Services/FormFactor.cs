@@ -134,6 +134,17 @@ namespace ST1Savall.Services
             return Task.FromResult<string?>(destino);
         }
 
+
+        public Task<string> CopyFileToDirectoryAsync(string sourcePath, string destinationDirectory)
+        {
+            var origen = Path.GetFullPath(sourcePath);
+            if (!File.Exists(origen)) throw new FileNotFoundException("No se encuentra el PDF de factura.", origen);
+            Directory.CreateDirectory(destinationDirectory);
+            var destino = Path.Combine(destinationDirectory, Path.GetFileName(origen));
+            File.Copy(origen, destino, true);
+            return Task.FromResult(destino);
+        }
+
         public Task DeleteFileAsync(string path)
         {
             if (!File.Exists(path))

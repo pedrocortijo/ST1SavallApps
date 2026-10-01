@@ -16,12 +16,21 @@ public class AlbaranesVentaController(
 {
     private const int LongitudNumeroAlbaranSage = 12;
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AlbaranVentaEdicion>>> GetAlbaranes()
+    public async Task<ActionResult<IEnumerable<AlbaranVentaEdicion>>> GetAlbaranes([FromQuery] string? buscar)
     {
-        var cabeceras = await context.AlbaranesVenta.AsNoTracking()
-            .OrderByDescending(a => a.FECHA).ThenByDescending(a => a.NUMERO)
-            .Take(500)
-            .ToListAsync();
+        var consulta = context.AlbaranesVenta.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(buscar))
+        {
+            var texto = buscar.Trim();
+            var clientesCoincidentes = await context.Clientes.AsNoTracking()
+                .Where(c => c.Codigo.Contains(texto) || c.Nombre.Contains(texto))
+                .Select(c => c.Codigo).ToListAsync();
+            consulta = consulta.Where(a => a.EMPRESA.Contains(texto) || a.NUMERO.Contains(texto) || a.LETRA.Contains(texto)
+                || a.OBRA.Contains(texto) || a.CLIENTE.Contains(texto) || a.FACTURA.Contains(texto)
+                || clientesCoincidentes.Contains(a.CLIENTE));
+        }
+        var cabeceras = await consulta.OrderByDescending(a => a.FECHA).ThenByDescending(a => a.NUMERO)
+            .Take(500).ToListAsync();
         var claves = cabeceras.Select(a => $"{a.EMPRESA}|{a.NUMERO}|{a.LETRA}").ToHashSet();
         var empresas = cabeceras.Select(a => a.EMPRESA).Distinct().ToList();
         var numeros = cabeceras.Select(a => a.NUMERO).Distinct().ToList();

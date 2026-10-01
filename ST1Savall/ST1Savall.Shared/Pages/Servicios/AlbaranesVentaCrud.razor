@@ -50,7 +50,7 @@
         @if (albaranes is null) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted mb-0">Cargando albaranes...</p></div> }
         else
         {
-            <DxGrid @ref="grid" Data="@albaranes" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Albarán de venta" PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar albarán..." ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" HorizontalScrollBarMode="ScrollBarMode.Auto" ValidationEnabled="false">
+            <DxGrid @ref="grid" Data="@albaranes" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Albarán de venta" PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchText="@textoBusqueda" SearchTextChanged="BuscarEnServidor" SearchBoxNullText="Buscar albarán..." ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" HorizontalScrollBarMode="ScrollBarMode.Auto" ValidationEnabled="false">
                 <Columns>
                     <DxGridCommandColumn 
                         Width="90px" 
@@ -68,13 +68,13 @@
                         Caption="Fecha" 
                         DisplayFormat="d" 
                         Width="90px" />
-                    <DxGridDataColumn Caption="Albarán" Width="100px">
+                    <DxGridDataColumn FieldName="AlbaranOrden" Caption="Albarán" Width="100px">
                         <CellDisplayTemplate>
                             @{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
                             @($"{albaran.Serie.Trim()}-{albaran.Numero.Trim()}")
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
-                    <DxGridDataColumn Caption="Obra" Width="220px">
+                    <DxGridDataColumn FieldName="ObraOrden" Caption="Obra" Width="220px">
                         <CellDisplayTemplate>
                             @{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
                             @($"{albaran.Obra.Trim()}-{albaran.ObraNombre.Trim()}")
@@ -221,7 +221,14 @@
         }
         catch (HttpRequestException) { }
     }
-    private async Task LoadDataAsync() { try { var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>("api/albaranes-venta"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50"); var articulosTask = Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask, formasPagoTask, articulosTask); albaranes = albaranesTask.Result ?? []; clientesSageDatos = clientesTask.Result ?? []; clientesSage = clientesSageDatos.GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim(), o.Cliente.Trim())).OrderBy(x => x.Descripcion).ToList(); formasPago = (formasPagoTask.Result ?? []).Select(f => { f.Codigo = f.Codigo.Trim(); f.Nombre = f.Nombre.Trim(); return f; }).OrderBy(f => f.Codigo).ToList(); articulosSage = (articulosTask.Result ?? []).Select(a => { a.Codigo = a.Codigo?.Trim() ?? string.Empty; a.Nombre = a.Nombre?.Trim() ?? string.Empty; return a; }).OrderBy(a => a.Codigo).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
+    private string textoBusqueda = string.Empty;
+    private async Task BuscarEnServidor(string texto)
+    {
+        textoBusqueda = texto ?? string.Empty;
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task LoadDataAsync() { try { var filtro = string.IsNullOrWhiteSpace(textoBusqueda) ? "" : $"?buscar={Uri.EscapeDataString(textoBusqueda)}"; var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>($"api/albaranes-venta{filtro}"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50"); var articulosTask = Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask, formasPagoTask, articulosTask); albaranes = albaranesTask.Result ?? []; clientesSageDatos = clientesTask.Result ?? []; clientesSage = clientesSageDatos.GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim(), o.Cliente.Trim())).OrderBy(x => x.Descripcion).ToList(); formasPago = (formasPagoTask.Result ?? []).Select(f => { f.Codigo = f.Codigo.Trim(); f.Nombre = f.Nombre.Trim(); return f; }).OrderBy(f => f.Codigo).ToList(); articulosSage = (articulosTask.Result ?? []).Select(a => { a.Codigo = a.Codigo?.Trim() ?? string.Empty; a.Nombre = a.Nombre?.Trim() ?? string.Empty; return a; }).OrderBy(a => a.Codigo).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
     {
         var a = (AlbaranVentaEdicion)e.EditModel;

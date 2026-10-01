@@ -14,6 +14,7 @@ namespace ST1Savall.Shared.Services
         public Task<string?> PickPdfPathAsync();
         public Task<string?> PickFolderPathAsync();
         public Task<string?> MoveFileToDirectoryAsync(string sourcePath, string destinationDirectory);
+        public Task<string> CopyFileToDirectoryAsync(string sourcePath, string destinationDirectory);
         public Task DeleteFileAsync(string path);
         public Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData);
     }

@@ -53,6 +53,7 @@ builder.Services.AddScoped<DatosAlbaranPlantaExcelService>();
 builder.Services.AddScoped<GeneracionAlbaranServicioService>();
 builder.Services.AddScoped<AlbaranPdfService>();
 builder.Services.AddScoped<SmtpAlbaranService>();
+builder.Services.AddScoped<FacturaPdfService>();
 builder.Services.AddScoped<DeCaPdfService>();
 builder.Services.AddScoped<DeCaEmisionService>();
 builder.Services.AddScoped<FtpsPdfStorageService>();

@@ -20,6 +20,7 @@ public class SageGestionDbContext : DbContext
     public DbSet<ArticuloSage50> Articulos { get; set; } = null!;
     public DbSet<TarifaSage50> Tarifas { get; set; } = null!;
     public DbSet<AlbaranVentaSage50> AlbaranesVenta { get; set; } = null!;
+    public DbSet<FacturaVentaSage50> FacturasVenta { get; set; } = null!;
     public DbSet<LineaAlbaranVentaSage50> LineasAlbaranesVenta { get; set; } = null!;
     public DbSet<SerieSage50> Series { get; set; } = null!;
     public DbSet<DireccionEnvioClienteSage50> DireccionesEnvioClientes { get; set; } = null!;
@@ -34,6 +35,15 @@ public class SageGestionDbContext : DbContext
         {
             entity.ToTable("c_albven");
             entity.HasKey(a => new { a.EMPRESA, a.NUMERO, a.LETRA });
+        });
+        modelBuilder.Entity<FacturaVentaSage50>(entity =>
+        {
+            entity.ToTable("c_factuven");
+            entity.HasKey(f => new { f.EMPRESA, f.NUMERO });
+            entity.Ignore(f => f.LETRA);
+            entity.Ignore(f => f.FECHA);
+            entity.Ignore(f => f.CLIENTE);
+            entity.Ignore(f => f.CLIENTEERP);
         });
 
         modelBuilder.Entity<TarifaSage50>(entity =>

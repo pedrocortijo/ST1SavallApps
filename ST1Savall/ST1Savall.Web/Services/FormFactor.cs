@@ -40,6 +40,9 @@ namespace ST1Savall.Web.Services
         public Task<string?> MoveFileToDirectoryAsync(string sourcePath, string destinationDirectory) =>
             Task.FromResult<string?>(sourcePath);
 
+        public Task<string> CopyFileToDirectoryAsync(string sourcePath, string destinationDirectory) =>
+            Task.FromException<string>(new InvalidOperationException("La copia local de facturas solo está disponible en la aplicación Windows."));
+
         public Task DeleteFileAsync(string path) => Task.CompletedTask;
 
         public Task<(string Text, decimal? Confidence)> RecognizeTextAsync(byte[] imageData) =>
