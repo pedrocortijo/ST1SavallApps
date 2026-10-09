@@ -20,6 +20,7 @@
     html.theme-fluent-dark .grid-filter-bar { background-color: rgba(255, 255, 255, 0.03) !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
     .dashboard-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
     .dashboard-indicator { border: 0; border-radius: 14px; min-height: 152px; padding: 20px; text-align: left; color: white; box-shadow: 0 7px 20px rgba(0, 0, 0, .15); transition: transform .18s ease, box-shadow .18s ease; }
+    .dashboard-page-header > div:first-child { min-width: 0; }
     .dashboard-indicator:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0, 0, 0, .22); }
     .dashboard-indicator .indicator-icon { font-size: 2rem; opacity: .9; }
     .dashboard-indicator .indicator-value { font-size: 2.5rem; font-weight: 700; line-height: 1; }
@@ -51,9 +52,11 @@
         font-weight: 700 !important;
     }
     /* Galaxy Tab A11+ 5G: pantalla 16:10 de 11\" (1920 × 1200).
-       En vertical priorizamos dos tarjetas legibles; en horizontal, tres. */
-    @@media (orientation: portrait) and (min-width: 601px) {
-        .dashboard-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+       En vertical priorizamos una tarjeta sin recortes; en horizontal, tres. */
+    @@media (orientation: portrait) {
+        .dashboard-summary { grid-template-columns: minmax(0, 1fr); }
+        .dashboard-indicator { min-width: 0; width: 100%; overflow: hidden; }
+        .dashboard-indicator .indicator-detail { overflow-wrap: anywhere; }
     }
     @@media (orientation: landscape) and (max-width: 1366px) {
         .dashboard-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -66,7 +69,7 @@
     @@media (max-width: 900px) and (orientation: portrait) {
         .dashboard-page-header,
         .dashboard-summary-header { align-items: flex-start !important; flex-wrap: wrap; gap: .75rem; }
-        .dashboard-page-title { font-size: clamp(1.6rem, 5vw, 2.25rem); line-height: 1.15; }
+        .dashboard-page-title { max-width: 100%; font-size: clamp(1.6rem, 5vw, 2.25rem); line-height: 1.15; overflow-wrap: anywhere; }
         .dashboard-date { margin-left: 0 !important; }
         .dashboard-refresh { margin-left: auto; }
     }
