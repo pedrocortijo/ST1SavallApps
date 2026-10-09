@@ -9,11 +9,13 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
+@implements IAsyncDisposable
 
 <PageTitle>@(IsNew ? "Formulario - Obra" : "Formulario - Obra")</PageTitle>
 
 <style>
     .precio-detalle-popup { max-width: 720px !important; }
+    .entrega-popup { width: min(620px, calc(100vw - 2rem)) !important; max-width: 620px !important; }
 </style>
 
 <UnsavedChangesGuard @ref="unsavedChangesGuard" HasUnsavedChanges="@HayCambiosPendientes" />
@@ -58,12 +60,14 @@
     {
         <div class="card shadow-sm mb-4">
             <div class="card-body p-4">
-                <DxTabs CssClass="w-100" ActiveTabIndex="@activeTabIndex" ActiveTabIndexChanged="OnActiveTabIndexChanged">
+                <DxTabs CssClass="w-100"
+                    ActiveTabIndex="@activeTabIndex"
+                    ActiveTabIndexChanged="OnActiveTabIndexChanged">
                     <DxTabPage Text="Datos de la obra">
                 <EditForm Model="@obra" OnValidSubmit="GuardarAsync" Context="editFormContext" FormName="obra-form">
                     <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
                         <!-- Grupo 1: Datos Generales -->
-                        <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3">
+                        <DxFormLayoutItem ColSpanMd="12" CssClass="fw-bold text-primary border-bottom pb-2 mb-3 mt-4">
                             Datos Generales
                         </DxFormLayoutItem>
 
@@ -297,6 +301,73 @@
                                         </EditFormTemplate>
                                     </DxGrid>
                                 }
+                            }
+                        </div>
+                    </DxTabPage>
+                    <DxTabPage Text="Entregas" Enabled="@(!IsNew)">
+                        <div class="p-3">
+                            @if (IsNew)
+                            {
+                                <div class="alert alert-info mb-0">Guarde primero la obra para registrar entregas.</div>
+                            }
+                            else
+                            {
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-4"><div class="card border-success h-100"><div class="card-body py-3"><small class="text-muted">Entregado</small><div class="fs-4 fw-bold text-success">@resumenEntregas.TotalEntregado.ToString("n2") €</div></div></div></div>
+                                    <div class="col-md-4"><div class="card border-danger h-100"><div class="card-body py-3"><small class="text-muted">Consumido por albaranes</small><div class="fs-4 fw-bold text-danger">@resumenEntregas.TotalConsumido.ToString("n2") €</div></div></div></div>
+                                    <div class="col-md-4"><div class="card @(resumenEntregas.Saldo < 0 ? "border-danger" : "border-primary") h-100"><div class="card-body py-3"><small class="text-muted">Saldo disponible</small><div class="fs-4 fw-bold @(resumenEntregas.Saldo < 0 ? "text-danger" : "text-primary")">@resumenEntregas.Saldo.ToString("n2") €</div></div></div></div>
+                                </div>
+                                @if (resumenEntregas.Saldo <= 0)
+                                {
+                                    <div class="alert @(resumenEntregas.Saldo < 0 ? "alert-danger" : "alert-warning") d-flex justify-content-between align-items-center gap-3" role="alert">
+                                        <div><i class="oi oi-warning me-2"></i><strong>Sin saldo disponible.</strong> La obra no tiene fondo para nuevos albaranes@(resumenEntregas.Saldo < 0 ? "; el saldo está en negativo." : ".")</div>
+                                        @if (!obra.Bloqueada)
+                                        {
+                                            <button type="button" class="btn btn-danger text-nowrap" @onclick="BloquearObraPorSaldoAsync"><i class="oi oi-lock-locked me-1"></i>Bloquear obra</button>
+                                        }
+                                        else { <span class="badge text-bg-danger">Obra bloqueada</span> }
+                                    </div>
+                                }
+                                <h6 class="text-primary border-bottom pb-2 mb-3">Registrar entrega del cliente</h6>
+                                <DxFormLayout CssClass="w-100" CaptionPosition="CaptionPosition.Vertical">
+                                    <DxFormLayoutItem Caption="Fecha" ColSpanMd="3"><DxDateEdit @bind-Date="nuevaEntrega.Fecha" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Importe" ColSpanMd="3"><DxSpinEdit @bind-Value="nuevaEntrega.Importe" MinValue="0.00m" DisplayFormat="n2" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem Caption="Concepto / referencia" ColSpanMd="6"><DxTextBox @bind-Text="nuevaEntrega.Concepto" MaxLength="250" /></DxFormLayoutItem>
+                                    <DxFormLayoutItem ColSpanMd="12" CssClass="d-flex justify-content-end"><button type="button" class="btn btn-primary" @onclick="RegistrarEntregaAsync"><i class="oi oi-plus me-1"></i>Registrar entrega</button></DxFormLayoutItem>
+                                </DxFormLayout>
+                                <h6 class="text-primary border-bottom pb-2 mt-4 mb-3">Movimientos</h6>
+                                <div @ref="contenedorGridEntregas">
+                                <DxGrid @ref="gridEntregas" Data="@resumenEntregas.Movimientos" KeyFieldName="IdMovimientoEntregaObra" EditMode="GridEditMode.PopupEditForm" CustomizeEditModel="PrepararMovimientoEntregaAsync" EditModelSaving="GuardarMovimientoEntregaAsync" DataItemDeleting="AnularMovimientoEntregaAsync" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Entrega de la obra" PopupEditFormCssClass="entrega-popup" PageSize="10" AllowSort="true" ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" HorizontalScrollBarMode="ScrollBarMode.Auto" ShowSearchBox="true" SearchBoxNullText="Buscar movimiento...">
+                                    <Columns>
+                                        <DxGridCommandColumn Width="125px" NewButtonVisible="false" EditButtonVisible="false" DeleteButtonVisible="false">
+                                            <HeaderTemplate><button type="button" class="btn btn-sm btn-primary w-100" title="Nueva entrega" @onclick="() => gridEntregas?.StartEditNewRowAsync()"><i class="oi oi-plus me-1"></i>Nuevo</button></HeaderTemplate>
+                                            <CellDisplayTemplate>
+                                                @{ var movimiento = (MovimientoEntregaObra)context.DataItem; }
+                                                @if (movimiento.Tipo == "Entrega" && !movimiento.Anulado)
+                                                {
+                                                    <div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" title="Editar entrega" @onclick="() => gridEntregas?.StartEditDataItemAsync(movimiento)"><i class="oi oi-pencil"></i></button><button type="button" class="btn btn-sm btn-outline-danger" title="Borrar entrega" @onclick="() => gridEntregas?.ShowDataItemDeleteConfirmation(movimiento)"><i class="oi oi-trash"></i></button></div>
+                                                }
+                                            </CellDisplayTemplate>
+                                        </DxGridCommandColumn>
+                                        <DxGridDataColumn FieldName="Fecha" Caption="Fecha" DisplayFormat="d" Width="120px" />
+                                        <DxGridDataColumn FieldName="Tipo" Caption="Tipo" Width="110px" />
+                                        <DxGridDataColumn FieldName="Concepto" Caption="Concepto" MinWidth="260" />
+                                        <DxGridDataColumn FieldName="Debe" Caption="Debe" DisplayFormat="n2" Width="120px" />
+                                        <DxGridDataColumn FieldName="Haber" Caption="Haber" DisplayFormat="n2" Width="120px" />
+                                        <DxGridDataColumn Caption="Saldo" DisplayFormat="n2" Width="120px"><CellDisplayTemplate>@SaldoHasta(((MovimientoEntregaObra)context.DataItem).IdMovimientoEntregaObra).ToString("n2")</CellDisplayTemplate></DxGridDataColumn>
+                                        <DxGridDataColumn Caption="Activo" Width="90px"><CellDisplayTemplate>@{ var movimiento = (MovimientoEntregaObra)context.DataItem; }<DxCheckBox Checked="@movimiento.Activo" CheckedChanged="@((bool activo) => CambiarEstadoMovimientoAsync(movimiento, activo))" Enabled="@(movimiento.Tipo == "Entrega" && !movimiento.Anulado)" /></CellDisplayTemplate></DxGridDataColumn>
+                                        <DxGridDataColumn Caption="Estado" Width="110px"><CellDisplayTemplate>@{ var movimiento = (MovimientoEntregaObra)context.DataItem; }@(movimiento.Anulado ? "Anulado" : movimiento.Activo ? "Vigente" : "Inactivo")</CellDisplayTemplate></DxGridDataColumn>
+                                    </Columns>
+                                    <EditFormTemplate Context="editContext">
+                                        @{ var movimiento = (MovimientoEntregaObra)editContext.EditModel; }
+                                        <DxFormLayout CssClass="w-100 p-3" CaptionPosition="CaptionPosition.Vertical">
+                                            <DxFormLayoutItem Caption="Fecha" ColSpanMd="4"><DxDateEdit @bind-Date="movimiento.Fecha" /></DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="Importe" ColSpanMd="3"><DxSpinEdit @bind-Value="movimiento.Haber" MinValue="0.00m" DisplayFormat="n2" /></DxFormLayoutItem>
+                                            <DxFormLayoutItem Caption="Concepto / referencia" ColSpanMd="5"><DxTextBox @bind-Text="movimiento.Concepto" MaxLength="250" /></DxFormLayoutItem>
+                                        </DxFormLayout>
+                                    </EditFormTemplate>
+                                </DxGrid>
+                                </div>
                             }
                         </div>
                     </DxTabPage>
@@ -688,6 +759,12 @@
     private string? codigoObraOrigenDuplicada;
     private IGrid? gridPrecios;
     private IGrid? gridObrasOvp;
+    private IGrid? gridEntregas;
+    private ElementReference contenedorGridEntregas;
+    private DotNetObjectReference<ObrasMntoEdit>? referenciaGridEntregas;
+    private bool observandoGridEntregas;
+    private bool autoFitGridEntregasHabilitado;
+    private bool componenteDesechado;
     private List<ObrasOVP> obrasOvp = [];
     private bool obrasOvpCargadas;
     private ObrasOVP? obraOvpADuplicar;
@@ -701,6 +778,9 @@
     private List<ZonaComunSage50> todasLasZonas = [];
     private bool confirmarCambioTarifaVisible;
     private TarifaObraOpcion? tarifaPropuestaPoblacion;
+    private ResumenEntregasObra resumenEntregas = new();
+    private NuevaEntregaObra nuevaEntrega = new();
+    private bool entregasCargadas;
     private int activeTabIndex;
     private PeriodicidadObra periodicidadObra = new();
     private List<PeriodicidadObraEjecucion> ejecucionesPeriodicidad = [];
@@ -710,7 +790,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : string.Equals(Tab, "periodicidad", StringComparison.OrdinalIgnoreCase) ? 2 : string.Equals(Tab, "ovp", StringComparison.OrdinalIgnoreCase) ? 3 : 0;
+        activeTabIndex = string.Equals(Tab, "precios", StringComparison.OrdinalIgnoreCase) ? 1 : string.Equals(Tab, "entregas", StringComparison.OrdinalIgnoreCase) ? 2 : string.Equals(Tab, "periodicidad", StringComparison.OrdinalIgnoreCase) ? 3 : string.Equals(Tab, "ovp", StringComparison.OrdinalIgnoreCase) ? 4 : 0;
         await SetupHeadersAsync();
         await Task.WhenAll(LoadAuxiliaryDataAsync(), LoadObraAsync());
     }
@@ -872,8 +952,10 @@
                 await CargarPrecioObraAsync();
             }
             if (!IsNew && obra != null && activeTabIndex == 2)
-                await CargarPeriodicidadAsync();
+                await CargarEntregasAsync();
             if (!IsNew && obra != null && activeTabIndex == 3)
+                await CargarPeriodicidadAsync();
+            if (!IsNew && obra != null && activeTabIndex == 4)
                 await CargarObrasOvpAsync();
 
             if (AplicarPoblacionSeleccionada())
@@ -892,6 +974,67 @@
             obraInicial = SerializarObra();
             isLoading = false;
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!componenteDesechado && activeTabIndex == 2 && !observandoGridEntregas && gridEntregas is not null)
+        {
+            referenciaGridEntregas = DotNetObjectReference.Create(this);
+            observandoGridEntregas = true;
+            autoFitGridEntregasHabilitado = true;
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("st1AlbaranesGrid.observeWidth", contenedorGridEntregas, referenciaGridEntregas);
+                if (!componenteDesechado && activeTabIndex == 2 && autoFitGridEntregasHabilitado)
+                    gridEntregas.AutoFitColumnWidths();
+            }
+            catch (ObjectDisposedException)
+            {
+                await DetenerObservacionGridEntregasAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                await DetenerObservacionGridEntregasAsync();
+            }
+        }
+    }
+
+    [JSInvokable]
+    public async Task AjustarColumnasPorCambioAncho()
+    {
+        if (componenteDesechado || activeTabIndex != 2 || !autoFitGridEntregasHabilitado || gridEntregas is null)
+            return;
+
+        try
+        {
+            gridEntregas.AutoFitColumnWidths();
+        }
+        catch (ObjectDisposedException)
+        {
+            await DetenerObservacionGridEntregasAsync();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        componenteDesechado = true;
+        await DetenerObservacionGridEntregasAsync();
+    }
+
+    private async Task DetenerObservacionGridEntregasAsync()
+    {
+        autoFitGridEntregasHabilitado = false;
+        if (observandoGridEntregas)
+        {
+            observandoGridEntregas = false;
+            try { await JSRuntime.InvokeVoidAsync("st1AlbaranesGrid.dispose", contenedorGridEntregas); }
+            catch (JSDisconnectedException) { }
+        }
+        referenciaGridEntregas?.Dispose();
+        referenciaGridEntregas = null;
+        gridEntregas = null;
     }
 
     private void PrepararBusquedaPoblacion() => omitirValidacionPoblacion = true;
@@ -928,17 +1071,139 @@
     private async Task OnActiveTabIndexChanged(Int32 tabIndex)
     {
         activeTabIndex = tabIndex;
+        if (tabIndex != 2)
+            await DetenerObservacionGridEntregasAsync();
+
         if (tabIndex == 1 && !IsNew && !preciosCargados)
         {
             await CargarPrecioObraAsync();
         }
-        if (tabIndex == 2 && !IsNew)
+        if (tabIndex == 2 && !IsNew && !entregasCargadas)
+            await CargarEntregasAsync();
+        if (tabIndex == 3 && !IsNew)
             await CargarPeriodicidadAsync();
-        if (tabIndex == 3 && !IsNew && !obrasOvpCargadas)
+        if (tabIndex == 4 && !IsNew && !obrasOvpCargadas)
         {
             await CargarObrasOvpAsync();
             obrasOvpCargadas = true;
         }
+    }
+
+    private async Task CargarEntregasAsync()
+    {
+        if (obra is null || string.IsNullOrWhiteSpace(obra.Codigo)) return;
+        try
+        {
+            resumenEntregas = await Http.GetFromJsonAsync<ResumenEntregasObra>($"api/entregas-obra/por-obra/{Uri.EscapeDataString(obra.Codigo.Trim())}") ?? new();
+            entregasCargadas = true;
+        }
+        catch (Exception ex) { errorMessage = $"No se han podido cargar las entregas: {ex.Message}"; }
+    }
+
+    private async Task RegistrarEntregaAsync()
+    {
+        if (obra is null || string.IsNullOrWhiteSpace(obra.Codigo)) return;
+        if (nuevaEntrega.Importe <= 0 || string.IsNullOrWhiteSpace(nuevaEntrega.Concepto))
+        {
+            errorMessage = "Indique un importe positivo y un concepto para la entrega.";
+            return;
+        }
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"api/entregas-obra/por-obra/{Uri.EscapeDataString(obra.Codigo.Trim())}", nuevaEntrega);
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = "No se ha podido registrar la entrega.";
+                return;
+            }
+            nuevaEntrega = new NuevaEntregaObra();
+            await CargarEntregasAsync();
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido registrar la entrega: {ex.Message}"; }
+    }
+
+    private async Task GuardarMovimientoEntregaAsync(GridEditModelSavingEventArgs e)
+    {
+        var movimiento = (MovimientoEntregaObra)e.EditModel;
+        if (obra is null || string.IsNullOrWhiteSpace(obra.Codigo)) { e.Cancel = true; return; }
+        try
+        {
+            var datos = new NuevaEntregaObra { Fecha = movimiento.Fecha, Importe = movimiento.Haber, Concepto = movimiento.Concepto };
+            HttpResponseMessage response;
+            if (e.IsNew)
+                response = await Http.PostAsJsonAsync($"api/entregas-obra/por-obra/{Uri.EscapeDataString(obra.Codigo.Trim())}", datos);
+            else
+            {
+                var original = (MovimientoEntregaObra)e.DataItem;
+                response = await Http.PutAsJsonAsync($"api/entregas-obra/{original.IdMovimientoEntregaObra}", datos);
+            }
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = "No se ha podido guardar la entrega.";
+                e.Cancel = true;
+                return;
+            }
+            await CargarEntregasAsync();
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido guardar la entrega: {ex.Message}"; e.Cancel = true; }
+    }
+
+    private static void PrepararMovimientoEntregaAsync(GridCustomizeEditModelEventArgs e)
+    {
+        if (!e.IsNew) return;
+        var movimiento = (MovimientoEntregaObra)e.EditModel;
+        movimiento.Fecha = DateTime.Today;
+        movimiento.Tipo = "Entrega";
+        movimiento.Haber = 0m;
+    }
+
+    private async Task AnularMovimientoEntregaAsync(GridDataItemDeletingEventArgs e)
+    {
+        var movimiento = (MovimientoEntregaObra)e.DataItem;
+        try
+        {
+            var response = await Http.DeleteAsync($"api/entregas-obra/{movimiento.IdMovimientoEntregaObra}");
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = "No se ha podido borrar la entrega.";
+                e.Cancel = true;
+                return;
+            }
+            await CargarEntregasAsync();
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido borrar la entrega: {ex.Message}"; e.Cancel = true; }
+    }
+
+    private decimal SaldoHasta(int idMovimiento) => resumenEntregas.Movimientos
+        .Where(m => m.IdMovimientoEntregaObra <= idMovimiento && !m.Anulado && m.Activo)
+        .Sum(m => m.Haber - m.Debe);
+
+    private async Task CambiarEstadoMovimientoAsync(MovimientoEntregaObra movimiento, bool activo)
+    {
+        if (movimiento.Tipo != "Entrega" || movimiento.Anulado || movimiento.Activo == activo) return;
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/entregas-obra/{movimiento.IdMovimientoEntregaObra}/activo", new EstadoMovimientoEntregaObra { Activo = activo });
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = "No se ha podido cambiar el estado de la entrega.";
+                return;
+            }
+            await CargarEntregasAsync();
+        }
+        catch (Exception ex) { errorMessage = $"No se ha podido cambiar el estado de la entrega: {ex.Message}"; }
+    }
+
+    private async Task BloquearObraPorSaldoAsync()
+    {
+        if (obra is null || obra.Bloqueada) return;
+        obra.Bloqueada = true;
+        if (!await GuardarInternoAsync(navegarTrasGuardar: false))
+            obra.Bloqueada = false;
     }
 
     private async Task CargarObrasOvpAsync()

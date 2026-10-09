@@ -12,35 +12,29 @@ public class AlbaranesVentaController(
     SageGestionDbContext context,
     SageComunDbContext comunContext,
     ApplicationDbContext applicationContext,
-    GeneracionAlbaranServicioService generacionAlbaranServicio) : ControllerBase
+    GeneracionAlbaranServicioService generacionAlbaranServicio,
+    ControlEntregasObraService controlEntregas) : ControllerBase
 {
     private const int LongitudNumeroAlbaranSage = 12;
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AlbaranVentaEdicion>>> GetAlbaranes([FromQuery] string? buscar)
+    public async Task<ActionResult<IEnumerable<AlbaranVentaEdicion>>> GetAlbaranes([FromQuery] DateTime desde, [FromQuery] DateTime hasta)
     {
-        var consulta = context.AlbaranesVenta.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(buscar))
-        {
-            var texto = buscar.Trim();
-            var clientesCoincidentes = await context.Clientes.AsNoTracking()
-                .Where(c => c.Codigo.Contains(texto) || c.Nombre.Contains(texto))
-                .Select(c => c.Codigo).ToListAsync();
-            consulta = consulta.Where(a => a.EMPRESA.Contains(texto) || a.NUMERO.Contains(texto) || a.LETRA.Contains(texto)
-                || a.OBRA.Contains(texto) || a.CLIENTE.Contains(texto) || a.FACTURA.Contains(texto)
-                || clientesCoincidentes.Contains(a.CLIENTE));
-        }
-        var cabeceras = await consulta.OrderByDescending(a => a.FECHA).ThenByDescending(a => a.NUMERO)
-            .Take(500).ToListAsync();
-        var claves = cabeceras.Select(a => $"{a.EMPRESA}|{a.NUMERO}|{a.LETRA}").ToHashSet();
-        var empresas = cabeceras.Select(a => a.EMPRESA).Distinct().ToList();
-        var numeros = cabeceras.Select(a => a.NUMERO).Distinct().ToList();
-        var series = cabeceras.Select(a => a.LETRA).Distinct().ToList();
-        var lineas = (await context.LineasAlbaranesVenta.AsNoTracking()
-                .Where(l => empresas.Contains(l.EMPRESA) && numeros.Contains(l.NUMERO) && series.Contains(l.LETRA))
-                .OrderBy(l => l.LINIA)
-                .ToListAsync())
-            .Where(l => claves.Contains($"{l.EMPRESA}|{l.NUMERO}|{l.LETRA}"))
-            .ToList();
+        var fechaDesde = desde.Date;
+        var fechaHastaExclusiva = hasta.Date.AddDays(1);
+        if (fechaDesde >= fechaHastaExclusiva)
+            return BadRequest("La fecha desde debe ser anterior o igual a la fecha hasta.");
+
+        var cabeceras = await context.AlbaranesVenta.AsNoTracking()
+            .Where(a => a.FECHA >= fechaDesde && a.FECHA < fechaHastaExclusiva)
+            .OrderByDescending(a => a.FECHA).ThenByDescending(a => a.NUMERO)
+            .ToListAsync();
+        var lineas = await (from linea in context.LineasAlbaranesVenta.AsNoTracking()
+                            join cabecera in context.AlbaranesVenta.AsNoTracking()
+                                on new { linea.EMPRESA, linea.NUMERO, linea.LETRA }
+                                equals new { cabecera.EMPRESA, cabecera.NUMERO, cabecera.LETRA }
+                            where cabecera.FECHA >= fechaDesde && cabecera.FECHA < fechaHastaExclusiva
+                            orderby linea.LINIA
+                            select linea).ToListAsync();
         var codigosCliente = cabeceras.Select(c => c.CLIENTE).Distinct().ToList();
         var clientes = await context.Clientes.AsNoTracking().Where(c => codigosCliente.Contains(c.Codigo)).ToListAsync();
         var tiposIva = await context.TipoIva.AsNoTracking().ToListAsync();
@@ -49,20 +43,40 @@ public class AlbaranesVentaController(
             .ToListAsync();
         var codigosObra = cabeceras.Select(c => c.OBRA).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
         var obras = await comunContext.Obras.AsNoTracking().Where(o => codigosObra.Contains(o.Codigo)).ToListAsync();
-        var camposAdicionales = (await context.CamposAdicionalesDocumentosVenta.AsNoTracking()
-            .Where(c => c.FICHERO == 1 && empresas.Contains(c.EMPRESA) && numeros.Contains(c.NUMERO) && series.Contains(c.LETRA)
-                && (c.CAMPO == "001" || c.CAMPO == "002" || c.CAMPO == "003" || c.CAMPO == "004"))
-            .ToListAsync())
-            .Where(c => claves.Contains($"{c.EMPRESA}|{c.NUMERO}|{c.LETRA}"))
-            .ToList();
+        var camposAdicionales = await (from campo in context.CamposAdicionalesDocumentosVenta.AsNoTracking()
+                                       join cabecera in context.AlbaranesVenta.AsNoTracking()
+                                           on new { campo.EMPRESA, campo.NUMERO, campo.LETRA }
+                                           equals new { cabecera.EMPRESA, cabecera.NUMERO, cabecera.LETRA }
+                                       where cabecera.FECHA >= fechaDesde && cabecera.FECHA < fechaHastaExclusiva
+                                           && campo.FICHERO == 1
+                                           && (campo.CAMPO == "001" || campo.CAMPO == "002" || campo.CAMPO == "003" || campo.CAMPO == "004")
+                                       select campo).ToListAsync();
 
-        return cabeceras.Select(c => CrearEdicion(c,
-            lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA),
-            clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE && cliente.Clienteerp == c.CLIENTEERP)
-                ?? clientes.FirstOrDefault(cliente => cliente.Codigo == c.CLIENTE),
-            obras.FirstOrDefault(obra => obra.Codigo == c.OBRA),
-            direccionesEnvio.FirstOrDefault(d => d.CLIENTE == c.CLIENTE && d.LINEA == c.ENV_CLI),
-            tiposIva.FirstOrDefault(t => t.Codigo.Trim() == (lineas.FirstOrDefault(l => l.EMPRESA == c.EMPRESA && l.NUMERO == c.NUMERO && l.LETRA == c.LETRA)?.TIPO_IVA.Trim() ?? string.Empty)), camposAdicionales.Where(campo => campo.EMPRESA.Trim() == c.EMPRESA.Trim() && campo.NUMERO.Trim() == c.NUMERO.Trim() && campo.LETRA.Trim() == c.LETRA.Trim()))).ToList();
+        static string Clave(string empresa, string numero, string serie) => $"{empresa}|{numero}|{serie}";
+        var lineasPorAlbaran = lineas.GroupBy(l => Clave(l.EMPRESA, l.NUMERO, l.LETRA))
+            .ToDictionary(grupo => grupo.Key, grupo => grupo.First());
+        var camposPorAlbaran = camposAdicionales.GroupBy(c => Clave(c.EMPRESA, c.NUMERO, c.LETRA))
+            .ToDictionary(grupo => grupo.Key, grupo => (IEnumerable<CampoAdicionalDocumentoVentaSage50>)grupo.ToList());
+        var clientesPorCodigoErp = clientes.GroupBy(c => $"{c.Codigo}|{c.Clienteerp}")
+            .ToDictionary(grupo => grupo.Key, grupo => grupo.First());
+        var clientesPorCodigo = clientes.GroupBy(c => c.Codigo).ToDictionary(grupo => grupo.Key, grupo => grupo.First());
+        var obrasPorCodigo = obras.GroupBy(o => o.Codigo).ToDictionary(grupo => grupo.Key, grupo => grupo.First());
+        var direccionesPorCliente = direccionesEnvio.GroupBy(d => $"{d.CLIENTE}|{d.LINEA}")
+            .ToDictionary(grupo => grupo.Key, grupo => grupo.First());
+        var tiposIvaPorCodigo = tiposIva.GroupBy(t => t.Codigo.Trim()).ToDictionary(grupo => grupo.Key, grupo => grupo.First());
+
+        return cabeceras.Select(c =>
+        {
+            var clave = Clave(c.EMPRESA, c.NUMERO, c.LETRA);
+            lineasPorAlbaran.TryGetValue(clave, out var linea);
+            clientesPorCodigoErp.TryGetValue($"{c.CLIENTE}|{c.CLIENTEERP}", out var cliente);
+            cliente ??= clientesPorCodigo.GetValueOrDefault(c.CLIENTE);
+            obrasPorCodigo.TryGetValue(c.OBRA, out var obra);
+            direccionesPorCliente.TryGetValue($"{c.CLIENTE}|{c.ENV_CLI}", out var direccionEnvio);
+            tiposIvaPorCodigo.TryGetValue(linea?.TIPO_IVA.Trim() ?? string.Empty, out var tipoIva);
+            camposPorAlbaran.TryGetValue(clave, out var campos);
+            return CrearEdicion(c, linea, cliente, obra, direccionEnvio, tipoIva, campos ?? []);
+        }).ToList();
     }
 
     [HttpGet("{empresa}/{numero}/{serie}")]
@@ -160,11 +174,18 @@ public class AlbaranesVentaController(
         var cliente = await ObtenerClienteAsync(datos.Cliente);
         var articulo = await context.Articulos.AsNoTracking().FirstAsync(a => a.Codigo == datos.Articulo);
         var calculoFiscal = await CalcularFiscalAsync(datos, cliente);
+        if (!string.IsNullOrWhiteSpace(datos.Obra))
+        {
+            var saldo = await controlEntregas.ObtenerSaldoDisponibleAsync(datos.Obra, User.Identity?.Name);
+            if (saldo - calculoFiscal.TotalDocumento <= 0)
+                return BadRequest(new { message = $"Saldo insuficiente para la obra {datos.Obra}. Disponible: {saldo:n2} €; el albarán dejaría un saldo de {saldo - calculoFiscal.TotalDocumento:n2} €. Revise las entregas o bloquee la obra." });
+        }
         var cabecera = CrearCabecera(datos, cliente, calculoFiscal);
         context.AlbaranesVenta.Add(cabecera);
         context.LineasAlbaranesVenta.Add(CrearLinea(datos, cliente, articulo, calculoFiscal));
         await context.SaveChangesAsync();
         await transaccion.CommitAsync();
+        await controlEntregas.SincronizarAlbaranAsync(cabecera, User.Identity?.Name);
         return CreatedAtAction(nameof(GetAlbaran), new { empresa = datos.Empresa, numero = datos.Numero, serie = datos.Serie }, datos);
     }
 
@@ -189,6 +210,7 @@ public class AlbaranesVentaController(
         AplicarCabecera(cabecera, datos, cliente, calculoFiscal);
         AplicarLinea(linea, datos, cliente, articulo, calculoFiscal);
         await context.SaveChangesAsync();
+        await controlEntregas.SincronizarAlbaranAsync(cabecera, User.Identity?.Name);
         return NoContent();
     }
 
@@ -215,6 +237,7 @@ public class AlbaranesVentaController(
         context.AlbaranesVenta.Remove(cabecera);
         await context.SaveChangesAsync();
         await transaccion.CommitAsync();
+        await controlEntregas.AnularAlbaranAsync(empresa, numero, serie, User.Identity?.Name);
 
         if (solicitudesAsignadas.Count > 0)
         {

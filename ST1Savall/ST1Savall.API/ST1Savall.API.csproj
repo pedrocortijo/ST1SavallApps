@@ -38,6 +38,8 @@
     <Content Include="Assets\CabeceraPesajeMonforte.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets\FirmaPesaje.png" />
     <Content Include="Assets\FirmaPesaje.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\AvisoColmoContenedor.jpg" />
+    <Content Include="Assets\AvisoColmoContenedor.jpg" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets\PlantillasPesaje\ALICANTE.png" />
     <Content Include="Assets\PlantillasPesaje\ALICANTE.png" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Assets\PlantillasPesaje\FINESTRAT.png" />

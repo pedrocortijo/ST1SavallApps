@@ -560,10 +560,19 @@
                                         <span class="text-nowrap" style="opacity: 0.75;">Móvil:</span>
                                         <span>@(solicitud.Movil ?? "-")</span>
                                     </div>
-                                    <div class="col-12 d-flex justify-content-center align-items-baseline gap-2 text-nowrap overflow-auto" style="color: #E8A000;">
-                                        <span class="text-nowrap fw-bold">Tarifa de obra:</span>
-                                        <span class="text-nowrap fw-bold">@TextoTarifaObra</span>
-                                        @if (TienePreciosEspecialesObra) { <NavLink href="@UrlPreciosEspecialesObra" class="link-warning text-nowrap fw-bold">(Con tarifas especiales)</NavLink> }
+                                    <div class="col-12 d-flex align-items-baseline text-nowrap overflow-auto" style="color: #E8A000;">
+                                        <div class="d-flex justify-content-center align-items-baseline gap-2 flex-grow-1">
+                                            <span class="text-nowrap fw-bold">Tarifa de obra:</span>
+                                            <span class="text-nowrap fw-bold">@TextoTarifaObra</span>
+                                            @if (TienePreciosEspecialesObra) { <NavLink href="@UrlPreciosEspecialesObra" class="link-warning text-nowrap fw-bold">(Con tarifas especiales)</NavLink> }
+                                        </div>
+                                        @if (saldoEntregasObra.HasValue)
+                                        {
+                                            <div class="d-flex align-items-baseline gap-2 ms-auto pe-2">
+                                                <span class="fw-bold">Saldo:</span>
+                                                <span class="fw-bold">@saldoEntregasObra.Value.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("es-ES")) €</span>
+                                            </div>
+                                        }
                                     </div>
                                 </div>
                                 }
@@ -925,7 +934,7 @@
                                             }
                                             @if (solicitud.IdSolicitud > 0)
                                             {
-                                                <button type="button" class="btn btn-outline-dark btn-sm ms-auto" @onclick="EmitirDeCaOficinaAsync" disabled="@emitiendoDeCaOficina">
+                                                <button type="button" class="btn btn-sm ms-auto deca-regenerate-button" @onclick="EmitirDeCaOficinaAsync" disabled="@emitiendoDeCaOficina">
                                                     <i class="oi oi-reload me-1"></i>@(string.IsNullOrWhiteSpace(solicitud.GuidDeCa) ? "Emitir DeCA" : "Regenerar DeCA")
                                                 </button>
                                             }
@@ -1219,6 +1228,7 @@
     private List<ApplicationUserDto>? usuariosList;
     private List<EstadoSolicitud>? estadosList;
     private List<Obra>? obras;
+    private decimal? saldoEntregasObra;
     private List<Motivo>? motivosList;
     private List<Parametro>? parametrosList;
     private List<Contenedor>? contenedoresList;
@@ -1578,6 +1588,8 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
                     }
                 }
             }
+
+            await CargarSaldoEntregasObraAsync(obras?.FirstOrDefault(obra => obra.IdObra == solicitud?.IdCliente));
 
             solicitudInicial = SerializarSolicitud();
 
@@ -1983,6 +1995,7 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
             }
 
             await ComprobarLicenciasOvpVigentesAsync(obra);
+            await CargarSaldoEntregasObraAsync(obra);
 
             if (TryParseCoordinate(obra.Libre1, out var oLat) && TryParseCoordinate(obra.Libre2, out var oLon) && (oLat != 0 || oLon != 0))
             {
@@ -2006,6 +2019,7 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         }
         else
         {
+            saldoEntregasObra = null;
             solicitud.NombreObra = null;
             solicitud.NombreCliente = null;
             solicitud.DireccionCliente = null;
@@ -2020,6 +2034,27 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
             solicitud.LongitudObra = null;
             LimpiarDatosOvpSolicitud();
             StateHasChanged();
+        }
+    }
+
+    private async Task CargarSaldoEntregasObraAsync(Obra? obra)
+    {
+        saldoEntregasObra = null;
+        var codigo = obra?.Codigo?.Trim();
+        if (string.IsNullOrWhiteSpace(codigo)) return;
+
+        try
+        {
+            await SetupHeadersAsync();
+            using var respuesta = await Http.GetAsync($"api/entregas-obra/saldo-control/{Uri.EscapeDataString(codigo)}");
+            if (respuesta.StatusCode == System.Net.HttpStatusCode.NoContent || !respuesta.IsSuccessStatusCode) return;
+
+            var saldo = await respuesta.Content.ReadFromJsonAsync<decimal>();
+            if (solicitud?.IdCliente == obra?.IdObra) saldoEntregasObra = saldo;
+        }
+        catch
+        {
+            // El saldo es informativo: un fallo puntual no debe bloquear la edición de la solicitud.
         }
     }
 

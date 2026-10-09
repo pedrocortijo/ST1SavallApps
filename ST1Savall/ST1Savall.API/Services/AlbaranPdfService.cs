@@ -86,12 +86,14 @@ public sealed class AlbaranPdfService
         // El modelo no incluye un bloque de bases, IVA ni total en esta sección.
         L(b,"CONTENEDOR ENTREGADO: "+(contenedorEntregado?.Trim()??""),0,400,220,18,8,true);
         L(b,"CONTENEDOR RETIRADO: "+(contenedorRetirado?.Trim()??""),0,418,220,18,8,true);
-        L(b,"RECEPCIONADO EN OBRA POR:",0,444,220,18,8,true); L(b,firmante?.Trim()??"",0,462,220,18,8); L(b,"DNI: "+(dniFirmante?.Trim()??""),0,480,220,18,8); L(b,"FIRMA:",0,498,100,18,8,true);
+        L(b,"MATRÍCULA: "+(camion?.Matricula?.Trim()??""),0,436,220,18,8,true);
+        L(b,"CONDUCTOR: "+(solicitudPlanta?.ConductorNombre?.Trim()??""),0,454,220,18,8,true);
+        L(b,"RECEPCIONADO EN OBRA POR:",0,480,220,18,8,true); L(b,firmante?.Trim()??"",0,498,220,18,8); L(b,"DNI: "+(dniFirmante?.Trim()??""),0,516,220,18,8); L(b,"FIRMA:",0,534,100,18,8,true);
         var imgFirma = CargarImagenArchivo(firma);
         if (imgFirma != null)
-            b.Controls.Add(new XRPictureBox { ImageSource = imgFirma, Sizing = ImageSizeMode.ZoomImage, LocationFloat = new DevExpress.Utils.PointFloat(0,516), SizeF = new System.Drawing.SizeF(165,82) });
+            b.Controls.Add(new XRPictureBox { ImageSource = imgFirma, Sizing = ImageSizeMode.ZoomImage, LocationFloat = new DevExpress.Utils.PointFloat(0,548), SizeF = new System.Drawing.SizeF(200,92) });
         else
-            L(b,"",0,516,165,82,8);
+            L(b,"",0,548,200,92,8);
         L(b,"IMAGEN CONTENEDOR EN OBRA",230,400,240,18,7.5f,false,TextAlignment.MiddleCenter);
         L(b,"IMAGEN CONTENEDOR VACIADO EN PLANTA",490,400,240,18,7.5f,false,TextAlignment.MiddleCenter);
         var fotosValidas = fotos.Select(CargarImagenArchivo).Where(img => img != null).Take(2).ToList();
@@ -99,9 +101,18 @@ public sealed class AlbaranPdfService
         {
             b.Controls.Add(new XRPictureBox { ImageSource = fotosValidas[i]!, Sizing = ImageSizeMode.ZoomImage, LocationFloat = new DevExpress.Utils.PointFloat(230 + i * 260, 420), SizeF = new System.Drawing.SizeF(240, 165), Borders = BorderSide.All });
         }
-        L(b,"PROTECCIÓN DE DATOS: Responsable del Tratamiento: SAVALL CONTENEDORES S.L. Finalidad: dar correcto cumplimiento al contrato suscrito.",0,620,747,18,6.5f,false,TextAlignment.MiddleCenter);
-        L(b,"Puede ejercer sus derechos de acceso, rectificación y supresión en Avda. Doctor Rico, 18, Alicante.",0,640,747,18,6.5f,false,TextAlignment.MiddleCenter);
-        L(b,"Inscrita en el Registro Mercantil de Alicante.",0,662,747,18,7.5f,false,TextAlignment.MiddleCenter);
+        L(b,"PROTECCIÓN DE DATOS: Responsable del Tratamiento: SAVALL CONTENEDORES S.L. Finalidad: dar correcto cumplimiento al contrato suscrito.",0,660,747,18,6.5f,false,TextAlignment.MiddleCenter);
+        L(b,"Puede ejercer sus derechos de acceso, rectificación y supresión en Avda. Doctor Rico, 18, Alicante.",0,680,747,18,6.5f,false,TextAlignment.MiddleCenter);
+        L(b,"Inscrita en el Registro Mercantil de Alicante.",0,702,747,18,7.5f,false,TextAlignment.MiddleCenter);
+        var avisoColmo = ObtenerImagenAsset("AvisoColmoContenedor.jpg");
+        if (avisoColmo != null)
+            b.Controls.Add(new XRPictureBox
+            {
+                ImageSource = avisoColmo,
+                Sizing = ImageSizeMode.ZoomImage,
+                LocationFloat = new DevExpress.Utils.PointFloat(60, 735),
+                SizeF = new System.Drawing.SizeF(627, 128)
+            });
         var paginaPesaje = new DetailBand { HeightF = 760 };
         r.Bands.Add(paginaPesaje);
         CrearPaginaPesaje(paginaPesaje, a, c, obra, ls, solicitudPlanta, camion, plantaReciclaje);

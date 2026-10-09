@@ -131,7 +131,16 @@ public sealed class FacturasCorreoController(SageGestionDbContext sage, Applicat
         if (string.IsNullOrWhiteSpace(firma) && solicitud is not null && !string.IsNullOrWhiteSpace(p.PathFirmas)) firma = Path.Combine(p.PathFirmas.Trim(), $"{solicitud.IdSolicitud}.png");
         var fotos = solicitud is null ? [] : await app.SolicitudFotos.AsNoTracking().Where(f => f.IdSolicitud == solicitud.IdSolicitud).OrderBy(f => f.FechaCreacion).Select(f => f.RutaArchivo).ToListAsync(ct);
         Camion? camion = null; Planta? planta = null;
-        if (solicitud?.IdConductor is int conductor) { var id = await app.Operarios.Where(o => o.IdOperario == conductor).Select(o => o.IdCamion).FirstOrDefaultAsync(ct); if (id.HasValue) camion = await app.Camiones.AsNoTracking().FirstOrDefaultAsync(c => c.IdCamion == id, ct); }
+        if (solicitud?.IdConductor is int idConductor)
+        {
+            var conductor = await app.Operarios.AsNoTracking().FirstOrDefaultAsync(o => o.IdOperario == idConductor, ct);
+            if (conductor is not null)
+            {
+                solicitud.ConductorNombre = conductor.Nombre?.Trim();
+                if (conductor.IdCamion.HasValue)
+                    camion = await app.Camiones.AsNoTracking().FirstOrDefaultAsync(c => c.IdCamion == conductor.IdCamion.Value, ct);
+            }
+        }
         if (solicitud?.IdPlantaDescarga is int plantaId || solicitud?.IdPlantaOrigen is int plantaOrigen) planta = await app.Plantas.AsNoTracking().FirstOrDefaultAsync(x => x.IdPlanta == (solicitud!.IdPlantaDescarga ?? solicitud.IdPlantaOrigen), ct);
         var entregados = string.Join(", ", solicitudes.SelectMany(s => new[] { s.CodigoEntrega, s.CodigoAmbosEntrega }).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()).Distinct());
         var retirados = string.Join(", ", solicitudes.SelectMany(s => new[] { s.CodigoRecogida, s.CodigoAmbosRecogida }).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()).Distinct());

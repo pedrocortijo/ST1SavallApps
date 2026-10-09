@@ -68,14 +68,18 @@ window.initSignaturePad = function (canvas, dotnetHelper) {
     var lastY = 0;
     
     function resizeCanvas() {
+        var rect = canvas.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
         // Save current contents
         var tempCanvas = document.createElement('canvas');
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;
         var tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(canvas, 0, 0);
+        if (canvas.width > 0 && canvas.height > 0) {
+            tempCtx.drawImage(canvas, 0, 0);
+        }
         
-        var rect = canvas.getBoundingClientRect();
         canvas.width = rect.width * (window.devicePixelRatio || 1);
         canvas.height = rect.height * (window.devicePixelRatio || 1);
         ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
@@ -86,7 +90,9 @@ window.initSignaturePad = function (canvas, dotnetHelper) {
         ctx.lineCap = "round";
         
         // Restore
-        ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width / (window.devicePixelRatio || 1), tempCanvas.height / (window.devicePixelRatio || 1));
+        if (tempCanvas.width > 0 && tempCanvas.height > 0) {
+            ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width / (window.devicePixelRatio || 1), tempCanvas.height / (window.devicePixelRatio || 1));
+        }
     }
     
     resizeCanvas();

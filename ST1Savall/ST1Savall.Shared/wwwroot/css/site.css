@@ -600,3 +600,41 @@ html.theme-blazing-dark .ruta-regreso,
 html.theme-fluent-dark .ruta-regreso {
     color: #fd7e14 !important;
 }
+/* Acción DeCA: contraste legible en todos los temas. */
+.deca-regenerate-button {
+    color: var(--bs-body-color, #212529) !important;
+    background-color: transparent !important;
+    border-color: var(--bs-secondary-color, #6c757d) !important;
+}
+
+.deca-regenerate-button:hover,
+.deca-regenerate-button:focus-visible {
+    color: #ffffff !important;
+    background-color: var(--bs-primary, #0d6efd) !important;
+    border-color: var(--bs-primary, #0d6efd) !important;
+}
+
+html.theme-blazing-dark .deca-regenerate-button,
+html.theme-fluent-dark .deca-regenerate-button {
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, .75) !important;
+}
+
+html.theme-blazing-dark .deca-regenerate-button:hover,
+html.theme-blazing-dark .deca-regenerate-button:focus-visible,
+html.theme-fluent-dark .deca-regenerate-button:hover,
+html.theme-fluent-dark .deca-regenerate-button:focus-visible {
+    color: #ffffff !important;
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+/* Pestañas DevExpress: el estado seleccionado usa el naranja corporativo. */
+.dxbl-tabs {
+    --dxbl-tabs-tab-selected-color: #c96d00 !important;
+    --dxbl-tabs-tab-focus-outline-color: #c96d00 !important;
+}
+
+.dxbl-tabs > .dxbl-tabs-tablist .dxbl-tabs-item.dxbl-active::after {
+    background-color: #c96d00 !important;
+}

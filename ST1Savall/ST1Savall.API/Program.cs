@@ -51,6 +51,7 @@ builder.Services.AddDbContext<SageGestionDbContext>(options =>
 builder.Services.AddScoped<ArticulosSage50Service>();
 builder.Services.AddScoped<DatosAlbaranPlantaExcelService>();
 builder.Services.AddScoped<GeneracionAlbaranServicioService>();
+builder.Services.AddScoped<ControlEntregasObraService>();
 builder.Services.AddScoped<AlbaranPdfService>();
 builder.Services.AddScoped<SmtpAlbaranService>();
 builder.Services.AddScoped<FacturaPdfService>();

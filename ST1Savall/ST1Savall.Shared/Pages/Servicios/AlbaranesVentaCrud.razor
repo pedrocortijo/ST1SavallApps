@@ -3,6 +3,8 @@
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>Albaranes de venta</PageTitle>
 
@@ -42,18 +44,33 @@
 </DxPopup>
 
 <div class="container-fluid py-0">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
         <div><h2 class="fw-bold text-primary mb-1">Albaranes de venta</h2><p class="text-muted mb-0">Control de albaranes creados en Sage 50.</p></div>
         <NavLink href="/" class="btn btn-outline-secondary btn-sm"><i class="oi oi-arrow-left me-1"></i> Volver a Inicio</NavLink>
     </div>
-    <div class="card shadow-sm"><div class="card-body p-0">
+    <div class="card shadow-sm" @ref="contenedorGrid"><div class="card-body p-2 pb-0">
+        <div class="row g-3 align-items-end">
+                <div class="col-12 col-sm-5 col-md-4 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0 text-nowrap" for="albaranes-fecha-desde">Desde</label>
+                        <DxDateEdit Id="albaranes-fecha-desde" CssClass="flex-grow-1" Date="@fechaDesde" DateChanged="@((DateTime fecha) => AlCambiarFechaDesde(fecha))" />
+                    </div>
+            </div>
+            <div class="col-12 col-sm-5 col-md-4 mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="form-label mb-0 text-nowrap" for="albaranes-fecha-hasta">Hasta</label>
+                    <DxDateEdit Id="albaranes-fecha-hasta" CssClass="flex-grow-1" Date="@fechaHasta" DateChanged="@((DateTime fecha) => AlCambiarFechaHasta(fecha))" />
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
         @if (albaranes is null) { <div class="p-5 text-center"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted mb-0">Cargando albaranes...</p></div> }
         else
         {
-            <DxGrid @ref="grid" Data="@albaranes" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Albarán de venta" PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchText="@textoBusqueda" SearchTextChanged="BuscarEnServidor" SearchBoxNullText="Buscar albarán..." ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" HorizontalScrollBarMode="ScrollBarMode.Auto" ValidationEnabled="false">
+            <DxGrid @ref="grid" Data="@albaranes" KeyFieldName="Clave" EditMode="GridEditMode.PopupEditForm" EditModelSaving="OnEditModelSaving" DataItemDeleting="OnDataItemDeleting" PopupEditFormHeaderCssClass="bg-primary text-white" PopupEditFormHeaderText="Albarán de venta" PagerPosition="GridPagerPosition.Bottom" PageSize="20" AllowSort="true" ShowFilterRow="true" ShowSearchBox="true" SearchBoxNullText="Buscar en el resultado..." ColumnResizeMode="GridColumnResizeMode.ColumnsContainer" HorizontalScrollBarMode="ScrollBarMode.Auto" ValidationEnabled="false">
                 <Columns>
                     <DxGridCommandColumn 
-                        Width="90px" 
                         NewButtonVisible="false" 
                         EditButtonVisible="false" 
                         DeleteButtonVisible="false">
@@ -67,14 +84,15 @@
                         FieldName="Fecha" 
                         Caption="Fecha" 
                         DisplayFormat="d" 
-                        Width="90px" />
-                    <DxGridDataColumn FieldName="AlbaranOrden" Caption="Albarán" Width="100px">
+                        Width="110px"
+                        />
+                    <DxGridDataColumn FieldName="AlbaranOrden" Caption="Albarán" Width="130px">
                         <CellDisplayTemplate>
                             @{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
                             @($"{albaran.Serie.Trim()}-{albaran.Numero.Trim()}")
                         </CellDisplayTemplate>
                     </DxGridDataColumn>
-                    <DxGridDataColumn FieldName="ObraOrden" Caption="Obra" Width="220px">
+                    <DxGridDataColumn FieldName="ObraOrden" Caption="Obra">
                         <CellDisplayTemplate>
                             @{ var albaran = (AlbaranVentaEdicion)context.DataItem; }
                             @($"{albaran.Obra.Trim()}-{albaran.ObraNombre.Trim()}")
@@ -82,13 +100,15 @@
                     </DxGridDataColumn>
                     <DxGridDataColumn
                         FieldName="ClienteNombre" 
-                        Caption="Nombre cliente" 
-                        Width="210px" />
+                        Caption="Nombre cliente" />
                     <DxGridDataColumn
                         FieldName="Articulo" 
-                        Caption="Artículo" 
-                        Width="120px" />
-                    <DxGridDataColumn FieldName="TotalDocumento" Caption="Total" DisplayFormat="n2" Width="100px" TextAlignment="GridTextAlignment.Right" />
+                        Caption="Artículo" />
+                    <DxGridDataColumn FieldName="TotalDocumento"
+                        Caption="Total"
+                        DisplayFormat="n2"
+                        Width="120px"
+                        TextAlignment="GridTextAlignment.Right" />
 
                 </Columns>
                 <EditFormTemplate Context="editContext">
@@ -105,7 +125,10 @@
                                 <DxTextBox @bind-Text="albaran.Numero" MaxLength="10" />
                             </div><div class="col-3"><label class="form-label">Fecha</label><DxDateEdit @bind-Date="albaran.Fecha" /></div>
                             <div class="col-6"><label class="form-label">F. pago</label><DxComboBox Data="@formasPago" TData="FpagSage50" TValue="string" TextFieldName="Nombre" ValueFieldName="Codigo" @bind-Value="albaran.FormaPago" SearchMode="ListSearchMode.AutoSearch" SearchFilterCondition="ListSearchFilterCondition.Contains" NullText="Seleccione..."><ItemTemplate Context="formaPago"><strong>@formaPago.Codigo</strong> - @formaPago.Nombre</ItemTemplate></DxComboBox></div>
-                            <div class="col-12"><label class="form-label">Obra</label><DxComboBox Data="@obrasSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Obra" @bind-Value:after="@(() => ActualizarDatosObraAsync(albaran))" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione una obra..." /></div>
+                            <div class="col-12"><label class="form-label">Obra</label><DxComboBox Data="@obrasSage" TData="CodigoNombre" TValue="string" TextFieldName="Descripcion" ValueFieldName="Codigo" @bind-Value="albaran.Obra" @bind-Value:after="@(() => ActualizarDatosObraAsync(albaran))" SearchMode="ListSearchMode.AutoSearch" ClearButtonVisible="true" NullText="Seleccione una obra..." />
+                                @if (saldoObraSeleccionada.HasValue && saldoObraSeleccionada.Value <= 0)
+                                { <div class="alert @(saldoObraSeleccionada.Value < 0 ? "alert-danger" : "alert-warning") py-2 mt-2 mb-0"><i class="oi oi-warning me-1"></i>La obra no tiene saldo disponible. Revise las entregas o bloquéela antes de crear el albarán.</div> }
+                            </div>
                             <div class="col-3"><label class="form-label">Vendedor</label><DxTextBox @bind-Text="albaran.Vendedor" MaxLength="5" /></div><div class="col-3"><label class="form-label">Factura</label><input class="form-control" value="@albaran.Factura" readonly tabindex="-1" /></div><div class="col-3"><label class="form-label">Fecha factura</label><input class="form-control" value="@FormatearFecha(albaran.FechaFactura)" readonly tabindex="-1" /></div><div class="col-3"><label class="form-label">Tarifa</label><input class="form-control" value="@albaran.Tarifa" readonly tabindex="-1" /></div>
                         </div></section></div>
                         <div class="col-lg-6 ps-lg-3 pt-3 pt-lg-0"><section class="albaran-grupo h-100"><h6>Datos del cliente</h6><div class="row g-2">
@@ -170,10 +193,28 @@
     private bool errorPopupVisible;
     private bool guardandoAlbaran;
     private bool abrirAlbaranSolicitado;
+    private bool ajustarAnchosColumnas;
+    private ElementReference contenedorGrid;
+    private DotNetObjectReference<AlbaranesVentaCrud>? referenciaJs;
+    private bool observandoAnchoGrid;
+    private decimal? saldoObraSeleccionada;
+    private DateTime fechaDesde = new(DateTime.Today.AddMonths(-1).Year, DateTime.Today.AddMonths(-1).Month, 1);
+    private DateTime fechaHasta = DateTime.Today;
     protected override async Task OnInitializedAsync() { await SetupHeadersAsync(); await LoadDataAsync(); }
     protected override void OnParametersSet() => abrirAlbaranSolicitado = !string.IsNullOrWhiteSpace(SerieSolicitada) && !string.IsNullOrWhiteSpace(NumeroSolicitado);
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (ajustarAnchosColumnas && grid is not null)
+        {
+            ajustarAnchosColumnas = false;
+            grid.AutoFitColumnWidths();
+        }
+        if (!observandoAnchoGrid)
+        {
+            referenciaJs = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("st1AlbaranesGrid.observeWidth", contenedorGrid, referenciaJs);
+            observandoAnchoGrid = true;
+        }
         if (!abrirAlbaranSolicitado || grid is null || albaranes is null) return;
         abrirAlbaranSolicitado = false;
         var albaran = albaranes.FirstOrDefault(a =>
@@ -200,10 +241,17 @@
     private async Task ActualizarDatosObraAsync(AlbaranVentaEdicion albaran)
     {
         var obra = obrasSage.FirstOrDefault(o => o.Codigo == albaran.Obra);
+        saldoObraSeleccionada = null;
         if (obra is null) return;
         albaran.ObraNombre = obra.Nombre;
         albaran.Cliente = obra.Cliente;
         await ActualizarDatosClienteAsync(albaran);
+        try
+        {
+            var resumen = await Http.GetFromJsonAsync<ResumenEntregasObra>($"api/entregas-obra/por-obra/{Uri.EscapeDataString(albaran.Obra.Trim())}");
+            saldoObraSeleccionada = resumen?.Saldo;
+        }
+        catch (HttpRequestException) { }
     }
     private async Task ActualizarDatosClienteAsync(AlbaranVentaEdicion albaran)
     {
@@ -221,14 +269,39 @@
         }
         catch (HttpRequestException) { }
     }
-    private string textoBusqueda = string.Empty;
-    private async Task BuscarEnServidor(string texto)
+    private async Task AlCambiarFechaDesde(DateTime fecha)
     {
-        textoBusqueda = texto ?? string.Empty;
+        fechaDesde = fecha.Date;
+        await RecargarPorFechasAsync();
+    }
+    private async Task AlCambiarFechaHasta(DateTime fecha)
+    {
+        fechaHasta = fecha.Date;
+        await RecargarPorFechasAsync();
+    }
+    private async Task RecargarPorFechasAsync()
+    {
+        if (fechaDesde > fechaHasta)
+        {
+            errorMessage = "La fecha Desde no puede ser posterior a la fecha Hasta.";
+            errorPopupVisible = true;
+            return;
+        }
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
-    private async Task LoadDataAsync() { try { var filtro = string.IsNullOrWhiteSpace(textoBusqueda) ? "" : $"?buscar={Uri.EscapeDataString(textoBusqueda)}"; var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>($"api/albaranes-venta{filtro}"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50"); var articulosTask = Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask, formasPagoTask, articulosTask); albaranes = albaranesTask.Result ?? []; clientesSageDatos = clientesTask.Result ?? []; clientesSage = clientesSageDatos.GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim(), o.Cliente.Trim())).OrderBy(x => x.Descripcion).ToList(); formasPago = (formasPagoTask.Result ?? []).Select(f => { f.Codigo = f.Codigo.Trim(); f.Nombre = f.Nombre.Trim(); return f; }).OrderBy(f => f.Codigo).ToList(); articulosSage = (articulosTask.Result ?? []).Select(a => { a.Codigo = a.Codigo?.Trim() ?? string.Empty; a.Nombre = a.Nombre?.Trim() ?? string.Empty; return a; }).OrderBy(a => a.Codigo).ToList(); errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
+    private async Task LoadDataAsync() { try { var filtro = $"?desde={fechaDesde:yyyy-MM-dd}&hasta={fechaHasta:yyyy-MM-dd}"; var albaranesTask = Http.GetFromJsonAsync<List<AlbaranVentaEdicion>>($"api/albaranes-venta{filtro}"); var clientesTask = Http.GetFromJsonAsync<List<ClienteSage50>>("api/clientessage50"); var obrasTask = Http.GetFromJsonAsync<List<ObraComunSage50>>("api/obrascomunsage50"); var formasPagoTask = Http.GetFromJsonAsync<List<FpagSage50>>("api/fpagsage50"); var articulosTask = Http.GetFromJsonAsync<List<ArticuloSage50>>("api/articulos-sage50"); await Task.WhenAll(albaranesTask, clientesTask, obrasTask, formasPagoTask, articulosTask); albaranes = albaranesTask.Result ?? []; clientesSageDatos = clientesTask.Result ?? []; clientesSage = clientesSageDatos.GroupBy(c => c.Codigo.Trim()).Select(g => new CodigoNombre(g.Key, g.First().Nombre.Trim())).OrderBy(x => x.Descripcion).ToList(); obrasSage = (obrasTask.Result ?? []).Select(o => new CodigoNombre(o.Codigo.Trim(), o.Nombre.Trim(), o.Cliente.Trim())).OrderBy(x => x.Descripcion).ToList(); formasPago = (formasPagoTask.Result ?? []).Select(f => { f.Codigo = f.Codigo.Trim(); f.Nombre = f.Nombre.Trim(); return f; }).OrderBy(f => f.Codigo).ToList(); articulosSage = (articulosTask.Result ?? []).Select(a => { a.Codigo = a.Codigo?.Trim() ?? string.Empty; a.Nombre = a.Nombre?.Trim() ?? string.Empty; return a; }).OrderBy(a => a.Codigo).ToList(); ajustarAnchosColumnas = true; errorMessage = null; } catch (Exception ex) { errorMessage = $"Error al cargar los albaranes: {ex.Message}"; albaranes ??= []; } }
+    [JSInvokable]
+    public void AjustarColumnasPorCambioAncho() => grid?.AutoFitColumnWidths();
+    public async ValueTask DisposeAsync()
+    {
+        if (observandoAnchoGrid)
+        {
+            try { await JSRuntime.InvokeVoidAsync("st1AlbaranesGrid.dispose", contenedorGrid); }
+            catch (JSDisconnectedException) { }
+        }
+        referenciaJs?.Dispose();
+    }
     private async Task OnEditModelSaving(GridEditModelSavingEventArgs e)
     {
         var a = (AlbaranVentaEdicion)e.EditModel;

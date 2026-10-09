@@ -11,6 +11,7 @@ public sealed class GeneracionAlbaranServicioService(
     SageComunDbContext comun,
     ApplicationDbContext aplicacion,
     DatosAlbaranPlantaExcelService datosAlbaranPlantaExcel,
+    ControlEntregasObraService controlEntregas,
     ILogger<GeneracionAlbaranServicioService> logger)
 {
     private const int TipoDocumentoAlbaranVenta = 4;
@@ -120,6 +121,9 @@ public sealed class GeneracionAlbaranServicioService(
 
             await AplicarPrecioObraAsync(datos, solicitud.TarifaAplicada ?? obra.Tarifa);
             var calculoFiscal = await CalcularFiscalAsync(datos, cliente);
+            var saldo = await controlEntregas.ObtenerSaldoDisponibleAsync(datos.Obra, parametros.UsuarioAlbaranes);
+            if (saldo - calculoFiscal.TotalDocumento <= 0)
+                return ResultadoGeneracionAlbaran.Fallido($"Saldo insuficiente para la obra {datos.Obra}. Disponible: {saldo:n2} €; el albarán dejaría un saldo de {saldo - calculoFiscal.TotalDocumento:n2} €. Revise las entregas o bloquee la obra.");
             await using var transaccion = await sage.Database.BeginTransactionAsync();
             var yaExiste = await sage.AlbaranesVenta.AsNoTracking().AnyAsync(a =>
                 a.EMPRESA.Trim() == empresa && a.LETRA.Trim() == serie && a.NUMERO.Trim() == numero);
@@ -135,6 +139,7 @@ public sealed class GeneracionAlbaranServicioService(
                 sage.CamposAdicionalesDocumentosVenta.Add(campo);
             await sage.SaveChangesAsync();
             await transaccion.CommitAsync();
+            await controlEntregas.SincronizarAlbaranAsync(cabecera, parametros.UsuarioAlbaranes);
             return ResultadoGeneracionAlbaran.Correcto(serie, numero.Trim());
         }
         catch (Exception ex)

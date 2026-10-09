@@ -166,22 +166,22 @@
                                     <DxFormLayoutItem Caption="Aviso días antelación contenedor OVP" ColSpanMd="12">
                                         <DxSpinEdit @bind-Value="parametro.AvisoTiempoContenedor" MinValue="0" />
                                     </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Ruta de imágenes" ColSpanMd="12">
+                                    <DxFormLayoutItem Caption="Ruta de imágenes (Servidor)" ColSpanMd="12">
                                         <DxTextBox @bind-Text="parametro.PathImagenes" NullText="Carpeta de red donde se guardan las fotos...">
                                             <Buttons>
                                                 <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathImagenes)))" />
                                             </Buttons>
                                         </DxTextBox>
                                     </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Ruta de firmas" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas...">
+                                        <DxFormLayoutItem Caption="Ruta de firmas (Servidor)" ColSpanMd="12">
+                                            <DxTextBox @bind-Text="parametro.PathFirmas" NullText="Carpeta de red donde se guardan las firmas...">
                                             <Buttons>
                                                 <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathFirmas)))" />
                                             </Buttons>
                                         </DxTextBox>
                                     </DxFormLayoutItem>
-                                    <DxFormLayoutItem Caption="Ruta de documentos" ColSpanMd="12">
-                                        <DxTextBox @bind-Text="parametro.PathDocumentos" NullText="Carpeta donde se guardan los PDF de albaranes...">
+                                        <DxFormLayoutItem Caption="Ruta de documentos (Servidor)" ColSpanMd="12">
+                                            <DxTextBox @bind-Text="parametro.PathDocumentos" NullText="Carpeta donde se guardan los PDF de albaranes...">
                                             <Buttons>
                                                 <DxEditorButton IconCssClass="oi oi-folder" Tooltip="Seleccionar carpeta" Click="@(() => SeleccionarCarpetaAsync(parametro, nameof(parametro.PathDocumentos)))" />
                                             </Buttons>

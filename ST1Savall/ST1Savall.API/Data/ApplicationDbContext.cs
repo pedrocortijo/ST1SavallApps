@@ -37,6 +37,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PeriodicidadObra> PeriodicidadesObra { get; set; } = null!;
     public DbSet<PeriodicidadObraEjecucion> PeriodicidadesObraEjecuciones { get; set; } = null!;
     public DbSet<ObrasOVP> ObrasOVP { get; set; } = null!;
+    public DbSet<MovimientoEntregaObra> MovimientosEntregaObra { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -120,6 +121,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(o => o.FechaInicioOVP).HasColumnType("datetime2(7)");
             entity.Property(o => o.FechaFinOVP).HasColumnType("datetime2(7)");
             entity.Property(o => o.PathOVP).HasColumnType("varchar(255)").HasMaxLength(255).IsUnicode(false);
+        });
+        builder.Entity<MovimientoEntregaObra>(entity =>
+        {
+            entity.Property(m => m.Activo).HasDefaultValue(true);
+            entity.HasIndex(m => new { m.ObraCodigo, m.Fecha, m.IdMovimientoEntregaObra });
+            entity.HasIndex(m => new { m.EmpresaAlbaran, m.NumeroAlbaran, m.SerieAlbaran });
         });
 
 

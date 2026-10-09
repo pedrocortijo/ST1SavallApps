@@ -137,8 +137,13 @@ public sealed class AlbaranesCorreoController(SageGestionDbContext sage, Applica
             Camion? camion = null;
             if (solicitud?.IdConductor is int idConductor)
             {
-                var idCamion = await app.Operarios.AsNoTracking().Where(o => o.IdOperario == idConductor).Select(o => o.IdCamion).FirstOrDefaultAsync();
-                if (idCamion.HasValue) camion = await app.Camiones.AsNoTracking().FirstOrDefaultAsync(c => c.IdCamion == idCamion.Value);
+                var conductor = await app.Operarios.AsNoTracking().FirstOrDefaultAsync(o => o.IdOperario == idConductor);
+                if (conductor is not null)
+                {
+                    solicitud.ConductorNombre = conductor.Nombre?.Trim();
+                    if (conductor.IdCamion.HasValue)
+                        camion = await app.Camiones.AsNoTracking().FirstOrDefaultAsync(c => c.IdCamion == conductor.IdCamion.Value);
+                }
             }
             var idPlantaReciclaje = solicitud?.IdPlantaDescarga ?? solicitud?.IdPlantaOrigen;
             var plantaReciclaje = idPlantaReciclaje.HasValue
