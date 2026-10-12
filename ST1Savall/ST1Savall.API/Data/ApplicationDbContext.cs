@@ -38,6 +38,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PeriodicidadObraEjecucion> PeriodicidadesObraEjecuciones { get; set; } = null!;
     public DbSet<ObrasOVP> ObrasOVP { get; set; } = null!;
     public DbSet<MovimientoEntregaObra> MovimientosEntregaObra { get; set; } = null!;
+    public DbSet<FacturaCorreoEnvio> FacturasCorreoEnvios { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -106,6 +107,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PeriodicidadObraEjecucion>().Property(e => e.FechaPrevista).HasColumnType("date");
         builder.Entity<PeriodicidadObraEjecucion>().HasIndex(e => new { e.IdPeriodicidadObra, e.FechaPrevista }).IsUnique();
         builder.Entity<PeriodicidadObraEjecucion>().HasOne(e => e.Periodicidad).WithMany(p => p.Ejecuciones).HasForeignKey(e => e.IdPeriodicidadObra).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
+
         builder.Entity<Solicitud>().HasIndex(s => s.IdPeriodicidadObraEjecucion).IsUnique().HasFilter("[IdPeriodicidadObraEjecucion] IS NOT NULL");
         builder.Entity<DocumentoDeCa>().HasKey(d => d.IdDocumentoDeCa);
         builder.Entity<DocumentoDeCa>().HasIndex(d => d.GuidDeCa).IsUnique();
@@ -130,9 +133,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         });
 
 
+        builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
+
         builder.Entity<Solicitud>()
             .Property(s => s.Latitud)
             .HasPrecision(9, 6);
+
+        builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
 
         builder.Entity<Solicitud>()
             .Property(s => s.Longitud)
@@ -143,11 +150,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             nameof(Solicitud.AlbaranPlanta), nameof(Solicitud.AlbaranSerieSage), nameof(Solicitud.AlbaranNumeroSage), nameof(Solicitud.TipoResiduo)
         })
         {
-            builder.Entity<Solicitud>().Property<string?>(propertyName).IsUnicode(false);
+            builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
+
+        builder.Entity<Solicitud>().Property<string?>(propertyName).IsUnicode(false);
         }
 
         builder.Entity<SolicitudFoto>()
             .HasIndex(f => new { f.IdSolicitud, f.FechaCreacion });
+
+        builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
 
         builder.Entity<Solicitud>().Property(s => s.FechaPesaje).HasColumnType("date");
         builder.Entity<SolicitudTiquePesaje>().Property(t => t.Fecha).HasColumnType("date");
@@ -163,8 +174,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             nameof(Solicitud.LatitudRegreso), nameof(Solicitud.LongitudRegreso)
         })
         {
-            builder.Entity<Solicitud>().Property<decimal?>(propertyName).HasPrecision(9, 6);
+            builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
+
+        builder.Entity<Solicitud>().Property<decimal?>(propertyName).HasPrecision(9, 6);
         }
+
+        builder.Entity<FacturaCorreoEnvio>().HasIndex(f => new { f.Empresa, f.Numero }).IsUnique();
 
         builder.Entity<Solicitud>()
             .HasIndex(s => new { s.IdConductor, s.FechaHoraInicioPlanificada, s.FechaHoraFinPlanificada })

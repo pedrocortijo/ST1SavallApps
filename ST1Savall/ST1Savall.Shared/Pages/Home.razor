@@ -1031,14 +1031,20 @@
 
     private List<EstadoSolicitud>? estadosList;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         selectedConductorId = HomeGridState.SelectedConductorId;
         selectedTareaId = HomeGridState.SelectedTareaId;
         selectedEstadoId = HomeGridState.SelectedEstadoId;
         selectedPrioridadId = HomeGridState.SelectedPrioridadId;
         vistaDashboard = (VistaDashboard)HomeGridState.VistaDashboardIndex;
+    }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Deja que el panel se pinte antes de iniciar las llamadas de red.
         await SetupHeadersAsync();
         _ = SincronizarAusenciasAsync();
         await LoadDataAsync();
@@ -1092,6 +1098,12 @@
         catch (System.Text.Json.JsonException) { periodicidadesPendientesConfirmacion = []; confirmacionesPeriodicidadVisibles = false; }
         catch (HttpRequestException) { periodicidadesPendientesConfirmacion = []; confirmacionesPeriodicidadVisibles = false; }
     }
+    private async Task CargarConfirmacionesPeriodicidadEnSegundoPlanoAsync()
+    {
+        await CargarConfirmacionesPeriodicidadAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task ConfirmarPeriodicidadesAsync()
     {
         foreach (var periodicidad in periodicidadesPendientesConfirmacion.ToList())
@@ -1125,7 +1137,7 @@
             parametros = await parametrosTask;
             estadosList = await estadosTask;
             tareasList = await tareasTask;
-            await CargarConfirmacionesPeriodicidadAsync();
+            _ = CargarConfirmacionesPeriodicidadEnSegundoPlanoAsync();
 
             comboOperarios = new List<Operario> { new Operario { IdOperario = -1, Nombre = "Todos los conductores" } };
             if (operarios != null)
@@ -1154,16 +1166,7 @@
             notificacionesServiciosParaMostrar = GetNotificacionesServiciosNoVisualizadas().ToList();
             notificacionesServiciosVisibles = notificacionesServiciosParaMostrar.Count > 0;
             if (notificacionesServiciosVisibles)
-            {
-                var ids = notificacionesServiciosParaMostrar.Select(s => s.IdSolicitud).ToList();
-                var response = await Http.PostAsJsonAsync(
-                    "api/solicitudes/marcar-notificaciones-inicio-visualizadas", ids);
-                if (response.IsSuccessStatusCode)
-                {
-                    foreach (var solicitud in notificacionesServiciosParaMostrar)
-                        solicitud.NotificacionInicioVisualizada = true;
-                }
-            }
+                _ = MarcarNotificacionesInicioVisualizadasAsync(notificacionesServiciosParaMostrar.Select(s => s.IdSolicitud).ToList());
         }
         catch (Exception ex)
         {
@@ -1175,6 +1178,22 @@
         }
     }
 
+
+    private async Task MarcarNotificacionesInicioVisualizadasAsync(List<int> ids)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/solicitudes/marcar-notificaciones-inicio-visualizadas", ids);
+            if (!response.IsSuccessStatusCode) return;
+
+            foreach (var solicitud in notificacionesServiciosParaMostrar)
+                solicitud.NotificacionInicioVisualizada = true;
+        }
+        catch (HttpRequestException)
+        {
+            // El aviso se volverá a intentar en la siguiente carga.
+        }
+    }
 
     private async Task SincronizarAusenciasAsync()
     {

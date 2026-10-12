@@ -15,6 +15,7 @@ public static class DbInitializer
     {
         // Ensure database is created
         await context.Database.EnsureCreatedAsync();
+        await context.Database.ExecuteSqlRawAsync("IF OBJECT_ID(N'FacturasCorreoEnvios', N'U') IS NULL CREATE TABLE FacturasCorreoEnvios (IdFacturaCorreoEnvio INT IDENTITY(1,1) NOT NULL PRIMARY KEY, Empresa NVARCHAR(10) NOT NULL, Numero NVARCHAR(30) NOT NULL, FechaEnvio DATETIME2 NOT NULL, Destinatarios NVARCHAR(1000) NOT NULL, CONSTRAINT UX_FacturasCorreoEnvios_Empresa_Numero UNIQUE (Empresa, Numero));");
         await context.Database.ExecuteSqlRawAsync(@"
             IF OBJECT_ID(N'HorariosObra', N'U') IS NULL
             BEGIN

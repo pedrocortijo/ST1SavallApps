@@ -25,11 +25,16 @@ public sealed class FacturasCorreoController(SageGestionDbContext sage, Applicat
         return Ok(new RutasFacturaCorreo(p.PathPdfFacturas.Trim(), p.PathDocumentos.Trim()));
     }
     [HttpGet]
-    public async Task<ActionResult<List<FacturaCorreo>>> Pendientes(CancellationToken ct)
+    public async Task<ActionResult<List<FacturaCorreo>>> Pendientes([FromQuery] bool enviados, [FromQuery] bool todos, CancellationToken ct)
     {
         try
         {
+        var facturasEnviadas = (await app.FacturasCorreoEnvios.AsNoTracking().Select(e => e.Empresa + "|" + e.Numero).ToListAsync(ct)).ToHashSet();
         var facturas = await sage.FacturasVenta.AsNoTracking().OrderByDescending(f => f.MODIFIED).Take(500).ToListAsync(ct);
+        var inicioMes = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        facturas = facturas.Where(f => enviados
+            ? facturasEnviadas.Contains(f.EMPRESA.Trim() + "|" + f.NUMERO.Trim())
+            : !facturasEnviadas.Contains(f.EMPRESA.Trim() + "|" + f.NUMERO.Trim()) && (todos || f.MODIFIED >= inicioMes)).ToList();
         var claves = facturas.Select(f => f.NUMERO.Trim()).ToList();
         var albaranes = await sage.AlbaranesVenta.AsNoTracking().Where(a => claves.Contains(a.FACTURA.Trim())).ToListAsync(ct);
         var clientes = await sage.Clientes.AsNoTracking().ToListAsync(ct);
@@ -113,6 +118,16 @@ public sealed class FacturasCorreoController(SageGestionDbContext sage, Applicat
             return Ok(new ResultadoFacturaCorreo(etiqueta, string.Join("; ", destinos), false, $"No se pudo preparar el PDF combinado: {ex.GetBaseException().Message}"));
         }
         foreach (var destino in destinos) await smtp.EnviarAsync(p, remitente.Address, destino, $"Factura {clave.Serie}-{clave.Numero} · {p.Empresa}", $"Adjuntamos su factura de fecha {factura.FECHA:dd/MM/yyyy}.", nombreFactura, combinado, ct);
+        var envio = await app.FacturasCorreoEnvios.SingleOrDefaultAsync(e => e.Empresa == clave.Empresa && e.Numero == clave.Numero, ct);
+        if (envio is null)
+        {
+            envio = new FacturaCorreoEnvio { Empresa = clave.Empresa, Numero = clave.Numero };
+            app.FacturasCorreoEnvios.Add(envio);
+        }
+        envio.FechaEnvio = DateTime.Now;
+        envio.Destinatarios = string.Join("; ", destinos);
+        await app.SaveChangesAsync(ct);
+
         logger.LogInformation("Factura {Factura} enviada a {Destinos}", etiqueta, string.Join("; ", destinos));
         return Ok(new ResultadoFacturaCorreo(etiqueta, string.Join("; ", destinos), true, albaranes.Count == 0 ? "Factura enviada." : $"Factura y {albaranes.Count} albarán(es) enviados en un único PDF."));
     }
