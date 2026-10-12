@@ -1,0 +1,10 @@
+.firma-resumen { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 2.1fr); gap: 12px; align-items: stretch; }
+.firma-resumen-trazo { min-width: 0; display: flex; flex-direction: column; }
+.firma-resumen-datos { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.firma-vista { display: block; width: 100%; height: 150px; object-fit: contain; flex: 1 1 auto; min-height: 100px; }
+.firma-resumen-acciones { display: flex; align-items: center; gap: 10px; margin-top: 8px; min-height: 42px; }
+.firma-dialogo { width: min(900px, 96vw); max-width: 96vw; max-height: 94dvh; overflow: auto; padding: 24px; color: var(--bs-body-color); background: var(--bs-body-bg); }
+.firma-dialogo::backdrop { background: rgba(0, 0, 0, .65); }
+.firma-lienzo { display: block; width: 100%; height: clamp(160px, 35dvh, 320px); touch-action: none; }
+@media (max-width: 600px) { .firma-dialogo { padding: 12px; } }
+@media (max-width: 520px) { .firma-resumen { grid-template-columns: minmax(0, .9fr) minmax(0, 1.6fr); gap: 8px; } .firma-resumen-datos { gap: 8px; } .firma-resumen-acciones { align-items: flex-start; flex-direction: column; } }

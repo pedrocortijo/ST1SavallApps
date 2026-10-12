@@ -150,16 +150,26 @@ public class SolicitudesController : ControllerBase
 
         if (idsIniciado.Contains(solicitud.Estado) && solicitud.IdConductor.HasValue)
         {
-            var servicioIniciadoExistente = await _context.Solicitudes
+            var idsEstadosEnCurso = await _context.EstadosSolicitud.AsNoTracking()
+            .Where(e => e.EstadoServicio == EstadoServicio.RutaObra
+                     || e.EstadoServicio == EstadoServicio.RutaPlanta
+                     // Compatibilidad con instalaciones aún no normalizadas.
+                     || (e.EstadoServicio == null
+                         && (e.Descripcion!.Contains("iniciado")
+                             || e.Descripcion.Contains("ruta a planta"))))
+            .Select(e => e.IdEstado)
+            .ToListAsync();
+
+        var servicioIniciadoExistente = await _context.Solicitudes
                 .AsNoTracking()
                 .Where(s => s.IdConductor == solicitud.IdConductor.Value
-                         && idsIniciado.Contains(s.Estado))
+                         && idsEstadosEnCurso.Contains(s.Estado))
                 .Select(s => new { s.IdSolicitud })
                 .FirstOrDefaultAsync();
 
             if (servicioIniciadoExistente != null)
             {
-                return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} iniciado y sin finalizar." });
+                return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} en curso y sin finalizar." });
             }
         }
 
@@ -267,17 +277,27 @@ public class SolicitudesController : ControllerBase
 
         if (idsIniciado.Contains(solicitud.Estado) && solicitud.IdConductor.HasValue)
         {
-            var servicioIniciadoExistente = await _context.Solicitudes
+            var idsEstadosEnCurso = await _context.EstadosSolicitud.AsNoTracking()
+            .Where(e => e.EstadoServicio == EstadoServicio.RutaObra
+                     || e.EstadoServicio == EstadoServicio.RutaPlanta
+                     // Compatibilidad con instalaciones aún no normalizadas.
+                     || (e.EstadoServicio == null
+                         && (e.Descripcion!.Contains("iniciado")
+                             || e.Descripcion.Contains("ruta a planta"))))
+            .Select(e => e.IdEstado)
+            .ToListAsync();
+
+        var servicioIniciadoExistente = await _context.Solicitudes
                 .AsNoTracking()
                 .Where(s => s.IdConductor == solicitud.IdConductor.Value
                          && s.IdSolicitud != id
-                         && idsIniciado.Contains(s.Estado))
+                         && idsEstadosEnCurso.Contains(s.Estado))
                 .Select(s => new { s.IdSolicitud })
                 .FirstOrDefaultAsync();
 
             if (servicioIniciadoExistente != null)
             {
-                return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} iniciado y sin finalizar." });
+                return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} en curso y sin finalizar." });
             }
         }
 
@@ -491,17 +511,27 @@ public class SolicitudesController : ControllerBase
         if (entregasPendientes.Count > 0)
             return BadRequest(new { message = $"Debe indicar el contenedor antes de iniciar la ruta a obra:{Environment.NewLine}{string.Join(Environment.NewLine, entregasPendientes)}." });
 
+        var idsEstadosEnCurso = await _context.EstadosSolicitud.AsNoTracking()
+            .Where(e => e.EstadoServicio == EstadoServicio.RutaObra
+                     || e.EstadoServicio == EstadoServicio.RutaPlanta
+                     // Compatibilidad con instalaciones aún no normalizadas.
+                     || (e.EstadoServicio == null
+                         && (e.Descripcion!.Contains("iniciado")
+                             || e.Descripcion.Contains("ruta a planta"))))
+            .Select(e => e.IdEstado)
+            .ToListAsync();
+
         var servicioIniciadoExistente = await _context.Solicitudes
             .AsNoTracking()
             .Where(s => s.IdConductor == solicitud.IdConductor.Value
                      && s.IdSolicitud != id
-                     && idsIniciado.Contains(s.Estado))
+                     && idsEstadosEnCurso.Contains(s.Estado))
             .Select(s => new { s.IdSolicitud })
             .FirstOrDefaultAsync();
 
         if (servicioIniciadoExistente != null)
         {
-            return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} iniciado y sin finalizar." });
+            return Conflict(new { message = $"El conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} en curso y sin finalizar." });
         }
 
         var estadoIniciado = parametro?.EstadoIniciado ?? idsIniciado.First();
@@ -785,17 +815,27 @@ public class SolicitudesController : ControllerBase
 
         if (solicitud.IdConductor.HasValue)
         {
-            var servicioIniciadoExistente = await _context.Solicitudes
+            var idsEstadosEnCurso = await _context.EstadosSolicitud.AsNoTracking()
+            .Where(e => e.EstadoServicio == EstadoServicio.RutaObra
+                     || e.EstadoServicio == EstadoServicio.RutaPlanta
+                     // Compatibilidad con instalaciones aún no normalizadas.
+                     || (e.EstadoServicio == null
+                         && (e.Descripcion!.Contains("iniciado")
+                             || e.Descripcion.Contains("ruta a planta"))))
+            .Select(e => e.IdEstado)
+            .ToListAsync();
+
+        var servicioIniciadoExistente = await _context.Solicitudes
                 .AsNoTracking()
                 .Where(s => s.IdConductor == solicitud.IdConductor.Value
                          && s.IdSolicitud != id
-                         && idsIniciado.Contains(s.Estado))
+                         && idsEstadosEnCurso.Contains(s.Estado))
                 .Select(s => new { s.IdSolicitud })
                 .FirstOrDefaultAsync();
 
             if (servicioIniciadoExistente != null)
             {
-                return Conflict(new { message = $"No se puede reanudar el servicio porque el conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} iniciado y sin finalizar." });
+                return Conflict(new { message = $"No se puede reanudar el servicio porque el conductor ya tiene el servicio #{servicioIniciadoExistente.IdSolicitud} en curso y sin finalizar." });
             }
         }
 

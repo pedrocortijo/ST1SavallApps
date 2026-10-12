@@ -33,38 +33,42 @@
                           IconCssClass="oi oi-menu menu-toggle-icon"
                           Click="ToggleNavigationAsync"
                           style="font-size: 1.25rem;" />
-                <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label" 
-                style="font-size: 1.1rem; letter-spacing: 0.5px;">@companyName</span>
-                <span 
-                    class="flex-grow-1 text-center display-desktop api-server-label @(apiConectada ? "api-conectada" : "api-desconectada")" 
-                    title="Estado de conexión con la API">API: @(apiConectada ? "Conectado" : "Desconectado")
-                </span>
-                
-                @if (new Uri(NavigationManager.Uri).LocalPath != "/") 
-                {
-                    <NavLink 
-                        href="/"
-                        class="button-link hidden">
+                <div class="header-primary-info">
+                    <span class="ms-3 fw-bold text-uppercase display-desktop company-name-label"
+                          style="font-size: 1.1rem; letter-spacing: 0.5px;">@companyName</span>
+                    <span
+                        class="text-center display-desktop api-server-label @(apiConectada ? "api-conectada" : "api-desconectada")"
+                        title="Estado de conexión con la API">API: @(apiConectada ? "Conectado" : "Desconectado")
+                    </span>
+                </div>
+
+                <div class="header-session-actions">
+                    @if (new Uri(NavigationManager.Uri).LocalPath != "/")
+                    {
+                        <NavLink
+                            href="/"
+                            class="button-link hidden">
                                 <DxButton RenderStyle="@ButtonRenderStyle.Dark" 
                                 Text="Volver al inicio" 
                                 RenderStyleMode="@ButtonRenderStyleMode.Text" 
                                 CssClass="menu-button-nav" 
                                 IconCssClass="oi oi-arrow-left"></DxButton>
-                    </NavLink>
-                }
-                <AuthorizeView>
-                    <Authorized>
-                        <NavLink href="@ManageUrl" class="button-link menubutton-float-end display-desktop">
+                        </NavLink>
+                    }
+                    <AuthorizeView>
+                        <Authorized>
+                            <NavLink href="@ManageUrl" class="button-link display-desktop">
                                     <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="@context.User.Identity?.Name" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-person"></DxButton>
-                        </NavLink>
-                        <DxButton RenderStyle="@ButtonRenderStyle.Dark" Click="HandleLogout" Text="Cerrar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav display-desktop" IconCssClass="oi oi-account-logout"></DxButton>
-                    </Authorized>
-                    <NotAuthorized>
-                        <NavLink href="@LoginUrl" class="button-link menubutton-float-end display-desktop">
+                            </NavLink>
+                            <DxButton RenderStyle="@ButtonRenderStyle.Dark" Click="HandleLogout" Text="Cerrar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav display-desktop" IconCssClass="oi oi-account-logout"></DxButton>
+                        </Authorized>
+                        <NotAuthorized>
+                            <NavLink href="@LoginUrl" class="button-link display-desktop">
                                     <DxButton RenderStyle="@ButtonRenderStyle.Dark" Text="Iniciar sesión" RenderStyleMode="@ButtonRenderStyleMode.Text" CssClass="menu-button-nav" IconCssClass="oi oi-account-login"></DxButton>
-                        </NavLink>
-                    </NotAuthorized>
-                </AuthorizeView>
+                            </NavLink>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
             </div>
             <div class="px-4 pt-0 pb-4">
                 @if (!accessChecked)

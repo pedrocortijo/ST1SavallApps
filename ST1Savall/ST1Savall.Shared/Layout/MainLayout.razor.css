@@ -169,6 +169,37 @@ html.theme-fluent-dark ::deep .menu-button .dxbl-image {
     padding: 2rem 1rem;
 }
 
+.header-primary-info {
+    min-width: 0;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-session-actions {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-left: auto;
+}
+
+@media (max-width: 1024px) {
+    .nav-buttons-container {
+        flex-wrap: wrap;
+        padding: 1rem;
+    }
+
+    .header-session-actions {
+        order: 3;
+        flex-basis: 100%;
+        justify-content: flex-end;
+        margin-left: 0;
+        padding-top: .5rem;
+        border-top: 1px solid rgba(0, 0, 0, .1);
+    }
+}
+
     .nav-buttons-container ::deep .menubutton-float-end {
         margin-left: auto;
     }

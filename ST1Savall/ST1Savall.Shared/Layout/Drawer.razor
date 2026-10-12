@@ -1,11 +1,12 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject NavigationManager NavigationManager
+@inject ST1Savall.Shared.Services.IFormFactor FormFactor
 
 <DxDrawer PanelWidth="@Width"
           CssClass="@CssClass"
           Mode="@Mode"
-          IsOpen="@IsOpen"
+          @bind-IsOpen="IsOpen"
           HeaderTemplate="@DrawerHeader"
           FooterTemplate="@DrawerFooter"
           ApplyBackgroundShading="@isXSmallScreen"
@@ -49,7 +50,7 @@
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        if (!isXSmallScreen)
+        if (!isXSmallScreen && !FormFactor.GetPlatform().StartsWith("Android", StringComparison.OrdinalIgnoreCase))
             return;
 
         isOpen = false;

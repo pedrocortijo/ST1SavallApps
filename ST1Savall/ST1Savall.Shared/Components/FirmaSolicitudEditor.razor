@@ -1,0 +1,106 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="firma-resumen">
+    <div class="firma-resumen-datos">
+        <div><label class="form-label fw-bold">Nombre firmante</label><DxTextBox Text="@Nombre" ReadOnly="true" CssClass="w-100" /></div>
+        <div><label class="form-label fw-bold">DNI</label><DxTextBox Text="@Dni" ReadOnly="true" CssClass="w-100" /></div>
+        <div class="firma-resumen-acciones">
+            <button type="button" class="btn btn-primary" disabled="@(!PuedeFirmar)" @onclick="Abrir">@(string.IsNullOrWhiteSpace(Imagen) ? "Firmar" : "Modificar firma")</button>
+            @if (!PuedeFirmar) { <span class="text-warning small">@MotivoBloqueo</span> }
+        </div>
+    </div>
+    <div class="firma-resumen-trazo">
+        <label class="form-label fw-bold mb-2">Firma</label>
+        @if (!string.IsNullOrWhiteSpace(Imagen))
+        {
+            <img src="@Imagen" alt="Firma de la solicitud" class="firma-vista border rounded bg-white" />
+        }
+        else
+        {
+            <div class="border rounded p-3 text-muted">Sin firma disponible</div>
+        }
+    </div>
+</div>
+
+@if (abierto)
+{
+    <dialog @ref="dialogo" class="firma-dialogo border rounded" aria-labelledby="@tituloId">
+        <h3 id="@tituloId" class="h5 text-primary border-bottom pb-3">Firma de solicitud</h3>
+        <div class="row g-3">
+            <div class="col-7"><label class="form-label" for="@(tituloId + "-nombre")">Nombre firmante</label><input id="@(tituloId + "-nombre")" class="form-control" @bind="nombreTemporal" maxlength="50" disabled="@guardando" /></div>
+            <div class="col-5"><label class="form-label" for="@(tituloId + "-dni")">DNI</label><input id="@(tituloId + "-dni")" class="form-control" @bind="dniTemporal" maxlength="25" disabled="@guardando" /></div>
+            <div class="col-12"><label class="form-label">Firma</label><canvas @ref="canvas" class="firma-lienzo border rounded bg-white" style="@(guardando ? "pointer-events:none" : null)"></canvas></div>
+        </div>
+        @if (error is not null) { <div class="alert alert-danger mt-2" role="alert">@error</div> }
+        <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-outline-danger me-auto" disabled="@(guardando || !listo)" @onclick="Limpiar">Limpiar</button>
+            <button type="button" class="btn btn-outline-secondary" disabled="@guardando" @onclick="Cerrar">Cancelar</button>
+            <button type="button" class="btn btn-primary" disabled="@(guardando || !listo)" @onclick="Aceptar">@(guardando ? "Guardando..." : TextoAceptar)</button>
+        </div>
+    </dialog>
+}
+
+@code {
+    [Parameter] public string? Nombre { get; set; }
+    [Parameter] public string? Dni { get; set; }
+    [Parameter] public string? Imagen { get; set; }
+    [Parameter] public bool PuedeFirmar { get; set; } = true;
+    [Parameter] public string MotivoBloqueo { get; set; } = "Complete los contenedores requeridos antes de firmar.";
+    [Parameter] public string TextoAceptar { get; set; } = "Aceptar firma";
+    [Parameter] public EventCallback<DatosFirma> Aceptada { get; set; }
+    public sealed record DatosFirma(string Nombre, string Dni, string Imagen);
+    private readonly string tituloId = "firma-" + Guid.NewGuid().ToString("N");
+    private ElementReference dialogo, canvas;
+    private IJSObjectReference? modulo;
+    private bool abierto, inicializar, listo, guardando;
+    private string? nombreTemporal, dniTemporal, error;
+
+    private void Abrir()
+    {
+        if (!PuedeFirmar) return;
+        nombreTemporal = Nombre; dniTemporal = Dni; error = null;
+        abierto = inicializar = true; listo = false;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!inicializar) return;
+        inicializar = false;
+        try
+        {
+            modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/ST1Savall.Shared/js/firma-editor.js");
+            await modulo.InvokeVoidAsync("abrir", dialogo, canvas, Imagen);
+            listo = true;
+        }
+        catch { error = "No se ha podido preparar la firma. Cierre y vuelva a abrir el formulario."; }
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task Limpiar() { await modulo!.InvokeVoidAsync("limpiar", canvas); }
+    private async Task Cerrar()
+    {
+        if (modulo is not null) await modulo.InvokeVoidAsync("cerrar", dialogo, canvas);
+        abierto = listo = false;
+    }
+    private async Task Aceptar()
+    {
+        if (guardando || !PuedeFirmar) return;
+        error = null;
+        if (string.IsNullOrWhiteSpace(nombreTemporal)) { error = "Indique el nombre del firmante."; return; }
+        guardando = true;
+        try
+        {
+            var imagen = await modulo!.InvokeAsync<string?>("obtener", canvas);
+            if (string.IsNullOrWhiteSpace(imagen)) { error = "Dibuje la firma antes de aceptar."; return; }
+            await Aceptada.InvokeAsync(new DatosFirma(nombreTemporal.Trim(), dniTemporal?.Trim() ?? "", imagen));
+            await Cerrar();
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { guardando = false; }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (modulo is null) return;
+        try { if (abierto) await modulo.InvokeVoidAsync("cerrar", dialogo, canvas); await modulo.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+    }
+}

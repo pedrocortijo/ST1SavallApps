@@ -1105,22 +1105,7 @@
                                 </div>
                                 <div class="col-md-5 ps-md-4">
                                     <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">Firma de solicitud</h6>
-                                    <div class="row g-2">
-                                        <div class="col-7"><label class="form-label fw-bold text-muted small mb-1">Nombre firmante</label><DxTextBox @bind-Text="@solicitud.FirmaNombre" NullText="Nombre y apellidos" /></div>
-                                        <div class="col-5"><label class="form-label fw-bold text-muted small mb-1">DNI</label><DxTextBox @bind-Text="@solicitud.FirmaDni" NullText="DNI" /></div>
-                                        @if (!PuedeFirmar)
-                                        {
-                                            <div class="col-12"><div class="alert alert-warning py-1 px-2 small mb-0">Antes de firmar, indique: @string.Join(", ", ContenedoresPendientesFirma).</div></div>
-                                        }
-                                        <div class="col-12">
-                                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <label class="form-label fw-bold text-muted small mb-0">Firma</label>
-                                            <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" 
-                                                title="Borrar firma" 
-                                                aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i 
-                                                class="oi oi-trash"></i></button>
-                                            </div><canvas id="solicitudFirmaCanvas" @ref="firmaCanvas" class="w-100 border rounded bg-white" style="@EstiloLienzoFirma"></canvas></div>
-                                    </div>
+                                    <FirmaSolicitudEditor Nombre="@solicitud.FirmaNombre" Dni="@solicitud.FirmaDni" Imagen="@firmaImagenBase64" PuedeFirmar="@PuedeFirmar" Aceptada="AceptarFirma" />
                                 </div>
                             </div>
                         </Template>
@@ -1278,12 +1263,8 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
     private bool entrega2Afectada;
     private bool recogida1Afectada;
     private bool recogida2Afectada;
-    private ElementReference firmaCanvas;
-    private DotNetObjectReference<SolicitudesEdit>? firmaReference;
     private string? firmaImagenBase64;
     private bool firmaModificada;
-    private bool firmaInicializada;
-    private bool firmaPendienteDeMostrar;
     private bool firmaEliminada;
     private List<SolicitudFoto> fotos = [];
     private readonly Dictionary<int, string> fotosDataUri = [];
@@ -1323,39 +1304,14 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
         await LoadDataAsync();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private void AceptarFirma(FirmaSolicitudEditor.DatosFirma datos)
     {
-        if (!firmaInicializada && solicitud is not null)
-        {
-            firmaReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initSignaturePad", firmaCanvas, firmaReference);
-            firmaInicializada = true;
-        }
-
-        if (firmaInicializada && firmaPendienteDeMostrar && !string.IsNullOrWhiteSpace(firmaImagenBase64))
-        {
-            await JSRuntime.InvokeVoidAsync("setSignatureImage", firmaCanvas, firmaImagenBase64);
-            firmaPendienteDeMostrar = false;
-        }
-    }
-
-    [JSInvokable]
-    public Task OnSignatureChanged(string imagenBase64)
-    {
-        if (!PuedeFirmar) return Task.CompletedTask;
-        firmaImagenBase64 = imagenBase64;
+        if (solicitud is null) return;
+        solicitud.FirmaNombre = datos.Nombre;
+        solicitud.FirmaDni = datos.Dni;
+        firmaImagenBase64 = datos.Imagen;
         firmaModificada = true;
         firmaEliminada = false;
-        return Task.CompletedTask;
-    }
-
-    private async Task LimpiarFirmaAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("clearSignaturePad", firmaCanvas);
-        firmaImagenBase64 = null;
-        firmaModificada = false;
-        firmaPendienteDeMostrar = false;
-        firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
     }
 
     private IEnumerable<string> ContenedoresPendientesFirma
@@ -1376,9 +1332,6 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
 
     private bool PuedeFirmar => !ContenedoresPendientesFirma.Any();
 
-    private string EstiloLienzoFirma => PuedeFirmar
-        ? "height: 115px; touch-action: none;"
-        : "height: 115px; touch-action: none; pointer-events: none; opacity: .55;";
 
     private void OnRequiereOVPChanged(bool requiereOVP)
     {
@@ -1681,7 +1634,6 @@ private List<TarifaSolicitudOpcion> tarifasOpciones = [];
 
         var imagen = await response.Content.ReadAsByteArrayAsync();
         firmaImagenBase64 = $"data:image/png;base64,{Convert.ToBase64String(imagen)}";
-        firmaPendienteDeMostrar = true;
     }
 
     private async Task SeleccionarTiquePesajeAsync(InputFileChangeEventArgs args)

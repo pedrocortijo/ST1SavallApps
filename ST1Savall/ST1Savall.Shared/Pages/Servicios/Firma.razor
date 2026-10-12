@@ -8,7 +8,6 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject ST1Savall.Shared.Services.IFormFactor FormFactor
-@implements IDisposable
 
 <PageTitle>Firma de solicitud</PageTitle>
 
@@ -105,19 +104,31 @@
     </FooterContentTemplate>
 </DxPopup>
 
+<DxPopup Visible="@(!string.IsNullOrWhiteSpace(errorMessage))"
+         VisibleChanged="OnErrorPopupVisibleChanged"
+         HeaderText="No se pudo completar la operación"
+         ShowFooter="true"
+         Width="480px"
+         HorizontalAlignment="HorizontalAlignment.Center"
+         VerticalAlignment="VerticalAlignment.Center">
+    <BodyContentTemplate>
+        <div class="py-2 d-flex align-items-center gap-3">
+            <i class="oi oi-circle-x text-danger fs-3"></i>
+            <p class="mb-0">@errorMessage</p>
+        </div>
+    </BodyContentTemplate>
+    <FooterContentTemplate>
+        <div class="d-flex justify-content-end w-100">
+            <DxButton Text="Aceptar" RenderStyle="ButtonRenderStyle.Primary" Click="CerrarError" />
+        </div>
+    </FooterContentTemplate>
+</DxPopup>
+
 <div class="container-fluid py-0 firma-pagina">
     <div class="d-flex justify-content-between align-items-center firma-cabecera mb-3">
         <h2 class="fw-bold text-primary mb-0" style="font-size:1.2rem">Firma de solicitud</h2>
         <button type="button" class="btn btn-outline-secondary" @onclick="Volver"><i class="oi oi-arrow-left me-1"></i>Volver</button>
     </div>
-
-    @if (!string.IsNullOrWhiteSpace(errorMessage))
-    {
-        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-            @errorMessage
-            <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
-        </div>
-    }
 
     @if (loading)
     {
@@ -180,14 +191,7 @@
 
             <section>
                 <h3 class="h6 text-primary fw-bold mt-2 mb-3 pb-2 border-bottom">Firma de solicitud</h3>
-                <div class="row g-2">
-                    <div class="col-7"><label class="form-label small fw-bold">Nombre firmante</label><DxTextBox @bind-Text="solicitud.FirmaNombre" NullText="Nombre y apellidos" MaxLength="50" CssClass="w-100" /></div>
-                    <div class="col-5"><label class="form-label small fw-bold">DNI</label><DxTextBox @bind-Text="solicitud.FirmaDni" NullText="DNI" MaxLength="25" CssClass="w-100" /></div>
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center mb-1"><label class="form-label small fw-bold mb-0">Firma</label><button type="button" class="btn btn-outline-danger" title="Borrar firma" aria-label="Borrar firma" @onclick="LimpiarFirmaAsync"><i class="oi oi-trash"></i></button></div>
-                        <canvas id="firmaSolicitudCanvas" class="w-100 border rounded bg-white firma-canvas"></canvas>
-                    </div>
-                </div>
+                <FirmaSolicitudEditor Nombre="@solicitud.FirmaNombre" Dni="@solicitud.FirmaDni" Imagen="@firmaImagenBase64" PuedeFirmar="@PuedeFirmar" Aceptada="AceptarFirma" />
             </section>
 
             <section>
@@ -237,10 +241,13 @@
     private List<SolicitudFoto> fotos = [];
     private readonly Dictionary<int, string> fotosDataUri = [];
     private string? fotoSeleccionadaDataUri;
-    private DotNetObjectReference<Firma>? firmaReference;
     private string? firmaImagenBase64, errorMessage;
-    private bool loading = true, guardando, firmaInicializada, firmaModificada, firmaEliminada, firmaPendienteDeMostrar, fotoCargando;
-    private int intentosInicializacionFirma;
+    private bool loading = true, guardando, firmaModificada, firmaEliminada, fotoCargando;
+    private bool PuedeFirmar => solicitud is not null && tarea is not null
+        && (!tarea.Entrega1 || !string.IsNullOrWhiteSpace(solicitud.CodigoEntrega))
+        && (!tarea.Entrega2 || !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega))
+        && (!tarea.Recoger1 || !string.IsNullOrWhiteSpace(solicitud.CodigoRecogida))
+        && (!tarea.Recoger2 || !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida));
     private bool esAplicacionNativa;
     private bool procesandoTique;
     private bool revisionTiqueVisible;
@@ -277,7 +284,6 @@
                     {
                         var bytes = await response.Content.ReadAsByteArrayAsync();
                         firmaImagenBase64 = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
-                        firmaPendienteDeMostrar = true;
                     }
                 }
                 catch
@@ -290,36 +296,14 @@
         finally { loading = false; }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private void AceptarFirma(FirmaSolicitudEditor.DatosFirma datos)
     {
-        if (!firmaInicializada && solicitud is not null)
-        {
-            firmaReference = DotNetObjectReference.Create(this);
-            firmaInicializada = await JSRuntime.InvokeAsync<bool>("initSignaturePad", "firmaSolicitudCanvas", firmaReference);
-            if (!firmaInicializada)
-            {
-                firmaReference.Dispose();
-                if (++intentosInicializacionFirma < 3)
-                {
-                    await Task.Delay(100);
-                    await InvokeAsync(StateHasChanged);
-                }
-            }
-        }
-        if (firmaInicializada && firmaPendienteDeMostrar && !string.IsNullOrWhiteSpace(firmaImagenBase64))
-        {
-            await JSRuntime.InvokeVoidAsync("setSignatureImage", "firmaSolicitudCanvas", firmaImagenBase64);
-            firmaPendienteDeMostrar = false;
-        }
-    }
-
-    [JSInvokable]
-    public Task OnSignatureChanged(string imagenBase64) { firmaImagenBase64 = imagenBase64; firmaModificada = true; firmaEliminada = false; return Task.CompletedTask; }
-
-    private async Task LimpiarFirmaAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("clearSignaturePad", "firmaSolicitudCanvas");
-        firmaImagenBase64 = null; firmaModificada = false; firmaEliminada = !string.IsNullOrWhiteSpace(solicitud?.FirmaPath);
+        if (solicitud is null) return;
+        solicitud.FirmaNombre = datos.Nombre;
+        solicitud.FirmaDni = datos.Dni;
+        firmaImagenBase64 = datos.Imagen;
+        firmaModificada = true;
+        firmaEliminada = false;
     }
 
     private async Task<string> ObtenerMensajeErrorAsync(HttpResponseMessage response, string mensajePorDefecto)
@@ -477,6 +461,13 @@
         }
     }
 
+    private void OnErrorPopupVisibleChanged(bool visible)
+    {
+        if (!visible) errorMessage = null;
+    }
+
+    private void CerrarError() => errorMessage = null;
+
     private void CancelarRevisionTique()
     {
         revisionTiqueVisible = false;
@@ -486,6 +477,7 @@
     private async Task GuardarAsync()
     {
         if (solicitud is null) return;
+        if (firmaModificada && !PuedeFirmar) { errorMessage = "Complete los contenedores requeridos antes de guardar la firma."; return; }
         guardando = true; errorMessage = null;
         try
         {
@@ -608,7 +600,6 @@
         }
     }
     private string FotoDataUri(int idFoto) => fotosDataUri.TryGetValue(idFoto, out var uri) ? uri : string.Empty;
-    public void Dispose() => firmaReference?.Dispose();
     private void AbrirNuevoContenedor(string destino, string descripcion)
     {
         destinoNuevoContenedor = destino;

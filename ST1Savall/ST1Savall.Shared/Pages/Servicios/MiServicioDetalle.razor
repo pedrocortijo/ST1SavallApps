@@ -127,6 +127,11 @@
                         <DxTextBox Text="@motivo" Enabled="false" />
                     </DxFormLayoutItem>
                 </DxFormLayout>
+                <section class="mt-4">
+                    <h3 class="h6 text-primary border-bottom pb-2">Firma de solicitud</h3>
+                    @if (errorFirma is not null) { <div class="alert alert-warning">@errorFirma</div> }
+                    <FirmaSolicitudEditor Nombre="@solicitud.FirmaNombre" Dni="@solicitud.FirmaDni" Imagen="@imagenFirma" PuedeFirmar="@PuedeFirmar" TextoAceptar="Guardar firma" Aceptada="GuardarFirmaAsync" />
+                </section>
             </div>
         </div>
     }
@@ -138,6 +143,28 @@
     public int? ConductorSeleccionadoId { get; set; }
     private Solicitud? solicitud; private bool loading = true; private string? errorMessage, tarea, conductor, estado, motivo, prioridad;
     private List<Planta> plantas = [];
+    private Tarea? tareaFirma;
+    private string? imagenFirma, errorFirma;
+    private bool PuedeFirmar => solicitud is not null && tareaFirma is not null
+        && (!tareaFirma.Entrega1 || !string.IsNullOrWhiteSpace(solicitud.CodigoEntrega))
+        && (!tareaFirma.Entrega2 || !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosEntrega))
+        && (!tareaFirma.Recoger1 || !string.IsNullOrWhiteSpace(solicitud.CodigoRecogida))
+        && (!tareaFirma.Recoger2 || !string.IsNullOrWhiteSpace(solicitud.CodigoAmbosRecogida));
+
+    private async Task GuardarFirmaAsync(FirmaSolicitudEditor.DatosFirma datos)
+    {
+        if (!PuedeFirmar) throw new InvalidOperationException("Complete los contenedores requeridos antes de firmar.");
+        using var response = await Http.PostAsJsonAsync($"api/solicitudes/{Id}/firma", new { datos.Nombre, datos.Dni, ImagenBase64 = datos.Imagen });
+        if (!response.IsSuccessStatusCode)
+        {
+            var detalle = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"No se ha podido guardar la firma: {detalle}");
+        }
+        solicitud!.FirmaNombre = datos.Nombre;
+        solicitud.FirmaDni = datos.Dni;
+        imagenFirma = datos.Imagen;
+        errorFirma = null;
+    }
     protected override async Task OnInitializedAsync()
     {
         try
@@ -160,6 +187,12 @@
             }
 
             var tareas = await Http.GetFromJsonAsync<List<Tarea>>("api/tareas") ?? [];
+            tareaFirma = tareas.FirstOrDefault(x => x.IdTarea == solicitud.IdTipoTarea);
+            if (!string.IsNullOrWhiteSpace(solicitud.FirmaPath))
+            {
+                try { imagenFirma = "data:image/png;base64," + Convert.ToBase64String(await Http.GetByteArrayAsync($"api/solicitudes/{Id}/firma")); }
+                catch { errorFirma = "No se ha podido cargar la firma guardada."; }
+            }
             var estados = await Http.GetFromJsonAsync<List<EstadoSolicitud>>("api/estadosSolicitud") ?? [];
             var motivos = await Http.GetFromJsonAsync<List<Motivo>>("api/motivos") ?? [];
             plantas = await Http.GetFromJsonAsync<List<Planta>>("api/plantas") ?? [];
